@@ -1,0 +1,14 @@
+# Pumpkin Eventos - Configuración General
+
+tab:
+  player-format: "<prefix> <player> <suffix>"
+  header: |
+    <newline>
+    <b><color:#FFCD00>LYRIC </color></b> <color:#AAAAAA>|</color> <color:#FFFFFF>Eventos</color>
+    <newline>
+
+  footer: |
+    <newline>
+       <#00FF00>🔔 <#FFFFFF>Jugadores: <#FFFF00>%players%   
+       <#FFAA00>mc.liric.xyz   
+    <newline>

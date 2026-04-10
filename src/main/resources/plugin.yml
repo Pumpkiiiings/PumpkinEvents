@@ -1,0 +1,46 @@
+name: PumpkinEventos
+version: '2.5'
+main: pumpkin.eventos.PumpkinEventos
+api-version: '1.21'
+author: Pumpkingz
+description: Core avanzado de eventos para Pumpkin Network. Soporta TNT Games, Simon Dice y El Suelo es Lava.
+
+# Dependencias necesarias para que el plugin arranque
+depend:
+  - LuckPerms
+softdepend:
+  - PlaceholderAPI
+  - AdvancedSlimePaper
+
+commands:
+  evento:
+    description: Comando principal de administración del core de eventos.
+    permission: pumpkin.admin
+    aliases: [eventos, ev]
+  votar:
+    description: Comando para que los jugadores voten por el siguiente minijuego.
+    usage: /votar <juego>
+  gamemode:
+    description: Cambia el modo de juego.
+    permission: pumpkin.command.gamemode
+    aliases: [gm]
+  gmc:
+    description: Creative mode.
+    permission: pumpkin.command.gamemode
+  gms:
+    description: Survival mode.
+    permission: pumpkin.command.gamemode
+  gma:
+    description: Adventure mode.
+    permission: pumpkin.command.gamemode
+  gmsp:
+    description: Spectator mode.
+    permission: pumpkin.command.gamemode
+
+permissions:
+  pumpkin.admin:
+    description: Acceso total.
+    default: op
+  pumpkin.command.gamemode:
+    description: Permite usar comandos de modo de juego.
+    default: op

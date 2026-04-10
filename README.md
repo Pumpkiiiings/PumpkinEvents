@@ -1,7 +1,7 @@
 
 ***
 
-# 🎃 Pumpkin Eventos - Core V2
+# 🎃 Pumpkin Events - Core de Eventos
 
 ![Version](https://img.shields.io/badge/Versión-2.0-orange.svg)
 ![PaperMC](https://img.shields.io/badge/PaperMC-1.21.x-black.svg)

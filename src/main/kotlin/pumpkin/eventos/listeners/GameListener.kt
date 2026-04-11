@@ -6,6 +6,7 @@ import org.bukkit.Sound
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
+import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
@@ -13,6 +14,7 @@ import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.entity.EntityDamageEvent
+import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.event.player.PlayerDropItemEvent
 import org.bukkit.event.player.PlayerInteractEvent
@@ -20,7 +22,7 @@ import org.bukkit.event.player.PlayerMoveEvent
 import org.bukkit.event.player.PlayerToggleSneakEvent
 import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
-import org.bukkit.entity.TNTPrimed
+import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.luzroja.LuzEstado
@@ -120,6 +122,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         if (e.isSneaking && game.activeChallenge == "AGACHARSE") game.markSaved(p)
     }
 
+    // --- NUEVO SISTEMA DE FLECHAS PARA TNT SPLEEF ---
     @EventHandler
     fun onProjectileHit(e: ProjectileHitEvent) {
         val proj = e.entity
@@ -132,37 +135,69 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 proj.remove()
 
                 plugin.server.regionScheduler.run(plugin, block.location) { _ ->
-
                     val world = block.world
                     val centerLoc = block.location
 
-                    block.type = Material.AIR
-                    val mainTnt = world.spawn(centerLoc.add(0.5, 0.0, 0.5), TNTPrimed::class.java)
-                    mainTnt.fuseTicks = (10..20).random()
+                    // Queremos que caigan entre 2 y 5 TNTs en total (la principal + vecinas)
+                    val totalTntsToFall = (2..5).random()
+                    var convertedTnts = 0
 
-                    val extraTnts = (2..5).random()
-                    var encendidas = 0
+                    // Función interna para crear la animación de TNT falsa que cae
+                    fun convertToFallingTnt(targetBlock: org.bukkit.block.Block) {
+                        if (targetBlock.type == Material.TNT) {
+                            targetBlock.type = Material.AIR // Borramos el bloque
 
-                    for (x in -2..2) {
-                        for (z in -2..2) {
-                            if (x == 0 && z == 0) continue
+                            // Spawneamos la entidad de TNT encendida
+                            val tnt = world.spawn(targetBlock.location.add(0.5, 0.0, 0.5), TNTPrimed::class.java)
 
-                            if (encendidas < extraTnts && Math.random() < 0.40) {
-                                val nearBlock = world.getBlockAt(centerLoc.blockX + x, centerLoc.blockY, centerLoc.blockZ + z)
+                            // 100 ticks = 5 segundos (Tiempo suficiente para que caiga al vacío y muera sola)
+                            tnt.fuseTicks = 100
 
-                                if (nearBlock.type == Material.TNT) {
-                                    nearBlock.type = Material.AIR
-                                    val newTnt = world.spawn(nearBlock.location.add(0.5, 0.0, 0.5), TNTPrimed::class.java)
+                            // Evitamos que "salte" como la TNT normal, forzamos a que caiga recta
+                            tnt.velocity = Vector(0.0, -0.1, 0.0)
 
-                                    newTnt.fuseTicks = (15..35).random()
-                                    world.playSound(nearBlock.location, Sound.ENTITY_TNT_PRIMED, 1f, 1f)
-                                    encendidas++
-                                }
+                            convertedTnts++
+                        }
+                    }
+
+                    // 1. Convertimos la TNT a la que le dio la flecha directamente
+                    convertToFallingTnt(block)
+
+                    // 2. Buscamos TNTs alrededor (solo en el mismo piso X/Z)
+                    val neighbors = mutableListOf<org.bukkit.block.Block>()
+                    for (x in -1..1) {
+                        for (z in -1..1) {
+                            if (x == 0 && z == 0) continue // Ignorar el centro que ya procesamos
+                            val nearBlock = world.getBlockAt(centerLoc.blockX + x, centerLoc.blockY, centerLoc.blockZ + z)
+                            if (nearBlock.type == Material.TNT) {
+                                neighbors.add(nearBlock)
                             }
                         }
                     }
+
+                    // 3. Desordenamos los vecinos para que sea un patrón aleatorio y los dejamos caer
+                    neighbors.shuffle()
+                    for (nearBlock in neighbors) {
+                        if (convertedTnts >= totalTntsToFall) break // Paramos si ya llegamos al límite
+                        convertToFallingTnt(nearBlock)
+                    }
+
+                    // Un solo sonido de encendido para no aturdir
+                    world.playSound(centerLoc, Sound.ENTITY_TNT_PRIMED, 1f, 1f)
                 }
             }
+        }
+    }
+
+    // --- BLOQUEADOR DE EXPLOSIONES (ANTI-CRASH / ANTI-LAG) ---
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onExplosion(e: EntityExplodeEvent) {
+        val game = plugin.eventManager.currentGame
+
+        // Si estamos en TNT Spleef, CANCELAMOS la explosión. Las TNT solo deben ser visuales.
+        if (game is TntSpleef) {
+            e.blockList().clear() // Evita que se rompan bloques
+            e.isCancelled = true  // Cancela daño y físicas
         }
     }
 
@@ -217,6 +252,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         if (game is TntSpleef) {
             if (e.cause == EntityDamageEvent.DamageCause.BLOCK_EXPLOSION || e.cause == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION) {
                 e.damage = 0.001
+                e.isCancelled = true // Aseguramos cancelar el daño por si acaso
                 return
             }
         }

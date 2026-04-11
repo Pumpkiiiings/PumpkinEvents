@@ -41,7 +41,6 @@ class BlockParty(private val plugin: PumpkinEventos) : EventGame("blockparty", "
     override fun onStart() {
         roundTime = 6
         countdown = 6
-        isDancePhase = false
         colorNameFormatted = "<gray>Generando...</gray>"
 
         val arena = currentArena ?: return
@@ -55,12 +54,21 @@ class BlockParty(private val plugin: PumpkinEventos) : EventGame("blockparty", "
 
         siguienteRonda()
 
+        // Loop para chequear quién se cae
         plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
+            // Eliminamos al que caiga por debajo de la plataforma
             val toEliminate = players.filter { it.location.y <= floorY - 2.0 }
             toEliminate.forEach { eliminate(it) }
-        }, 10L, 10L)
+
+            // --- FIX: CHEQUEAR GANADOR AQUÍ MISMO ---
+            if (players.size <= 1) {
+                checkWinner() // Detiene la partida de inmediato si queda 1 o 0
+                task.cancel()
+            }
+
+        }, 10L, 5L) // Checamos muy rápido (cada 5 ticks)
     }
 
     private fun siguienteRonda() {

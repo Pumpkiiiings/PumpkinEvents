@@ -7,11 +7,17 @@ import org.bukkit.Material
 import org.bukkit.Sound
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
+import org.bukkit.event.HandlerList
+import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import kotlin.math.abs
 
-class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sumo 1v1</#FF9900>") {
+// Implementamos Listener para el KB personalizado
+class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sumo 1v1</#FF9900>"), Listener {
 
     var luchador1: Player? = null
     var luchador2: Player? = null
@@ -27,28 +33,24 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
     }
 
     override fun onStart() {
+        // Registramos los eventos para el knockback extra
+        plugin.server.pluginManager.registerEvents(this, plugin)
+
         val arena = currentArena ?: return
         val mm = plugin.messageManager
 
-        // --- DEFINIR PUNTOS Y ARREGLAR MUNDOS ---
-        // Como el EventManager ya clonó y teletransportó al primer jugador,
-        // su mundo actual es el SlimeWorld cargado en RAM.
         val targetWorld = arena.centerLocation?.world ?: players.firstOrNull()?.world ?: return
 
-        // Extraemos y clonamos las ubicaciones para no dañar la plantilla
         val gradaLoc = arena.gradas?.clone() ?: arena.centerLocation?.clone()?.add(0.0, 10.0, 0.0) ?: return
         val dueloA = arena.dueloA?.clone() ?: arena.spawnPoints.getOrNull(0)?.clone() ?: return
         val dueloB = arena.dueloB?.clone() ?: arena.spawnPoints.getOrNull(1)?.clone() ?: return
 
-        // ¡MAGIA!: Inyectamos el mundo clonado a todas las ubicaciones
         gradaLoc.world = targetWorld
         dueloA.world = targetWorld
         dueloB.world = targetWorld
 
-        // Calculamos que si caen 2 bloques por debajo de la plataforma de duelo, pierden
         alturaCaida = dueloA.y - 2.0
 
-        // --- PREPARAR A TODOS ---
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
             players.forEach { p ->
                 p.gameMode = GameMode.ADVENTURE
@@ -58,10 +60,8 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
                 p.sendMessage(mm.parse("<#00FFFF>🍿 <b>GRADAS:</b> <white>El torneo de Sumo va a comenzar..."))
             }
 
-            // Iniciar el loop de chequeo de caídas
             iniciarDetectorCaidas()
 
-            // Iniciar la primera ronda después de 3 segundos
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 siguienteRonda()
             }, 60L)
@@ -71,41 +71,45 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
     private fun siguienteRonda() {
         if (!isRunning) return
 
-        // --- REVISAR SI HAY GANADOR ---
         if (players.size <= 1) {
             checkWinner()
             return
         }
 
-        // --- ELEGIR LUCHADORES ---
-        val vivos = players.shuffled()
-        luchador1 = vivos[0]
-        luchador2 = vivos[1]
+        // --- NUEVO SISTEMA DE EMPAREJAMIENTO POR PING ---
+        val vivos = players.toMutableList()
 
-        val l1 = luchador1 ?: return
-        val l2 = luchador2 ?: return
+        // 1. Elegimos un jugador al azar para iniciar el emparejamiento
+        val l1 = vivos.random()
+        vivos.remove(l1) // Lo quitamos de la lista para no emparejarlo consigo mismo
+
+        // 2. Buscamos al jugador con el ping más parecido (la menor diferencia de ms)
+        val l2 = vivos.minByOrNull { p -> abs(p.ping - l1.ping) }
+
+        luchador1 = l1
+        luchador2 = l2
 
         val arena = currentArena ?: return
         val targetWorld = l1.world
 
-        // Volvemos a clonar e inyectar el mundo a los puntos de duelo
         val spawnA = arena.dueloA?.clone() ?: arena.spawnPoints.getOrNull(0)?.clone() ?: return
         val spawnB = arena.dueloB?.clone() ?: arena.spawnPoints.getOrNull(1)?.clone() ?: return
         spawnA.world = targetWorld
         spawnB.world = targetWorld
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            // Teletransportar
             l1.teleportAsync(spawnA)
-            l2.teleportAsync(spawnB)
+            l2?.teleportAsync(spawnB)
 
-            // Dar Equipamiento
             darPalo(l1)
-            darPalo(l2)
+            l2?.let { darPalo(it) }
 
-            // Anunciar
             val mm = plugin.messageManager
-            val title = Title.title(mm.parse("<#FF3131>⚔️ <b>¡A LUCHAR!</b> ⚔️"), mm.parse("<white>${l1.name} <red>vs <white>${l2.name}"))
+            // Opcional: Puedes mostrar el ping en el title para que los jugadores vean que fue justo
+            val title = Title.title(
+                mm.parse("<#FF3131>⚔️ <b>¡A LUCHAR!</b> ⚔️"),
+                mm.parse("<white>${l1.name} <gray>(${l1.ping}ms)</gray> <red>vs <white>${l2?.name} <gray>(${l2?.ping}ms)</gray>")
+            )
 
             players.forEach { it.showTitle(title) }
             spectators.forEach { it.showTitle(title) }
@@ -121,11 +125,36 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
         val stick = ItemStack(Material.STICK)
         val meta = stick.itemMeta
         meta.displayName(plugin.messageManager.parse("<#FF9900><b>Palo de Sumo</b></#FF9900>"))
-        meta.addEnchant(Enchantment.KNOCKBACK, 1, true)
+        meta.addEnchant(Enchantment.KNOCKBACK, 1, true) // Mantenemos el Knockback 1 base
         stick.itemMeta = meta
         p.inventory.addItem(stick)
 
         p.health = 20.0
+    }
+
+    // --- NUEVO: SISTEMA DE KNOCKBACK EXTRA (LIGERO Y CONTROLADO) ---
+    @EventHandler
+    fun onPlayerHit(event: EntityDamageByEntityEvent) {
+        if (!rondaActiva) return
+
+        val victim = event.entity as? Player ?: return
+        val attacker = event.damager as? Player ?: return
+
+        // Verificamos que ambos sean los luchadores actuales
+        if ((victim == luchador1 && attacker == luchador2) || (victim == luchador2 && attacker == luchador1)) {
+
+            // Calculamos la dirección del golpe
+            val knockbackDirection = attacker.location.direction.setY(0.0).normalize()
+
+            // Un multiplicador de 0.4 es un empujón suave extra. (Knockback 2 sería equivalente a sumar como 1.0)
+            // Le damos un pequeño impulso hacia arriba (0.15) para que el empuje horizontal funcione mejor
+            val extraKnockback = knockbackDirection.multiply(0.4).setY(0.15)
+
+            // Aplicamos la velocidad 1 tick después para asegurarnos de que no se sobreescriba por el KB de Minecraft Vanilla
+            plugin.server.regionScheduler.runDelayed(plugin, victim.location, { _ ->
+                victim.velocity = victim.velocity.add(extraKnockback)
+            }, 1L)
+        }
     }
 
     private fun iniciarDetectorCaidas() {
@@ -136,7 +165,6 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
             val l1 = luchador1
             val l2 = luchador2
 
-            // Verificar si alguno cayó por debajo del límite de la plataforma o al agua/vacío
             var perdedor: Player? = null
             var ganador: Player? = null
 
@@ -153,20 +181,18 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
                 procesarVictoriaRonda(ganador, perdedor)
             }
 
-        }, 5L, 5L) // Chequea cada 5 ticks (1/4 de segundo)
+        }, 5L, 5L)
     }
 
     private fun procesarVictoriaRonda(ganador: Player, perdedor: Player) {
         val mm = plugin.messageManager
         val lang = plugin.languageManager
 
-        // Anunciar victoria de la ronda
         val rawMsg = lang.get("sumo.round_winner")
         plugin.server.broadcast(mm.parse(rawMsg, Placeholder.parsed("winner", ganador.name), Placeholder.parsed("loser", perdedor.name)))
 
         ganador.playSound(ganador.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
 
-        // Limpiar ganador y mandarlo a gradas temporalmente
         ganador.inventory.clear()
 
         val arena = currentArena
@@ -175,10 +201,8 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
 
         if (gradaLoc != null) ganador.teleportAsync(gradaLoc)
 
-        // Eliminar al perdedor (El método de EventGame lo manda a spectators y le pone GameMode Spectator)
         eliminate(perdedor)
 
-        // Siguiente ronda en 3 segundos
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             siguienteRonda()
         }, 60L)
@@ -197,6 +221,9 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
         rondaActiva = false
         plugin.eventManager.currentGame = null
 
+        // Dejamos de escuchar los golpes
+        HandlerList.unregisterAll(this)
+
         var lobby = plugin.arenaManager.mainLobby
         if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
 
@@ -210,7 +237,6 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
         }
     }
 
-    // Funciones públicas para que el GameListener sepa quién puede pegar
     fun isLuchador(p: Player): Boolean {
         return p == luchador1 || p == luchador2
     }

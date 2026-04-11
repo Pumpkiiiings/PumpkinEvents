@@ -17,11 +17,10 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
     var isPreparation = true
     private var currentLavaY = 1
     private var timer = 15
-    var gameTimer = 300 // Tiempo máximo: 5 minutos
+    var gameTimer = 300
 
-    // Reducimos un poco el radio (35 = 70x70) para no sobrecargar si no es necesario,
-    // y sube 2 bloques cada 3 segundos.
-    private val radius = 35
+    // RADIO EXPANDIDO: 75 de radio = Área de 150x150 bloques
+    private val radius = 75
     private val lavaSpeedSeconds = 3L
 
     override fun getExtraPlaceholders(): Map<String, String> {
@@ -43,9 +42,7 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
         val center = arena.centerLocation ?: arena.spawnPoints.firstOrNull() ?: return
         val targetWorld = center.world ?: players.firstOrNull()?.world ?: return
 
-        // 1. Calcular de dónde empieza a subir la lava de forma más precisa.
         plugin.server.regionScheduler.run(plugin, center) { _ ->
-            // Escaneamos solo algunos puntos cardinales para encontrar una altura razonable
             val heights = listOf(
                 targetWorld.getHighestBlockYAt(center.blockX, center.blockZ),
                 targetWorld.getHighestBlockYAt(center.blockX + 15, center.blockZ),
@@ -54,10 +51,7 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
                 targetWorld.getHighestBlockYAt(center.blockX, center.blockZ - 15)
             ).filter { it > targetWorld.minHeight }
 
-            // Sacamos el promedio o el mínimo de las plataformas
             val avgY = if (heights.isNotEmpty()) heights.minOrNull()!! else center.blockY
-
-            // Empieza 2 bloques debajo de la parte más baja encontrada
             currentLavaY = avgY - 2
         }
 
@@ -94,7 +88,6 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
                 return@runAtFixedRate
             }
 
-            // REDUCIR TIEMPO GLOBAL DEL JUEGO
             gameTimer--
             if (gameTimer <= 0) {
                 plugin.server.broadcast(mm.parse("<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"))
@@ -129,9 +122,8 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
                 it.playSound(it.location, Sound.BLOCK_LAVA_EXTINGUISH, 0.5f, 1.5f)
             }
 
-            // Llamamos a la función segura para poner lava en las 2 capas
-            fillLavaSafe(world, centerX, centerZ, currentLavaY)
-            fillLavaSafe(world, centerX, centerZ, currentLavaY + 1)
+            // OPTIMIZACIÓN: Enviamos las 2 capas en un solo llamado (currentLavaY y currentLavaY + 1)
+            fillLavaSafe(world, centerX, centerZ, currentLavaY, currentLavaY + 1)
 
             currentLavaY += 2
 
@@ -139,25 +131,48 @@ class SueloLava(private val plugin: PumpkinEventos) : EventGame("suelolava", "<#
     }
 
     /**
-     * Pone lava en un radio circular/cuadrado delegándolo en el Scheduler correcto.
+     * Algoritmo ÓPTIMO para llenar áreas gigantes en Folia/Paper.
+     * Divide el área en Chunks y delega el trabajo al procesador (hilo) de cada Chunk.
      */
-    private fun fillLavaSafe(world: World, cx: Int, cz: Int, y: Int) {
-        // En lugar de dividir por chunks nosotros, hacemos una ejecución sólida
-        // en el chunk central que afectará a los vecinos.
-        plugin.server.regionScheduler.run(plugin, world, cx shr 4, cz shr 4) { _ ->
-            if (!isRunning) return@run
+    private fun fillLavaSafe(world: World, cx: Int, cz: Int, startY: Int, endY: Int) {
+        val minX = cx - radius
+        val maxX = cx + radius
+        val minZ = cz - radius
+        val maxZ = cz + radius
 
-            val minX = cx - radius
-            val maxX = cx + radius
-            val minZ = cz - radius
-            val maxZ = cz + radius
+        // Calculamos qué Chunks abarcan nuestro radio (dividiendo por 16)
+        val minChunkX = minX shr 4
+        val maxChunkX = maxX shr 4
+        val minChunkZ = minZ shr 4
+        val maxChunkZ = maxZ shr 4
 
-            for (x in minX..maxX) {
-                for (z in minZ..maxZ) {
-                    val block = world.getBlockAt(x, y, z)
+        // Iteramos sobre los Chunks en lugar de bloque por bloque a nivel general
+        for (chunkX in minChunkX..maxChunkX) {
+            for (chunkZ in minChunkZ..maxChunkZ) {
 
-                    if (block.type.isAir || block.type == Material.WATER || block.type == Material.SHORT_GRASS || block.type == Material.TALL_GRASS) {
-                        block.setType(Material.LAVA, false) // False evita actualización de físicas = 0 lag
+                // Ejecutamos en el Schedule SEGURO de este Chunk específico
+                plugin.server.regionScheduler.run(plugin, world, chunkX, chunkZ) { _ ->
+                    if (!isRunning) return@run
+
+                    // Limites locales para no salirnos de este Chunk ni del radio máximo
+                    val startX = maxOf(minX, chunkX shl 4)
+                    val endX = minOf(maxX, (chunkX shl 4) + 15)
+                    val startBlockZ = maxOf(minZ, chunkZ shl 4)
+                    val endBlockZ = minOf(maxZ, (chunkZ shl 4) + 15)
+
+                    // Cambiamos los bloques locales
+                    for (x in startX..endX) {
+                        for (z in startBlockZ..endBlockZ) {
+                            for (y in startY..endY) { // Rellenamos las 2 capas (Y) de un golpe
+                                val block = world.getBlockAt(x, y, z)
+                                val type = block.type
+
+                                // Si es aire o vegetación, lo reemplazamos
+                                if (type.isAir || type == Material.WATER || type == Material.SHORT_GRASS || type == Material.TALL_GRASS) {
+                                    block.setType(Material.LAVA, false) // false = sin actualización de físicas (0 lag)
+                                }
+                            }
+                        }
                     }
                 }
             }

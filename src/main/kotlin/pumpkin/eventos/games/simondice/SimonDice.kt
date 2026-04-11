@@ -37,6 +37,8 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
     private var autoTask: ScheduledTask? = null
     private var challengeTask: ScheduledTask? = null
 
+    // Aquí guardamos el último reto para no repetirlo
+    private var ultimoReto = ""
     private var phaseWaitTimer = 10
     private var isWaitingPhase = true
 
@@ -44,7 +46,7 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
     private var displayTime = 10
     private var displayOrden = "Preparando..."
 
-    private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR")
+    private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR")
 
     override fun getExtraPlaceholders(): Map<String, String> {
         return mapOf(
@@ -56,6 +58,7 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
     override fun onStart() {
         savedPlayers.clear()
         activeChallenge = "NINGUNO"
+        ultimoReto = "" // Reiniciamos el último reto al empezar
 
         // Seguridad: Si es manual y no hay streamer, asignamos al primero disponible
         if (mode == SimonMode.MANUAL && streamer == null) {
@@ -136,7 +139,13 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
 
                 if (phaseWaitTimer <= 0) {
                     isWaitingPhase = false
-                    val elegido = retosDisponibles.random()
+
+                    // --- ALGORITMO ANTI-REPETICIÓN ---
+                    var elegido = retosDisponibles.random()
+                    while (elegido == ultimoReto) {
+                        elegido = retosDisponibles.random()
+                    }
+                    ultimoReto = elegido // Guardamos para la siguiente ronda
 
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         when (elegido) {
@@ -144,6 +153,7 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
                             "AGACHARSE" -> startChallenge("AGACHARSE", "▼ <yellow>¡AGÁCHENSE!</yellow>", 10)
                             "CAMINAR" -> startChallenge("CAMINAR", "⇄ <aqua>¡CAMINEN!</aqua>", 10)
                             "QUIETO" -> startChallenge("QUIETO", "⏹ <red>¡QUIETOS!</red>", 10)
+                            "GOLPEAR" -> startChallenge("GOLPEAR", "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10) // <-- RETO NUEVO
                             "MATES" -> {
                                 val num1 = (1..20).random(); val num2 = (1..20).random()
                                 targetPhrase = "$num1+$num2"; targetMathResult = (num1 + num2).toDouble()
@@ -304,24 +314,20 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
         autoTask?.cancel()
         challengeTask?.cancel()
 
-        // --- FIX BOSSBAR FANTASMA ---
         if (bossBar != null) {
-            players.forEach { p -> p.hideBossBar(bossBar!!) }     // <-- AQUÍ ERA p en vez de it
-            spectators.forEach { p -> p.hideBossBar(bossBar!!) }  // <-- AQUÍ ERA p en vez de it
+            players.forEach { p -> p.hideBossBar(bossBar!!) }
+            spectators.forEach { p -> p.hideBossBar(bossBar!!) }
             bossBar = null
         }
 
-        // --- FIX DEL ESCALA DE JUGADORES ---
         val allPlayers = players + spectators
         allPlayers.forEach { p ->
-            p.getAttribute(Attribute.SCALE)?.baseValue = 1.0 // Asegúrate de usar GENERIC_SCALE en Paper 1.21
+            p.getAttribute(Attribute.SCALE)?.baseValue = 1.0
         }
 
-        // --- DEVOLVER AL LOBBY ---
         plugin.eventManager.currentGame = null
         var lobby = plugin.arenaManager.mainLobby
 
-        // Doble seguridad para evitar el error de "Target world cannot be null"
         if (lobby == null || lobby.world == null) {
             lobby = plugin.server.worlds[0].spawnLocation
         }

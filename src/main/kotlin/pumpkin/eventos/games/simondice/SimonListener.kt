@@ -3,15 +3,38 @@ package pumpkin.eventos.games.simondice
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
+import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import pumpkin.eventos.PumpkinEventos
 
 class SimonListener(private val plugin: PumpkinEventos) : Listener {
 
-    // --- NUEVO: DETECTAR CLIC EN LA ESTRELLA DEL STREAMER ---
+    // --- NUEVO: DETECTAR GOLPES PARA EL RETO "GOLPEAR" ---
+    @EventHandler
+    fun onHit(e: EntityDamageByEntityEvent) {
+        // Obtenemos al atacante
+        val p = e.damager as? Player ?: return
+        val game = plugin.eventManager.currentGame as? SimonDice ?: return
+
+        // Validaciones: El juego corre, el jugador sigue vivo participando y NO se ha salvado aún.
+        if (!game.isRunning || !game.players.contains(p) || game.savedPlayers.contains(p.uniqueId)) return
+
+        // Si el reto activo es golpear, lo salvamos
+        if (game.activeChallenge == "GOLPEAR") {
+            e.isCancelled = true // Evitamos que maten a alguien accidentalmente
+
+            // Folia/Paper: Aseguramos que los cambios se hagan sincronizados globalmente
+            plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                game.markSaved(p)
+            }
+        }
+    }
+
+    // --- DETECTAR CLIC EN LA ESTRELLA DEL STREAMER ---
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         val p = e.player
@@ -28,13 +51,14 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    // --- DETECTAR CHAT Y RESPUESTAS ---
     @EventHandler
     fun onChat(e: AsyncChatEvent) {
         val p = e.player
         val game = plugin.eventManager.currentGame as? SimonDice ?: return
         val mensaje = PlainTextComponentSerializer.plainText().serialize(e.message())
 
-        // --- 1. INTERCEPTAR INPUT DEL MENÚ DEL STREAMER ---
+        // 1. INTERCEPTAR INPUT DEL MENÚ DEL STREAMER
         if (SimonMenu.esperandoInput.containsKey(p.uniqueId)) {
             e.isCancelled = true
             val tipo = SimonMenu.esperandoInput.remove(p.uniqueId) ?: return
@@ -49,6 +73,7 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
                         game.startChallenge("FRASE", "✎ DIGAN: <white>$mensaje", 15)
                     }
                     "MATES" -> {
+                        // Nota: Asumo que tienes MotorMatematico importado / en tu código
                         val resultado = MotorMatematico.evaluar(mensaje)
                         if (resultado == -999999.0) {
                             p.sendMessage(plugin.messageManager.parse("<red>❌ <b>ERROR:</b> ¡Cuenta inválida!</red>"))
@@ -64,7 +89,7 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
             return
         }
 
-        // --- 2. JUGADORES CUMPLIENDO EL RETO ---
+        // 2. JUGADORES CUMPLIENDO EL RETO
         if (!game.isRunning || !game.players.contains(p) || game.savedPlayers.contains(p.uniqueId)) return
 
         when (game.activeChallenge) {

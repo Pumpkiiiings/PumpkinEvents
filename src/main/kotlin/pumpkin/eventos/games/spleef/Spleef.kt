@@ -7,13 +7,18 @@ import org.bukkit.Sound
 import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
+import org.bukkit.event.EventHandler
+import org.bukkit.event.HandlerList
+import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.BoosterManager
 import pumpkin.eventos.games.BoosterType
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.TimeUnit
 
-class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF>Spleef Clásico</#E0FFFF>") {
+// Añadimos la interfaz Listener aquí
+class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF>Spleef Clásico</#E0FFFF>"), Listener {
 
     var isPreparation = true
     private var timer = 10
@@ -22,6 +27,9 @@ class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF
     override fun onStart() {
         isPreparation = true
         timer = 10
+
+        // Registramos esta clase como Listener de eventos
+        plugin.server.pluginManager.registerEvents(this, plugin)
 
         // Tipado explícito para evitar errores del IDE
         players.forEach { p: Player ->
@@ -78,6 +86,32 @@ class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF
         p.playSound(p.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1f)
     }
 
+    // --- NUEVO: EVENTO PARA DAR BLOQUES AL INVENTARIO ---
+    @EventHandler
+    fun onBlockBreak(event: BlockBreakEvent) {
+        val player = event.player
+
+        // Si el jugador no está en esta partida, ignoramos
+        if (!players.contains(player)) return
+
+        // Evitar que rompan bloques antes de que empiece
+        if (isPreparation) {
+            event.isCancelled = true
+            return
+        }
+
+        // FORMA ÓPTIMA: Evitamos que el item caiga al suelo (0 lag de entidades)
+        event.isDropItems = false
+
+        // Obtenemos qué daría el bloque normalmente (ej: bolas de nieve)
+        val drops = event.block.getDrops(player.inventory.itemInMainHand)
+
+        // Los metemos directamente en el inventario del jugador
+        for (drop in drops) {
+            player.inventory.addItem(drop)
+        }
+    }
+
     override fun checkWinner() {
         val winner = players.firstOrNull() ?: return
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#E0FFFF><b>SPLEEF CLÁSICO</b></#E0FFFF> <white>» <purple>${winner.name}</purple> ha ganado el evento!<newline>"))
@@ -87,6 +121,10 @@ class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF
 
     override fun onStop() {
         boosterManager.stop()
+
+        // Dejamos de escuchar eventos para no causar memory leaks
+        HandlerList.unregisterAll(this)
+
         plugin.eventManager.currentGame = null
 
         var lobby = plugin.arenaManager.mainLobby

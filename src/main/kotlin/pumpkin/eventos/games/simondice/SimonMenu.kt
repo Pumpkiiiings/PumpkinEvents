@@ -30,7 +30,7 @@ object SimonMenu {
             .disableAllInteractions()
             .create()
 
-        // --- FILA 2: MOVIMIENTO ---
+        // --- FILA 2: MOVIMIENTO Y ACCIÓN ---
         gui.setItem(11, crearBoton(plugin, Material.LIME_WOOL, "<#39FF14><b>▲ SALTAR</b>", "<gray>Orden: Todos deben saltar.") {
             manejarSeleccion(plugin, streamer, "SALTAR") { game.startChallenge("SALTAR", "▲ <#39FF14>¡SALTEN!</#39FF14>", 10); gui.close(streamer) }
         })
@@ -42,6 +42,11 @@ object SimonMenu {
         })
         gui.setItem(14, crearBoton(plugin, Material.RED_WOOL, "<#FF3131><b>⏹ QUIETOS</b>", "<gray>Orden: El que se mueva muere.") {
             manejarSeleccion(plugin, streamer, "QUIETO") { game.startChallenge("QUIETO", "⏹ <#FF3131>¡QUIETOS!</#FF3131>", 10); gui.close(streamer) }
+        })
+
+        // --- NUEVO BOTÓN: GOLPEAR ---
+        gui.setItem(15, crearBoton(plugin, Material.WOODEN_SWORD, "<#FFA500><b>⚔ GOLPEAR</b>", "<gray>Orden: Golpea a alguien o algo.") {
+            manejarSeleccion(plugin, streamer, "GOLPEAR") { game.startChallenge("GOLPEAR", "⚔ <#FFA500>¡GOLPEEN A ALGUIEN!</#FFA500>", 10); gui.close(streamer) }
         })
 
         // --- FILA 3: CHAT Y LÓGICA ---

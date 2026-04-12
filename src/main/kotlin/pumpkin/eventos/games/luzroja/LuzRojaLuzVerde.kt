@@ -199,6 +199,19 @@ class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<b
     override fun checkWinner() {
         val winnersStr = if (ganadores.isEmpty()) "Nadie" else "${ganadores.size} jugadores"
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>LUZ ROJA, LUZ VERDE</b></#FF3131> <white>» ¡$winnersStr lograron cruzar la meta!<newline>"))
+
+        // --- SISTEMA DE PUNTOS MULTI-GANADOR ---
+        ganadores.forEach { uuid ->
+            val winner = plugin.server.getPlayer(uuid)
+            if (winner != null) {
+                // AHORA SE DAN 2 PUNTOS EN VEZ DE 10
+                plugin.puntajeManager.addPoints(winner, 2, "¡Victoria conseguida!")
+                winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
+                winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+            }
+        }
+        // ---------------------------------------
+
         stop()
     }
 

@@ -307,6 +307,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <color:#67FF00>${winner.name}</color> es el ganador definitivo!<newline>"))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

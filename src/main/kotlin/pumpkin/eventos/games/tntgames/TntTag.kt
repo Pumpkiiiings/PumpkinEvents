@@ -118,7 +118,7 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
 
         val rawWin = plugin.languageManager.get("tnttag.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

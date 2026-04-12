@@ -37,7 +37,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     private val penalizaciones = mutableMapOf<Player, Double>()
 
     private var arrowDisplay: ItemDisplay? = null
-    private var ultimaVictima: Player? = null
+    var ultimaVictima: Player? = null
     private var esperandoDecision = false
 
     override fun onStart() {
@@ -105,7 +105,9 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         val lang = plugin.languageManager
         val mm = plugin.messageManager
 
+        // ¡LIMPIEZA GENERAL 1! Garantizamos que nadie tenga el arma de la ronda anterior
         players.forEach { p ->
+            p.inventory.clear()
             p.sendActionBar(mm.parse(lang.get("ruletarusa.actionbar.spin")))
         }
 
@@ -205,6 +207,9 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         }
 
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            // ¡LIMPIEZA GENERAL 2! Aseguramos una vez más que solo 1 persona tenga el arma
+            players.forEach { it.inventory.clear() }
+
             val gun = ItemStack(Material.IRON_HORSE_ARMOR)
             val meta = gun.itemMeta
             meta.displayName(mm.parse("<#FF3131><b>Revólver del Destino</b></#FF3131>"))
@@ -234,6 +239,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
             if (latidos >= 10) {
                 task.cancel()
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                    // Si el tiempo se acaba, forzamos que sea el jugador correcto el que dispare
                     procesarEleccion(victima, true)
                 }
                 return@runAtFixedRate
@@ -249,17 +255,30 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         }, 0, 1, TimeUnit.SECONDS)
     }
 
-    fun procesarEleccion(victima: Player, decidioDisparar: Boolean) {
-        if (!esperandoDecision) return
-        esperandoDecision = false
-        victima.inventory.clear()
-        victima.resetTitle()
+    // Cambié el nombre del parámetro a "jugador" para poder validar si es la víctima correcta
+    fun procesarEleccion(jugador: Player, decidioDisparar: Boolean) {
+        // 1. Limpiamos inventario si se llama fuera de tiempo
+        if (!esperandoDecision) {
+            jugador.inventory.clear()
+            return
+        }
 
-        val currentSlimeWorld = victima.world
+        // 2. SEGURIDAD: Si un espectador de alguna forma usa un revólver fantasma, no dejamos que robe el turno
+        if (jugador != ultimaVictima) {
+            jugador.inventory.clear() // Le quitamos el revólver al impostor
+            return // Ignoramos su acción
+        }
+
+        // Si pasamos los bloqueos, significa que es la víctima oficial a tiempo
+        esperandoDecision = false
+        jugador.inventory.clear() // Le quitamos el revólver de inmediato al jugador actual
+        jugador.resetTitle()
+
+        val currentSlimeWorld = jugador.world
 
         // Devolver a los ESPECTADORES (Los que miraban) a sus sillas originales
         players.forEach { p ->
-            if (p != victima) {
+            if (p != jugador) {
                 camarasTemporales.remove(p)?.remove()
                 p.removePotionEffect(PotionEffectType.INVISIBILITY)
 
@@ -282,41 +301,41 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         }, 15L)
 
         if (decidioDisparar) {
-            val probabilidadMuerte = 0.25 + (penalizaciones[victima] ?: 0.0)
+            val probabilidadMuerte = 0.25 + (penalizaciones[jugador] ?: 0.0)
             val muere = Math.random() < probabilidadMuerte
 
             if (muere) {
-                victima.world.playSound(victima.location, Sound.ENTITY_GENERIC_EXPLODE, 2f, 1f)
+                jugador.world.playSound(jugador.location, Sound.ENTITY_GENERIC_EXPLODE, 2f, 1f)
                 val lang = plugin.languageManager
-                plugin.server.broadcast(plugin.messageManager.parse(lang.get("ruletarusa.broadcast.died"), Placeholder.parsed("player", victima.name)))
+                plugin.server.broadcast(plugin.messageManager.parse(lang.get("ruletarusa.broadcast.died"), Placeholder.parsed("player", jugador.name)))
 
-                jugadoresSentados.remove(victima)
-                victima.leaveVehicle()
-                aplicarCuelloSangriento(victima)
+                jugadoresSentados.remove(jugador)
+                jugador.leaveVehicle()
+                aplicarCuelloSangriento(jugador)
 
                 plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> girarRuleta() }, 80L)
 
             } else {
-                victima.world.playSound(victima.location, Sound.ENTITY_PLAYER_BREATH, 1f, 1f)
-                victima.world.spawnParticle(Particle.SPLASH, victima.eyeLocation, 30, 0.3, 0.5, 0.3, 0.0)
+                jugador.world.playSound(jugador.location, Sound.ENTITY_PLAYER_BREATH, 1f, 1f)
+                jugador.world.spawnParticle(Particle.SPLASH, jugador.eyeLocation, 30, 0.3, 0.5, 0.3, 0.0)
 
                 val lang = plugin.languageManager
-                plugin.server.broadcast(plugin.messageManager.parse(lang.get("ruletarusa.broadcast.saved"), Placeholder.parsed("player", victima.name)))
+                plugin.server.broadcast(plugin.messageManager.parse(lang.get("ruletarusa.broadcast.saved"), Placeholder.parsed("player", jugador.name)))
 
-                penalizaciones[victima] = 0.0
+                penalizaciones[jugador] = 0.0
 
                 // Si disparó y se salvó, SE QUEDA en la silla, no hace falta teletransportarlo
                 plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> girarRuleta() }, 40L)
             }
         } else {
             // SI DECIDIÓ PASAR (Presionó Q)
-            victima.sendMessage(plugin.messageManager.parse("<red>Has decidido pasar tu turno. Tu probabilidad de morir ha aumentado un 10%.</red>"))
-            victima.world.playSound(victima.location, Sound.ITEM_ARMOR_EQUIP_CHAIN, 1f, 1f)
+            jugador.sendMessage(plugin.messageManager.parse("<red>Has decidido pasar tu turno. Tu probabilidad de morir ha aumentado un 10%.</red>"))
+            jugador.world.playSound(jugador.location, Sound.ITEM_ARMOR_EQUIP_CHAIN, 1f, 1f)
 
-            val penalidadActual = penalizaciones[victima] ?: 0.0
-            penalizaciones[victima] = penalidadActual + 0.10
+            val penalidadActual = penalizaciones[jugador] ?: 0.0
+            penalizaciones[jugador] = penalidadActual + 0.10
 
-            plugin.server.broadcast(plugin.messageManager.parse("<yellow><b>${victima.name}</b></yellow> <white>fue un cobarde y pasó el arma...</white>"))
+            plugin.server.broadcast(plugin.messageManager.parse("<yellow><b>${jugador.name}</b></yellow> <white>fue un cobarde y pasó el arma...</white>"))
 
             // El jugador sigue físicamente en su silla (porque nunca fue movido a cámara).
             // No hacemos TP, simplemente giramos la ruleta de nuevo.
@@ -360,6 +379,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

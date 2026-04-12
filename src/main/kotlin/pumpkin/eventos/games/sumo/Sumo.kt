@@ -38,7 +38,8 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
         val arena = currentArena ?: return
         val mm = plugin.messageManager
 
-        val targetWorld = arena.centerLocation?.world ?: players.firstOrNull()?.world ?: return
+        // USAMOS gameWorld DIRECTAMENTE (La variable segura proporcionada por EventGame)
+        val targetWorld = gameWorld ?: return
 
         val gradaLoc = arena.gradas?.clone() ?: arena.centerLocation?.clone()?.add(0.0, 10.0, 0.0) ?: return
         val dueloA = arena.dueloA?.clone() ?: arena.spawnPoints.getOrNull(0)?.clone() ?: return
@@ -89,7 +90,9 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
         luchador2 = l2
 
         val arena = currentArena ?: return
-        val targetWorld = l1.world
+
+        // USAMOS gameWorld AQUÍ TAMBIÉN
+        val targetWorld = gameWorld ?: return
 
         val spawnA = arena.dueloA?.clone() ?: arena.spawnPoints.getOrNull(0)?.clone() ?: return
         val spawnB = arena.dueloB?.clone() ?: arena.spawnPoints.getOrNull(1)?.clone() ?: return
@@ -194,7 +197,7 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
 
         val arena = currentArena
         val gradaLoc = arena?.gradas?.clone() ?: arena?.centerLocation?.clone()
-        gradaLoc?.world = ganador.world
+        gradaLoc?.world = gameWorld // Usamos gameWorld aquí también
 
         if (gradaLoc != null) ganador.teleportAsync(gradaLoc)
 
@@ -211,6 +214,7 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
         winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

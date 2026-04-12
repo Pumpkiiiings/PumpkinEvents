@@ -18,8 +18,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.PotionMeta
-import org.bukkit.potion.PotionEffect
-import org.bukkit.potion.PotionEffectType
 import org.bukkit.potion.PotionType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
@@ -60,10 +58,10 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
 
         val arena = currentArena ?: return
 
-        // Esperamos medio segundo (10 ticks) para garantizar que el EventManager ya teletransportó a todos
-        // Así podemos agarrar de forma segura el mundo de Slime cargado.
+        // USAMOS EL MUNDO CARGADO PROPORCIONADO POR EVENTMANAGER DIRECTAMENTE
+        val targetWorld = gameWorld ?: return
+
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-            val targetWorld = players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
             val spawns = arena.spawnPoints
             var spawnIndex = 0
 
@@ -76,7 +74,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
 
                 if (spawns.isNotEmpty()) {
                     val pilarLoc = spawns[spawnIndex % spawns.size].clone()
-                    pilarLoc.world = targetWorld // Seteamos el mundo clonado a la coordenada del spawn
+                    pilarLoc.world = targetWorld // Asignamos el mundo del nuevo mapa!
                     spawnIndex++
 
                     centerAndCage(player, pilarLoc)
@@ -111,8 +109,8 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
             }
 
             // -- FASE DE JUEGO --
-            // Chequeo de caída manual al vacío por si el daño de Void falla
-            val toEliminate = players.filter { it.location.y <= it.world.minHeight + 5 }
+            // Solo cuenta como caída al vacío a los jugadores que SÍ ESTÉN en el mundo correcto.
+            val toEliminate = players.filter { it.world == gameWorld && it.location.y <= it.world.minHeight + 5 }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
                 toEliminate.forEach { eliminate(it) }
             }
@@ -158,7 +156,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                         }
                     }
                 }
-            }, 5L) // Retraso de 5 ticks para asegurar la carga del chunk (Igual a tu código original)
+            }, 5L)
         }
     }
 
@@ -184,13 +182,11 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         }
     }
 
-    // --- SISTEMA DE LOOT EXPANDIDO ---
     private fun getRandomItems(): List<ItemStack> {
         val chance = (1..100).random()
         val items = mutableListOf<ItemStack>()
 
         when {
-            // 45% Probabilidad: OBJETOS COMUNES
             chance <= 45 -> {
                 val material = listOf(Material.OAK_PLANKS, Material.COBBLESTONE, Material.WHITE_WOOL, Material.DIRT, Material.GLASS, Material.ANDESITE).random()
                 items.add(ItemStack(material, (16..64).random()))
@@ -205,7 +201,6 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 items.add(util)
             }
 
-            // 35% Probabilidad: OBJETOS RAROS
             chance <= 80 -> {
                 val list = listOf(
                     listOf(ItemStack(Material.IRON_SWORD)),
@@ -225,7 +220,6 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 items.addAll(list)
             }
 
-            // 15% Probabilidad: OBJETOS ÉPICOS
             chance <= 95 -> {
                 val list = listOf(
                     listOf(ItemStack(Material.DIAMOND_SWORD)),
@@ -243,7 +237,6 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 items.addAll(list)
             }
 
-            // 5% Probabilidad: OBJETOS LEGENDARIOS
             else -> {
                 val bat = ItemStack(Material.STICK).apply {
                     itemMeta = itemMeta?.apply {
@@ -275,14 +268,12 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         return item
     }
 
-    // --- HABILIDADES DE ITEMS ESPECIALES ---
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         val p = e.player
         if (plugin.eventManager.currentGame != this || !isRunning) return
 
         if (e.action == Action.RIGHT_CLICK_AIR || e.action == Action.RIGHT_CLICK_BLOCK) {
-            // Habilidad Carga de Fuego
             if (e.item?.type == Material.FIRE_CHARGE) {
                 e.isCancelled = true
                 e.item!!.amount -= 1
@@ -303,7 +294,6 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
 
         if (plugin.eventManager.currentGame != this || !isRunning) return
 
-        // Extra Knockback a Bolas de nieve y Huevos
         if (damager is Snowball || damager is Egg) {
             e.damage = 0.01
             val knockback = damager.velocity.normalize().multiply(0.6).setY(0.3)
@@ -316,6 +306,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         val winner = players.firstOrNull() ?: return
         val rawWin = plugin.languageManager.get("pillars.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

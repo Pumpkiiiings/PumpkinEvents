@@ -8,6 +8,7 @@ import org.bukkit.Sound
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
+import org.bukkit.entity.Projectile
 import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
@@ -41,7 +42,6 @@ import pumpkin.eventos.games.tntgames.TntTag
 
 class GameListener(private val plugin: PumpkinEventos) : Listener {
 
-    // --- PROTECCIÓN DE BLOQUES ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockPlace(e: BlockPlaceEvent) {
         val game = plugin.eventManager.currentGame
@@ -71,7 +71,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- DETECCIÓN DE MOVIMIENTO OPTIMIZADA PARA BEDROCK ---
     @EventHandler
     fun onMove(e: PlayerMoveEvent) {
         val p = e.player
@@ -122,7 +121,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning || !game.players.contains(p)) return
 
-        // --- BLOQUEO NATAL DE SHIFT ---
         if (game is SillasMusicales && game.jugadoresSentados.contains(p)) {
             e.isCancelled = true
             return
@@ -140,7 +138,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- FLECHAS PARA TNT SPLEEF ---
     @EventHandler
     fun onProjectileHit(e: ProjectileHitEvent) {
         val proj = e.entity
@@ -235,7 +232,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val player = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
-        // Evita asfixia
         if (e.cause == EntityDamageEvent.DamageCause.SUFFOCATION || e.cause == EntityDamageEvent.DamageCause.FALLING_BLOCK) {
             e.isCancelled = true
             return
@@ -270,7 +266,8 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    @EventHandler
+    // --- PRIORIDAD LOWEST PARA ADELANTARSE A GSIT ---
+    @EventHandler(priority = EventPriority.LOWEST)
     fun onInteract(e: PlayerInteractEvent) {
         if (e.hand != EquipmentSlot.HAND) return
 
@@ -288,8 +285,9 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         if (currentGame is SillasMusicales && currentGame.isRunning) {
             val clickedBlock = e.clickedBlock
             if (clickedBlock != null && e.action.isRightClick) {
-                currentGame.intentarSentarse(player, clickedBlock.location)
+                // Bloqueamos a GSit instantáneamente para que no interfiera en la lógica del minijuego
                 e.isCancelled = true
+                currentGame.intentarSentarse(player, clickedBlock.location)
                 return
             }
         }
@@ -348,7 +346,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- BLOQUEO DE SALIDA GSIT API (DEFENSA 2) ---
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onGSitStop(e: EntityStopSitEvent) {
         val player = e.entity as? Player ?: return
@@ -373,7 +370,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- BLOQUEO VEHÍCULOS VAINILLA (DEFENSA 3) ---
     @EventHandler
     fun onDismount(e: VehicleExitEvent) {
         val player = e.exited as? Player ?: return
@@ -399,22 +395,34 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
         if (game.isRunning) {
             if (player.health - e.finalDamage <= 0) {
-
-                // --- PROTECCIÓN DE TÓTEM DE INMORTALIDAD ---
                 val mainHand = player.inventory.itemInMainHand.type
                 val offHand = player.inventory.itemInOffHand.type
 
-                // Si el jugador tiene un tótem, dejamos que el daño pase
-                // para que Minecraft lo consuma de manera nativa.
                 if (mainHand == Material.TOTEM_OF_UNDYING || offHand == Material.TOTEM_OF_UNDYING) {
                     return
                 }
 
-                // Si NO tiene tótem, forzamos la muerte del mini-juego.
                 e.isCancelled = true
                 player.health = 20.0
                 player.fireTicks = 0
                 player.world.spawnParticle(org.bukkit.Particle.SOUL, player.location, 20, 0.5, 1.0, 0.5, 0.1)
+
+                // --- NUEVO: SISTEMA DE PUNTOS POR ASESINATO ---
+                var killer: Player? = null
+                if (e is EntityDamageByEntityEvent) {
+                    val damager = e.damager
+                    if (damager is Player) {
+                        killer = damager
+                    } else if (damager is Projectile) {
+                        killer = damager.shooter as? Player
+                    }
+                }
+
+                if (killer != null && killer != player && game.players.contains(killer)) {
+                    plugin.puntajeManager.addPoints(killer, 2, "¡Asesinato!")
+                    killer.playSound(killer.location, Sound.ENTITY_ARROW_HIT_PLAYER, 1f, 1.5f)
+                }
+                // ----------------------------------------------
 
                 game.eliminate(player)
             }

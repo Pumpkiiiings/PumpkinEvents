@@ -191,6 +191,8 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
         winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

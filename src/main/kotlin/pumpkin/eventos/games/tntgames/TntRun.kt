@@ -110,7 +110,7 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
         val rawWin = plugin.languageManager.get("tntrun.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-
+        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

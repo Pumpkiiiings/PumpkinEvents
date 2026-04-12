@@ -37,6 +37,9 @@ commands:
   gmsp:
     description: Spectator mode.
     permission: pumpkin.command.gamemode
+  puntaje:
+    description: "Sistema de puntajes del servidor"
+    aliases: [puntos, score]
 
 permissions:
   pumpkin.admin:

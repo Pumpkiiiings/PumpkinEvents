@@ -6,6 +6,7 @@ import org.bukkit.plugin.java.JavaPlugin
 import pumpkin.eventos.arena.ArenaManager
 import pumpkin.eventos.commands.EventoCommand
 import pumpkin.eventos.commands.GamemodeCommand
+import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
 import pumpkin.eventos.games.blockparty.BlockParty
 import pumpkin.eventos.games.lava.SueloLava
@@ -33,6 +34,7 @@ import pumpkin.eventos.listeners.WorldListener
 import pumpkin.eventos.listeners.LobbyProtectionListener
 import pumpkin.eventos.manager.EventManager
 import pumpkin.eventos.manager.MapManager
+import pumpkin.eventos.manager.PuntajeManager
 import pumpkin.eventos.manager.VoteManager
 import pumpkin.eventos.utils.LanguageManager
 import pumpkin.eventos.utils.MessageManager
@@ -48,6 +50,7 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var voteManager: VoteManager
     lateinit var eventManager: EventManager
     lateinit var boardManager: BoardManager
+    lateinit var puntajeManager: PuntajeManager // <-- NUEVO
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
@@ -83,13 +86,13 @@ class PumpkinEventos : JavaPlugin() {
         languageManager = LanguageManager(this)
         chatFormatManager = ChatFormatManager(this)
 
-        // Aplicar reglas neutras (Insta-Respawn) a mundos actuales
         WorldUtils.applyToAllWorlds()
 
         arenaManager = ArenaManager(this)
         mapManager = MapManager(this)
         voteManager = VoteManager()
         eventManager = EventManager(this)
+        puntajeManager = PuntajeManager(this) // <-- NUEVO
 
         papaCalienteGame = PapaCaliente(this)
         congeladosGame = Congelados(this)
@@ -99,8 +102,8 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(SimonDice(this))
         eventManager.registerGame(TntTag(this))
         eventManager.registerGame(TntRun(this))
-        eventManager.registerGame(TntSpleef(this)) // Dispara flechas
-        eventManager.registerGame(Spleef(this)) // Rompe nieve
+        eventManager.registerGame(TntSpleef(this))
+        eventManager.registerGame(Spleef(this))
         eventManager.registerGame(SueloLava(this))
         eventManager.registerGame(PillarsOfFortune(this))
         eventManager.registerGame(Sumo(this))
@@ -122,12 +125,18 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(WorldListener(), this)
         pm.registerEvents(LobbyProtectionListener(this), this)
 
-        // Listeners de sub-juegos de Simón
+        pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
+
         pm.registerEvents(papaCalienteGame, this)
         pm.registerEvents(congeladosGame, this)
         pm.registerEvents(dueloFinalGame, this)
 
         // --- 7. COMANDOS ---
+        // Comando nativo de Bukkit para Puntaje
+        val puntajeCmd = PuntajeCommand(this)
+        getCommand("puntaje")?.setExecutor(puntajeCmd)
+        getCommand("puntaje")?.tabCompleter = puntajeCmd
+
         this.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             val commands = event.registrar()
             EventoCommand.register(commands, this)

@@ -10,24 +10,23 @@ import org.bukkit.Sound
 import org.bukkit.entity.Player
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 enum class SillasEstado { PREPARACION, MUSICA, SENTARSE }
 
-class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#BF00FF>Sillas Musicales</#BF00FF>") {
+class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#BF00FF>Sillas Musicales</#BF00FF>") {
 
     var estado = SillasEstado.PREPARACION
 
-    // Lista de sillas que siguen en el juego
     val sillasActivas = mutableListOf<Location>()
 
-    // GSit ya maneja el montaje, así que solo usamos un Set para marcar quién está a salvo
-    val jugadoresSentados = mutableSetOf<Player>()
+    val jugadoresSentados = ConcurrentHashMap.newKeySet<Player>()
+    val sillasReclamadas = ConcurrentHashMap.newKeySet<Location>()
 
     private var roundTimer = 10
     private var displayEstado = "<gray>Preparando...</gray>"
 
-    // Lista de diferentes músicas
     private val musicDiscs = listOf(
         Sound.MUSIC_DISC_CAT, Sound.MUSIC_DISC_BLOCKS, Sound.MUSIC_DISC_CHIRP,
         Sound.MUSIC_DISC_FAR, Sound.MUSIC_DISC_MALL, Sound.MUSIC_DISC_MELLOHI,
@@ -48,6 +47,7 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
         estado = SillasEstado.PREPARACION
         sillasActivas.clear()
         jugadoresSentados.clear()
+        sillasReclamadas.clear()
         displayEstado = "<gray>Preparando...</gray>"
 
         val arena = currentArena ?: return
@@ -58,7 +58,6 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
             p.inventory.clear()
         }
 
-        // --- CALCULAR SILLAS NECESARIAS ---
         val sillasClonadas = arena.chairs.map { it.clone().apply { world = targetWorld } }.shuffled()
         val sillasNecesarias = (players.size - 1).coerceAtLeast(1)
 
@@ -79,9 +78,10 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
     private fun iniciarRondaMusica() {
         if (players.size <= 1) { checkWinner(); return }
 
-        // Levantamos a todos (teletransportarlos minimamente anula la silla de GSit de forma ultra-segura)
         val toStand = jugadoresSentados.toList()
         jugadoresSentados.clear()
+        sillasReclamadas.clear()
+
         toStand.forEach { p ->
             p.teleportAsync(p.location.clone().add(0.0, 1.0, 0.0))
         }
@@ -134,29 +134,41 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
     }
 
     fun intentarSentarse(p: Player, blockLoc: Location) {
+        // SEGURIDAD: Evita que los espectadores roben las sillas.
+        if (!players.contains(p)) return
+
         if (estado != SillasEstado.SENTARSE) {
             p.sendMessage(plugin.messageManager.parse("<red>¡La música sigue sonando! No puedes sentarte aún.</red>"))
             return
         }
 
-        val esSilla = sillasActivas.any { it.blockX == blockLoc.blockX && it.blockY == blockLoc.blockY && it.blockZ == blockLoc.blockZ }
-        if (!esSilla) return
-
-        // GSitAPI tiene un método perfecto para verificar si alguien está en un bloque
-        if (GSitAPI.getSeatsByBlock(blockLoc.block).isNotEmpty()) {
-            p.sendMessage(plugin.messageManager.parse("<red>¡Esta silla ya está ocupada!</red>"))
-            return
-        }
+        val sillaValida = sillasActivas.find { it.blockX == blockLoc.blockX && it.blockY == blockLoc.blockY && it.blockZ == blockLoc.blockZ }
+        if (sillaValida == null) return
 
         if (jugadoresSentados.contains(p)) return
 
-        // --- SENTAR AL JUGADOR USANDO LA API DE GSIT ---
         plugin.server.regionScheduler.run(plugin, blockLoc) { _ ->
+
+            // Control lógico ABSOLUTO: Ya no confiamos en la API de GSit para chequear
+            // si la silla está ocupada. Usamos 100% las variables oficiales del evento.
+            if (sillasReclamadas.contains(sillaValida)) {
+                p.sendMessage(plugin.messageManager.parse("<red>¡Esta silla ya está ocupada!</red>"))
+                return@run
+            }
+
+            sillasReclamadas.add(sillaValida)
+            jugadoresSentados.add(p)
+
             val seat = GSitAPI.createSeat(blockLoc.block, p)
+            p.playSound(p.location, Sound.ENTITY_HORSE_SADDLE, 1f, 1f)
+
             if (seat != null) {
-                jugadoresSentados.add(p)
-                p.playSound(p.location, Sound.ENTITY_HORSE_SADDLE, 1f, 1f)
                 p.sendMessage(plugin.messageManager.parse("<#39FF14>✔ <b>¡Conseguiste una silla!</b></#39FF14>"))
+            } else {
+                // FALLBACK: Si GSit la rechaza (por ejemplo, porque el jugador saltó en el aire antes de tocarla)
+                // la silla ya está asegurada de manera lógica para el jugador, así que sobrevive sí o sí.
+                p.teleportAsync(blockLoc.clone().add(0.5, 1.0, 0.5))
+                p.sendMessage(plugin.messageManager.parse("<#39FF14>✔ <b>¡Conseguiste una silla! (Modo Seguro)</b></#39FF14>"))
             }
         }
     }
@@ -165,18 +177,11 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
         estado = SillasEstado.PREPARACION
         displayEstado = "<#FF3131>Eliminando...</#FF3131>"
 
-        val perdedores = players.filter { !jugadoresSentados.contains(it) }
-
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            perdedores.forEach { p ->
-                p.world.strikeLightningEffect(p.location)
-                eliminate(p)
-                p.sendMessage(plugin.messageManager.parse("<red>☠ <b>¡TE QUEDASTE SIN SILLA!</b></red>"))
-                plugin.server.broadcast(plugin.messageManager.parse("<red>☠</red> <yellow>${p.name}</yellow> <white>fue eliminado.</white>"))
-            }
+            val perdedores = players.filter { !jugadoresSentados.contains(it) }
 
-            // --- REDUCIR SILLAS DINÁMICAMENTE ---
-            val sillasParaSiguienteRonda = (players.size - 1).coerceAtLeast(1)
+            val sobrevivientes = players.size - perdedores.size
+            val sillasParaSiguienteRonda = (sobrevivientes - 1).coerceAtLeast(1)
             val sillasARemover = sillasActivas.size - sillasParaSiguienteRonda
 
             if (sillasARemover > 0) {
@@ -193,6 +198,15 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
                 }
             }
 
+            perdedores.forEach { p ->
+                plugin.server.regionScheduler.run(plugin, p.location) { _ ->
+                    p.world.strikeLightningEffect(p.location)
+                    eliminate(p)
+                    p.sendMessage(plugin.messageManager.parse("<red>☠ <b>¡TE QUEDASTE SIN SILLA!</b></red>"))
+                }
+                plugin.server.broadcast(plugin.messageManager.parse("<red>☠</red> <yellow>${p.name}</yellow> <white>fue eliminado.</white>"))
+            }
+
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 iniciarRondaMusica()
             }, 80L)
@@ -200,15 +214,27 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
     }
 
     override fun checkWinner() {
-        val winner = players.firstOrNull() ?: return
-        val rawWin = plugin.languageManager.get("sillas.broadcast.winner")
-        plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
+        val winner = players.firstOrNull()
+        if (winner != null) {
+            val rawWin = plugin.languageManager.get("sillas.broadcast.winner")
+            plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
+            plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        }
+
         stop()
     }
 
     override fun onStop() {
         jugadoresSentados.clear()
+        sillasReclamadas.clear()
         plugin.eventManager.currentGame = null
+
+        sillasActivas.forEach { silla ->
+            plugin.server.regionScheduler.run(plugin, silla) { _ ->
+                silla.block.setType(Material.AIR, false)
+            }
+        }
+        sillasActivas.clear()
 
         var lobby = plugin.arenaManager.mainLobby
         if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
@@ -218,7 +244,6 @@ class SillasMusicales( plugin: PumpkinEventos) : EventGame(plugin,"sillas", "<#B
 
             p.inventory.clear()
             p.gameMode = GameMode.ADVENTURE
-            // Hacer TP al Lobby lo levanta automáticamente del GSit
             p.teleportAsync(lobby)
         }
     }

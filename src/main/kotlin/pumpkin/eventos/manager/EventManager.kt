@@ -17,7 +17,6 @@ class EventManager(private val plugin: PumpkinEventos) {
 
     fun registerGame(game: EventGame) { games[game.id] = game }
 
-    // --- SISTEMA DE VOTACIÓN ---
     fun startVoting() {
         if (isVoting || currentGame != null) return
 
@@ -57,7 +56,6 @@ class EventManager(private val plugin: PumpkinEventos) {
         startCountdown(winnerGame)
     }
 
-    // --- SISTEMA DE CUENTA REGRESIVA ---
     fun startCountdown(game: EventGame) {
         var timeLeft = 10
         val lang = plugin.languageManager
@@ -89,7 +87,6 @@ class EventManager(private val plugin: PumpkinEventos) {
         }, 0, 1, TimeUnit.SECONDS)
     }
 
-    // --- CARGA DE MAPA SLIME E INICIO ---
     private fun prepareMapAndStart(game: EventGame) {
         val lang = plugin.languageManager
         val mm = plugin.messageManager
@@ -118,8 +115,7 @@ class EventManager(private val plugin: PumpkinEventos) {
                 actualSpawn.world = world
 
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // Si NO ES PILLARS, lo teletransportamos al centro del mapa (o donde sea el lobby del mapa).
-                    // Si ES Pillars, dejamos que la clase Pillars se encargue de mandarlos a los pilares.
+                    // Respetamos no teletransportarlos si es PillarsOfFortune
                     if (game !is PillarsOfFortune) {
                         p.teleportAsync(actualSpawn)
                     }
@@ -130,7 +126,8 @@ class EventManager(private val plugin: PumpkinEventos) {
 
                 currentGame = game
 
-                game.start(arenaTemplate, plugin)
+                // --> IMPORTANTE: Le pasamos el 'world' ya instanciado al inicio del juego <--
+                game.start(arenaTemplate, plugin, world)
 
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
             }, 20L)

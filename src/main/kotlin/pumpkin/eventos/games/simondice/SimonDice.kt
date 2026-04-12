@@ -21,7 +21,7 @@ import java.util.concurrent.TimeUnit
 
 enum class SimonMode { AUTOMATICO, MANUAL }
 
-class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Simón Dice</green>") {
+class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green>Simón Dice</green>") {
 
     var mode = SimonMode.AUTOMATICO
     var streamer: Player? = null
@@ -304,7 +304,7 @@ class SimonDice(val plugin: PumpkinEventos) : EventGame("simondice", "<green>Sim
 
     override fun checkWinner() {
         val winner = players.firstOrNull() ?: return
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <purple>${winner.name}</purple> es el ganador definitivo!<newline>"))
+        plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <color:#67FF00>${winner.name}</color> es el ganador definitivo!<newline>"))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
         stop()

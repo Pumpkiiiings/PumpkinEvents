@@ -10,22 +10,22 @@ import java.io.IOException
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 
-// Clase de datos temporal para los jugadores que están creando un mapa
 data class ArenaSetupSession(
     val name: String,
     val type: String,
     var center: Location? = null,
     val spawns: MutableList<Location> = mutableListOf(),
-    // Añadimos las variables temporales del Duelo Final a la sesión
     var gradas: Location? = null,
     var dueloA: Location? = null,
-    var dueloB: Location? = null
+    var dueloB: Location? = null,
+    // --- NUEVO: SILLAS ---
+    val chairs: MutableList<Location> = mutableListOf()
 )
 
 class ArenaManager(private val plugin: PumpkinEventos) {
 
     private val arenas = ConcurrentHashMap<String, Arena>()
-    val activeSetups = ConcurrentHashMap<UUID, ArenaSetupSession>() // Modo Creación
+    val activeSetups = ConcurrentHashMap<UUID, ArenaSetupSession>()
 
     var mainLobby: Location? = null
     var waitingSpawn: Location? = null
@@ -45,11 +45,9 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         ioScope.launch {
             synchronized(fileLock) { config = YamlConfiguration.loadConfiguration(file) }
 
-            // Cargar Lobbies Globales
             mainLobby = loadSafeLocation("lobbies.main")
             waitingSpawn = loadSafeLocation("lobbies.waiting")
 
-            // Cargar Arenas
             val section = config.getConfigurationSection("arenas") ?: return@launch
             val tempArenas = mutableMapOf<String, Arena>()
 
@@ -61,12 +59,14 @@ class ArenaManager(private val plugin: PumpkinEventos) {
                 arena.slimeWorldName = config.getString("${path}slimeWorld", key)
                 arena.centerLocation = loadSafeLocation("${path}centerLocation")
 
-                // Cargar ubicaciones extras de minijuegos
                 arena.gradas = loadSafeLocation("${path}gradas")
                 arena.dueloA = loadSafeLocation("${path}dueloA")
                 arena.dueloB = loadSafeLocation("${path}dueloB")
 
                 loadLocationList("${path}spawnPoints").forEach { arena.addSpawnPoint(it) }
+
+                // --- NUEVO: CARGAR SILLAS ---
+                loadLocationList("${path}chairs").forEach { arena.addChair(it) }
 
                 tempArenas[key] = arena
             }
@@ -77,7 +77,6 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         }
     }
 
-    // --- MÉTODOS DE LOBBY FALTANTES ---
     fun setMainLobbyLoc(loc: Location) {
         val cleanLoc = Location(null, loc.x, loc.y, loc.z, loc.yaw, loc.pitch)
         mainLobby = cleanLoc
@@ -90,28 +89,26 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         saveSafeLocation("lobbies.waiting", loc)
     }
 
-    // --- GUARDADO DE SESIÓN DE CREACIÓN ---
     fun saveSetupSession(session: ArenaSetupSession) {
         val arena = Arena(session.name, session.type)
         arena.centerLocation = session.center
         session.spawns.forEach { arena.addSpawnPoint(it) }
 
-        // Transferir ubicaciones extras a la Arena final
         arena.gradas = session.gradas
         arena.dueloA = session.dueloA
         arena.dueloB = session.dueloB
 
+        // --- NUEVO: TRANSFERIR SILLAS ---
+        session.chairs.forEach { arena.addChair(it) }
+
         arenas[session.name] = arena
 
-        // Guardar en YAML
         synchronized(fileLock) {
             config.set("arenas.${session.name}.type", session.type)
             config.set("arenas.${session.name}.slimeWorld", session.name)
         }
 
         if (session.center != null) saveSafeLocation("arenas.${session.name}.centerLocation", session.center!!)
-
-        // Guardar ubicaciones extras en YAML
         if (session.gradas != null) saveSafeLocation("arenas.${session.name}.gradas", session.gradas!!)
         if (session.dueloA != null) saveSafeLocation("arenas.${session.name}.dueloA", session.dueloA!!)
         if (session.dueloB != null) saveSafeLocation("arenas.${session.name}.dueloB", session.dueloB!!)
@@ -120,10 +117,14 @@ class ArenaManager(private val plugin: PumpkinEventos) {
             saveSafeLocation("arenas.${session.name}.spawnPoints.${UUID.randomUUID()}", loc)
         }
 
+        // --- NUEVO: GUARDAR SILLAS EN YAML ---
+        session.chairs.forEach { loc ->
+            saveSafeLocation("arenas.${session.name}.chairs.${UUID.randomUUID()}", loc)
+        }
+
         saveAsync()
     }
 
-    // --- UTILS YAML ---
     private fun loadLocationList(path: String): List<Location> {
         val list = mutableListOf<Location>()
         val section = config.getConfigurationSection(path) ?: return list
@@ -137,11 +138,10 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         if (!config.contains("$path.x")) return null
 
         val worldName = config.getString("$path.world", "world")
-        // Buscamos si el mundo existe realmente en el servidor (Ej: para el Lobby)
         val realWorld = org.bukkit.Bukkit.getWorld(worldName!!)
 
         return Location(
-            realWorld, // <-- AQUÍ LA MAGIA: Intentamos asignarle el mundo real
+            realWorld,
             config.getDouble("$path.x"),
             config.getDouble("$path.y"),
             config.getDouble("$path.z"),

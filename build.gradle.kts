@@ -52,6 +52,7 @@ dependencies {
     implementation("org.slf4j:slf4j-simple:2.0.9")
     implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")
     compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
+    compileOnly(files("libs/GSit-3.3.3.jar"))
     compileOnly("net.luckperms:api:5.4")
     compileOnly("me.clip:placeholderapi:2.11.7")
 

@@ -10,7 +10,7 @@ import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.TimeUnit
 
-class TntTag(private val plugin: PumpkinEventos) : EventGame("tnttag", "<red>TNT Tag</red>") {
+class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag</red>") {
 
     val itPlayers = mutableSetOf<Player>()
     var timer = 30

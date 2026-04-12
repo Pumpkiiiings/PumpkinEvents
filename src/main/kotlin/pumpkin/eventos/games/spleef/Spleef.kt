@@ -18,7 +18,7 @@ import pumpkin.eventos.games.EventGame
 import java.util.concurrent.TimeUnit
 
 // Añadimos la interfaz Listener aquí
-class Spleef(private val plugin: PumpkinEventos) : EventGame("spleef", "<#E0FFFF>Spleef Clásico</#E0FFFF>"), Listener {
+class Spleef(plugin: PumpkinEventos) : EventGame(plugin, "spleef", "<#E0FFFF>Spleef Clásico</#E0FFFF>"), Listener {
 
     var isPreparation = true
     private var timer = 10

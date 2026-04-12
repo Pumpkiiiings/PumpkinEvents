@@ -12,7 +12,7 @@ import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.TimeUnit
 
-class BlockParty(private val plugin: PumpkinEventos) : EventGame("blockparty", "<#FF1493>Block Party</#FF1493>") {
+class BlockParty(plugin: PumpkinEventos) : EventGame(plugin, "blockparty", "<#FF1493>Block Party</#FF1493>") {
 
     private val colors = listOf(
         Material.RED_CONCRETE, Material.BLUE_CONCRETE, Material.LIME_CONCRETE,

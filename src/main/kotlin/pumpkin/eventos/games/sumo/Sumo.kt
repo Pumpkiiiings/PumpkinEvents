@@ -5,7 +5,6 @@ import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
 import org.bukkit.Material
 import org.bukkit.Sound
-import org.bukkit.enchantments.Enchantment
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.HandlerList
@@ -17,7 +16,7 @@ import pumpkin.eventos.games.EventGame
 import kotlin.math.abs
 
 // Implementamos Listener para el KB personalizado
-class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sumo 1v1</#FF9900>"), Listener {
+class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v1</#FF9900>"), Listener {
 
     var luchador1: Player? = null
     var luchador2: Player? = null
@@ -81,9 +80,9 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
 
         // 1. Elegimos un jugador al azar para iniciar el emparejamiento
         val l1 = vivos.random()
-        vivos.remove(l1) // Lo quitamos de la lista para no emparejarlo consigo mismo
+        vivos.remove(l1)
 
-        // 2. Buscamos al jugador con el ping más parecido (la menor diferencia de ms)
+        // 2. Buscamos al jugador con el ping más parecido
         val l2 = vivos.minByOrNull { p -> abs(p.ping - l1.ping) }
 
         luchador1 = l1
@@ -105,7 +104,6 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
             l2?.let { darPalo(it) }
 
             val mm = plugin.messageManager
-            // Opcional: Puedes mostrar el ping en el title para que los jugadores vean que fue justo
             val title = Title.title(
                 mm.parse("<#FF3131>⚔️ <b>¡A LUCHAR!</b> ⚔️"),
                 mm.parse("<white>${l1.name} <gray>(${l1.ping}ms)</gray> <red>vs <white>${l2?.name} <gray>(${l2?.ping}ms)</gray>")
@@ -122,13 +120,14 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
 
     private fun darPalo(p: Player) {
         p.inventory.clear()
+
+        // --- PALO SIN ENCANTAMIENTOS ---
         val stick = ItemStack(Material.STICK)
         val meta = stick.itemMeta
         meta.displayName(plugin.messageManager.parse("<#FF9900><b>Palo de Sumo</b></#FF9900>"))
-        meta.addEnchant(Enchantment.KNOCKBACK, 1, true) // Mantenemos el Knockback 1 base
         stick.itemMeta = meta
-        p.inventory.addItem(stick)
 
+        p.inventory.addItem(stick)
         p.health = 20.0
     }
 
@@ -143,14 +142,12 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
         // Verificamos que ambos sean los luchadores actuales
         if ((victim == luchador1 && attacker == luchador2) || (victim == luchador2 && attacker == luchador1)) {
 
-            // Calculamos la dirección del golpe
             val knockbackDirection = attacker.location.direction.setY(0.0).normalize()
 
-            // Un multiplicador de 0.4 es un empujón suave extra. (Knockback 2 sería equivalente a sumar como 1.0)
-            // Le damos un pequeño impulso hacia arriba (0.15) para que el empuje horizontal funcione mejor
+            // Un multiplicador de 0.4 es un empujón suave extra
             val extraKnockback = knockbackDirection.multiply(0.4).setY(0.15)
 
-            // Aplicamos la velocidad 1 tick después para asegurarnos de que no se sobreescriba por el KB de Minecraft Vanilla
+            // Aplicamos la velocidad 1 tick después
             plugin.server.regionScheduler.runDelayed(plugin, victim.location, { _ ->
                 victim.velocity = victim.velocity.add(extraKnockback)
             }, 1L)
@@ -221,7 +218,6 @@ class Sumo(private val plugin: PumpkinEventos) : EventGame("sumo", "<#FF9900>Sum
         rondaActiva = false
         plugin.eventManager.currentGame = null
 
-        // Dejamos de escuchar los golpes
         HandlerList.unregisterAll(this)
 
         var lobby = plugin.arenaManager.mainLobby

@@ -14,7 +14,7 @@ import pumpkin.eventos.games.EventGame
 import pumpkin.eventos.games.BoosterManager
 import pumpkin.eventos.games.BoosterType
 
-class TntRun(private val plugin: PumpkinEventos) : EventGame("tntrun", "<yellow>TNT Run</yellow>") {
+class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT Run</yellow>") {
 
     var isPreparation = true
     var timer = 10

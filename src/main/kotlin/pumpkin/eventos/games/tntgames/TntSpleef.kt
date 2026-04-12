@@ -13,7 +13,7 @@ import pumpkin.eventos.games.BoosterType
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.TimeUnit
 
-class TntSpleef(private val plugin: PumpkinEventos) : EventGame("tntspleef", "<#FF3131>TNT Spleef</#FF3131>") {
+class TntSpleef(plugin: PumpkinEventos) : EventGame(plugin,"tntspleef", "<#FF3131>TNT Spleef</#FF3131>") {
 
     var isPreparation = true
     private var timer = 10

@@ -6,7 +6,7 @@ prefix: "<#FF5500><bold>⚡ EVENTOS</bold></#FF5500> <dark_gray>»</dark_gray> "
 commands:
   help:
     - ""
-    - "<#FF5500><bold>⚡ PUMPKIN EVENTOS CORE</bold></#FF5500> <white>v2.0 ⚡</white>"
+    - "<#FF5500><bold>⚡ PUMPKIN EVENTOS CORE</bold></##FF5500> <white>v2.5 ⚡</white>"
     - ""
     - "<#39FF14>🗡 /evento setup lobby|waiting</#39FF14> <gray>» Configurar Lobbies</gray>"
     - "<#39FF14>🗡 /evento arena create <mapa> <tipo></#39FF14> <gray>» Crear Mapa</gray>"
@@ -48,12 +48,12 @@ commands:
 vote:
   no_active: "<#FF3131>¡No hay ninguna votación activa en este momento!</#FF3131>"
   already_voted: "<#FF3131>¡Ya has emitido tu voto! ¡Espera los resultados!</#FF3131>"
-  not_found: "<#FF3131>¡Ese modo de juego no existe!</#FF3131>"
+  not_found: "<#FF3131>¡Ese modo de juego no existe!</##FF3131>"
   success: "<#39FF14>✔</#39FF14> <white>Has votado por: <#00FFFF><bold><game></bold></#00FFFF></white>"
 
 event_manager:
   vote_start:
-    header: "<newline><gradient:#FF5500:#CCFF00><bold>¡LA VOTACIÓN HA COMENZADO!</bold></gradient><newline><gray>Elige el evento que se jugará a continuación:</gray><newline>"
+    header: "<newline><#FF5500><bold>¡LA VOTACIÓN HA COMENZADO!</bold></##FF5500><newline><gray>Elige el evento que se jugará a continuación:</gray><newline>"
     item: "<click:run_command:'/votar <id>'><hover:show_text:'<gray>Haz clic para votar por <white><name>'><#CCFF00>•</#CCFF00> <name> <dark_gray>(Clic para votar)</dark_gray></hover></click>"
     footer: "<newline><gray>La votación termina en <white>30 segundos</white>.</gray><newline>"
   vote_end: "<newline><#39FF14><b>¡VOTACIÓN TERMINADA!</b></#39FF14> <white>El ganador es: <#00FFFF><game></#00FFFF><newline>"
@@ -68,12 +68,95 @@ event_manager:
 deaths:
   player_died: "<red>☠</red> <aqua><player></aqua> <white>ha muerto.</white>"
 
+tutorials:
+  ruletarusa:
+    - "<newline><#FF3131><bold>━━━━━━━━━━━━ RULETA RUSA ━━━━━━━━━━━━</bold></#FF3131>"
+    - ""
+    - "<gray>» <white>Serás sentado en la mesa de la suerte.</white>"
+    - "<gray>» <white>La flecha dorada elegirá al tirador de la ronda.</white>"
+    - "<gray>» <white>Si eres elegido, tienes el arma: <#39FF14>Clic Der</#39FF14> dispara.</white>"
+    - "<gray>» <white>Opcional: <#00FFFF>Q</#00FFFF> pasa el arma pero sube tu riesgo.</white>"
+    - "<gray>» <#FF3131>Si la bala sale... ¡Quedas eliminado!</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  sillas:
+    - "<newline><#BF00FF><bold>━━━━━━━━━━━━ SILLAS MUSICALES ━━━━━━━━━━━━</bold></#BF00FF>"
+    - ""
+    - "<gray>» <white>Baila y muévete mientras suene la música.</#white>"
+    - "<gray>» <white>Cuando la música pare, ¡Haz <#39FF14>Clic Derecho</#39FF14> en un asiento!</white>"
+    - "<gray>» <#FF3131>Quien se quede de pie será eliminado.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  luzroja:
+    - "<newline><#39FF14><bold>━━━━━━━━━━ LUZ ROJA, LUZ VERDE ━━━━━━━━━━</bold></#39FF14>"
+    - ""
+    - "<gray>» <white>En luz <#39FF14>verde</#39FF14>, ¡corre hacia la meta!</white>"
+    - "<gray>» <white>En luz <#FF3131>roja</#FF3131>, quédate totalmente quieto.</white>"
+    - "<gray>» <#FF3131>Si te mueves en rojo, el rayo te eliminará.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  tntrun:
+    - "<newline><#FFCC00><bold>━━━━━━━━━━━━━━━ TNT RUN ━━━━━━━━━━━━━━━</bold></#FFCC00>"
+    - ""
+    - "<gray>» <white>El suelo desaparece al pisarlo.</white>"
+    - "<gray>» <white>No dejes de correr y busca los niveles superiores.</white>"
+    - "<gray>» <#FF3131>Si caes al vacío, quedas fuera.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  tnttag:
+    - "<newline><#FF3131><bold>━━━━━━━━━━━━━━━ TNT TAG ━━━━━━━━━━━━━━━</bold></#FF3131>"
+    - ""
+    - "<gray>» <white>Si tienes la TNT, golpea a otros para pasarla.</white>"
+    - "<gray>» <white>Si no la tienes, ¡huye lo más lejos posible!</white>"
+    - "<gray>» <#FF3131>Cuando el tiempo acabe, la TNT explotará.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  pillars:
+    - "<newline><#00FFFF><bold>━━━━━━━━━━━ PILLARS OF FORTUNE ━━━━━━━━━━━</bold></#00FFFF>"
+    - ""
+    - "<gray>» <white>Recibirás objetos aleatorios cada 10 segundos.</white>"
+    - "<gray>» <white>Úsalos para construir, atacar o sobrevivir.</white>"
+    - "<gray>» <#FF3131>Sé el último en pie sobre los pilares.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  suelolava:
+    - "<newline><#FF4500><bold>━━━━━━━━━━━━ EL SUELO ES LAVA ━━━━━━━━━━━━</bold></#FF4500>"
+    - ""
+    - "<gray>» <white>La lava subirá capa por capa cada pocos segundos.</white>"
+    - "<gray>» <white>Usa tus bloques para subir a lo más alto.</white>"
+    - "<gray>» <#FF3131>Tocar la lava es muerte instantánea.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  sumo:
+    - "<newline><#FF9900><bold>━━━━━━━━━━━━━━━ SUMO 1v1 ━━━━━━━━━━━━━━━</bold></#FF9900>"
+    - ""
+    - "<gray>» <white>Duelos eliminatorios en una plataforma pequeña.</white>"
+    - "<gray>» <white>Usa el palo para empujar a tu rival fuera.</white>"
+    - "<gray>» <#FF3131>Tocar el agua o el suelo es eliminación.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  blockparty:
+    - "<newline><#FF1493><bold>━━━━━━━━━━━━━ BLOCK PARTY ━━━━━━━━━━━━━</bold></#FF1493>"
+    - ""
+    - "<gray>» <white>Mira el color en tu inventario o BossBar.</white>"
+    - "<gray>» <white>Párate sobre ese color antes de que el tiempo acabe.</white>"
+    - "<gray>» <#FF3131>Los demás bloques desaparecerán.</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  simondice:
+    - "<newline><#39FF14><bold>━━━━━━━━━━━━━ SIMÓN DICE ━━━━━━━━━━━━━</bold></#39FF14>"
+    - ""
+    - "<gray>» <white>Solo obedece si Simón dice la frase: <#39FF14>'Simón Dice'</#39FF14>.</white>"
+    - "<gray>» <white>Si Simón no lo dice y haces la acción, mueres.</white>"
+    - "<gray>» <#FF3131>¡Presta mucha atención al chat!</##FF3131>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
 tntrun:
   actionbar:
     preparation: "<white>El suelo caerá en: <aqua><bold><time></bold>s"
     run: "<red><b>¡CORRE!</b></red> <white>El suelo está desapareciendo</white>"
   broadcast:
-    winner: "<newline><yellow><b>TNT RUN</b></yellow> <white>» <purple><player></purple> ha ganado el evento!<newline>"
+    winner: "<newline><yellow><b>TNT RUN</b></yellow> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
 tnttag:
   actionbar:
@@ -83,14 +166,14 @@ tnttag:
     has_tnt_main: "<red><b>¡TIENES LA TNT!</b></red>"
     has_tnt_sub: "<white>¡Golpea a alguien!"
   broadcast:
-    winner: "<newline><yellow><b>TNT TAG</b></yellow> <white>» <purple><player></purple> ha ganado el evento!<newline>"
+    winner: "<newline><yellow><b>TNT TAG</b></yellow> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
 pillars:
   actionbar:
     starting: "<white>El juego inicia en: <aqua><bold><time></bold>s"
     started: "<red><b>¡QUE EMPIECE LA BATALLA!</b></red>"
   broadcast:
-    winner: "<newline><aqua><b>PILLARS OF FORTUNE</b></aqua> <white>» <purple><player></purple> ha ganado el evento!<newline>"
+    winner: "<newline><aqua><b>PILLARS OF FORTUNE</b></aqua> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
 suelolava:
   title:
@@ -101,16 +184,32 @@ suelolava:
     rising: "<#FF4500>▲ La lava está en la altura: <b><y></b> ▲"
   broadcast:
     started: "<newline><#FF4500><b>¡LA LAVA ESTÁ SUBIENDO!</b></#FF4500> <white>¡Busca la altura máxima!<newline>"
-    winner: "<newline><#FF4500><b>EL SUELO ES LAVA</b></#FF4500> <white>» <purple><player></purple> es el único sobreviviente!<newline>"
+    winner: "<newline><#FF4500><b>EL SUELO ES LAVA</b></#FF4500> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
 
 sumo:
   round_winner: "<newline><#39FF14>⭐ <bold><winner></bold> ha tirado a <loser>!</#39FF14><newline>"
   broadcast:
-    winner: "<newline><#FF9900><b>SUMO 1v1</b></#FF9900> <white>» <purple><player></purple> es el gran campeón!<newline>"
+    winner: "<newline><#FF9900><b>SUMO 1v1</b></#FF9900> <white>» <color:#67FF00><player></color> es el gran campeón!<newline>"
 
 blockparty:
   broadcast:
-    winner: "<newline><#FF1493><b>BLOCK PARTY</b></#FF1493> <white>» <purple><player></purple> es el mejor bailador!<newline>"
+    winner: "<newline><#FF1493><b>BLOCK PARTY</b></#FF1493> <white>» <color:#67FF00><player></color> es el mejor bailador!<newline>"
+
+sillas:
+  actionbar:
+    music: "<#39FF14>🎵 ¡Baila y camina al ritmo de la música! 🎵"
+    sit: "<#FF3131><b>¡LA MÚSICA PARÓ! ¡SIÉNTATE!</b></#FF3131>"
+  broadcast:
+    winner: "<newline><#BF00FF><b>SILLAS MUSICALES</b></#BF00FF> <white>» <color:#67FF00><player></color> ganó el juego!<newline>"
+
+ruletarusa:
+  actionbar:
+    spin: "<yellow><b>¡LA RULETA ESTÁ GIRANDO!</b></yellow>"
+    turn: "<#FF3131><b>¡ES EL TURNO DE <player>!</b></#FF3131>"
+  broadcast:
+    saved: "<newline><#39FF14><b>¡<player> TUVO SUERTE!</b></#39FF14> <white>La recámara estaba vacía.</white><newline>"
+    died: "<newline><#FF3131><b>¡BAM!</b></#FF3131> <white><player> no sobrevivió a la ruleta.</white><newline>"
+    winner: "<newline><#BF00FF><b>RULETA RUSA</b></#BF00FF> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
 
 scoreboard:
   title: "<#FFD700><b>⚡ EVENTOS ⚡</b></#FFD700>"
@@ -181,6 +280,15 @@ scoreboard:
     - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Meta:</white> <#FFCC00>%meta%</#FFCC00>"
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+  ingame_sillas:
+    - ""
+    - " <dark_gray>|</dark_gray> <#BF00FF>🪑</#BF00FF> <white>Evento:</white> <#39FF14>Sillas</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#BF00FF>🎵</#BF00FF> <white>Estado:</white> %estado%"
+    - " <dark_gray>|</dark_gray> <#FFCC00>🪑</#FFCC00> <white>Sillas:</white> <#39FF14>%sillas%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
 bossbar:
   waiting: "<bold>EVENTO:</bold> <gray>Ninguno</gray>"
@@ -191,10 +299,11 @@ bossbar:
   ingame_blockparty: "<bold>BUSCA EL COLOR:</bold> %color% <gray>|</gray> <white>⏳ %time%s</white>"
   ingame_simondice: "⚡ <yellow>Simón Dice</yellow> <gray>|</gray> <white>%orden% <gray>|</gray> ⏳ %time%s</white>"
   ingame_luzroja: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Llegaron: %meta%</white>"
+  ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
 
 gamemode:
-  invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></#FF3131>"
-  player_not_found: "<prefix><#FF3131>No se encontró al jugador <#CCFF00><target></#CCFF00>.</#FF3131>"
+  invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></##FF3131>"
+  player_not_found: "<prefix><#FF3131>No se encontró al jugador <#CCFF00><target></#CCFF00>.</##FF3131>"
   changed_self: "<prefix><#39FF14>Modo de juego cambiado a <#00FFFF><bold><mode></bold></#00FFFF>.</#39FF14>"
   changed_other: "<prefix><#39FF14>Has cambiado el modo de <#CCFF00><target></#CCFF00> a <#00FFFF><mode></#00FFFF>.</#39FF14>"
   changed_by_other: "<prefix><#39FF14>Tu modo de juego ha sido cambiado a <#00FFFF><mode></#00FFFF> por <#CCFF00><sender></#CCFF00>.</#39FF14>"

@@ -27,7 +27,6 @@ class EventManager(private val plugin: PumpkinEventos) {
         val lang = plugin.languageManager
         val mm = plugin.messageManager
 
-        // Construir mensaje de votación desde config
         val header = lang.get("event_manager.vote_start.header")
         val itemTemplate = lang.get("event_manager.vote_start.item")
         val footer = lang.get("event_manager.vote_start.footer")
@@ -90,6 +89,7 @@ class EventManager(private val plugin: PumpkinEventos) {
         }, 0, 1, TimeUnit.SECONDS)
     }
 
+    // --- CARGA DE MAPA SLIME E INICIO ---
     private fun prepareMapAndStart(game: EventGame) {
         val lang = plugin.languageManager
         val mm = plugin.messageManager
@@ -113,26 +113,27 @@ class EventManager(private val plugin: PumpkinEventos) {
                 return@thenAccept
             }
 
-            plugin.server.globalRegionScheduler.execute(plugin) {
+            plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 val actualSpawn = arenaTemplate.centerLocation?.clone() ?: world.spawnLocation
                 actualSpawn.world = world
 
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // --- CORREGIDO: AHORA SÍ LOS MANDAMOS A TODOS AL MUNDO NUEVO ---
-                    p.teleportAsync(actualSpawn)
+                    // Si NO ES PILLARS, lo teletransportamos al centro del mapa (o donde sea el lobby del mapa).
+                    // Si ES Pillars, dejamos que la clase Pillars se encargue de mandarlos a los pilares.
+                    if (game !is PillarsOfFortune) {
+                        p.teleportAsync(actualSpawn)
+                    }
+
                     p.inventory.clear()
                     game.players.add(p)
                 }
 
                 currentGame = game
 
-                // Le damos un pequeño "respiro" al servidor (1 segundo) para que termine
-                // de teletransportar a todos al mundo antes de arrancar el onStart del juego
-                plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                    game.start(arenaTemplate)
-                    Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
-                }, 20L)
-            }
+                game.start(arenaTemplate, plugin)
+
+                Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
+            }, 20L)
         }
     }
 }

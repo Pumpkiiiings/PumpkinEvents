@@ -13,17 +13,16 @@ import java.util.concurrent.TimeUnit
 
 enum class LuzEstado { ROJA, VERDE, PREPARACION }
 
-class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja", "<#FF3131>Luz Roja, Luz Verde</#FF3131>") {
+class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<b><color:#FF0000>Luz Roja</color></b><color:#AAAAAA>,</color> <b><color:#00FF19>Luz Verde</color></b>") {
 
     var estado = LuzEstado.PREPARACION
     private var timerGlobal = 300 // 5 minutos máximo
-    private var metaZ = 0.0 // Coordenada Z donde termina la carrera
+    private var metaZ = 0.0
     private var estadoTimer = 10
 
     private val ganadores = mutableSetOf<UUID>()
     private var displayEstado = "<gray>Preparando...</gray>"
 
-    // Variables para guardar las coordenadas del muro y borrarlo después
     private val muroBlocks = mutableListOf<Location>()
 
     override fun getExtraPlaceholders(): Map<String, String> {
@@ -43,8 +42,6 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
 
         val arena = currentArena ?: return
 
-        // Asumimos que los spawnPoints son la línea de salida (donde aparecerán todos)
-        // Y que el "dueloA" o "dueloB" es la línea de META (usamos su Z para calcular si ganaron)
         val metaLoc = arena.dueloA ?: arena.centerLocation ?: return
         metaZ = metaLoc.z
 
@@ -72,17 +69,16 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
                 return@runAtFixedRate
             }
 
-            // --- CHECK DE TIEMPO GLOBAL Y LLEGADAS A LA META ---
+            // --- CHECK DE TIEMPO GLOBAL ---
             timerGlobal--
             if (timerGlobal <= 0) {
-                // Se acabó el tiempo, si alguien no llegó, muere.
                 val perdedores = players.filter { !ganadores.contains(it.uniqueId) }
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     perdedores.forEach { killPlayer(it) }
 
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                         plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>¡TIEMPO AGOTADO!</b></#FF3131> <white>El juego ha terminado.</white><newline>"))
-                        checkWinner() // <-- FIX: Aseguramos que checkWinner se llame y frene el juego
+                        checkWinner()
                     }, 40L)
                 }
                 task.cancel()
@@ -98,9 +94,10 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
                     cambiarALuzVerde()
                 }
             } else if (estado == LuzEstado.VERDE && estadoTimer <= 3) {
-                // Avisar que se va a poner rojo pronto
-                val warnTitle = Title.title(plugin.messageManager.parse("<yellow>¡Frena!</yellow>"), plugin.messageManager.parse("<white>Luz roja en $estadoTimer"))
-                players.filter { !ganadores.contains(it.uniqueId) }.forEach { it.showTitle(warnTitle); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 2f) }
+                // Suenan orbes de experiencia para avisar en lugar de Título
+                players.filter { !ganadores.contains(it.uniqueId) }.forEach {
+                    it.playSound(it.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f)
+                }
             }
 
         }, 1, 1, TimeUnit.SECONDS)
@@ -115,7 +112,6 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
         val startZ = spawns.first().blockZ + if (metaZ > spawns.first().blockZ) 1 else -1
         val startY = spawns.minOf { it.blockY }
 
-        // Como los jugadores ya fueron teletransportados aquí por el EventManager, el mundo clonado ya está asociado a sus locaciones
         val targetWorld = players.firstOrNull()?.world ?: spawns.first().world ?: return
 
         plugin.server.regionScheduler.run(plugin, targetWorld, minX shr 4, startZ shr 4) { _ ->
@@ -148,7 +144,7 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
 
     private fun cambiarALuzRoja() {
         estado = LuzEstado.ROJA
-        estadoTimer = (3..7).random() // Luz roja dura entre 3 y 7 segundos
+        estadoTimer = (3..7).random()
         displayEstado = "<#FF3131>LUZ ROJA</#FF3131>"
 
         val title = Title.title(plugin.messageManager.parse("<#FF3131><bold>¡LUZ ROJA!</bold></#FF3131>"), plugin.messageManager.parse("<white>¡El que se mueva muere!</white>"))
@@ -160,7 +156,7 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
 
     private fun cambiarALuzVerde() {
         estado = LuzEstado.VERDE
-        estadoTimer = (5..10).random() // Luz verde dura entre 5 y 10 segundos
+        estadoTimer = (5..10).random()
         displayEstado = "<#39FF14>LUZ VERDE</#39FF14>"
 
         val title = Title.title(plugin.messageManager.parse("<#39FF14><bold>¡LUZ VERDE!</bold></#39FF14>"), plugin.messageManager.parse("<white>¡Corre hacia la meta!</white>"))
@@ -176,14 +172,12 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
             p.sendMessage(plugin.messageManager.parse("<#39FF14>✔ <b>¡LLEGASTE A LA META!</b></#39FF14> <white>Estás a salvo.</white>"))
             p.playSound(p.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
 
-            // Buscar las gradas con el mundo correcto
             val gradaLoc = currentArena?.gradas?.clone() ?: currentArena?.centerLocation?.clone()
             if (gradaLoc != null) {
                 gradaLoc.world = p.world
                 p.teleportAsync(gradaLoc)
             }
 
-            // --- FIX: DETENER EL JUEGO SI YA LLEGARON TODOS LOS VIVOS ---
             if (ganadores.size >= players.size) {
                 plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> checkWinner() }, 20L)
             }
@@ -193,7 +187,6 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
     fun killPlayer(p: Player) {
         if (ganadores.contains(p.uniqueId)) return
 
-        // Rayo fulminante
         p.world.strikeLightningEffect(p.location)
 
         eliminate(p)
@@ -206,13 +199,11 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
     override fun checkWinner() {
         val winnersStr = if (ganadores.isEmpty()) "Nadie" else "${ganadores.size} jugadores"
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>LUZ ROJA, LUZ VERDE</b></#FF3131> <white>» ¡$winnersStr lograron cruzar la meta!<newline>"))
-
-        // Ejecutamos el stop de la clase padre que limpia todo y llama al onStop()
         stop()
     }
 
     override fun onStop() {
-        quitarMuro() // Por si el juego fue detenido forzosamente
+        quitarMuro()
 
         plugin.eventManager.currentGame = null
 
@@ -223,12 +214,22 @@ class LuzRojaLuzVerde(private val plugin: PumpkinEventos) : EventGame("luzroja",
         todos.forEach { p ->
             p.inventory.clear()
             p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
+            p.gameMode = org.bukkit.GameMode.ADVENTURE
             p.teleportAsync(lobby)
         }
     }
 
-    // Funciones públicas para el Listener
     fun getMetaZ(): Double = metaZ
     fun isPlayerSaved(p: Player): Boolean = ganadores.contains(p.uniqueId)
+
+    fun hasReachedMeta(loc: Location): Boolean {
+        val arena = currentArena ?: return false
+        val startLoc = arena.spawnPoints.firstOrNull() ?: return false
+
+        return if (metaZ > startLoc.z) {
+            loc.z >= metaZ
+        } else {
+            loc.z <= metaZ
+        }
+    }
 }

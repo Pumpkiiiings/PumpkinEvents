@@ -46,13 +46,9 @@ object EventoCommand {
             1
         }
 
-        // --- RELOAD (NUEVO) ---
         val reload = Commands.literal("reload").executes { ctx ->
             val sender = ctx.source.sender
-
-            // Recargar config.yml
             plugin.reloadConfig()
-            // Recargar messages.yml
             plugin.languageManager.reload()
 
             val prefix = plugin.languageManager.get("prefix")
@@ -84,8 +80,7 @@ object EventoCommand {
                 .then(Commands.argument("name", StringArgumentType.word())
                     .then(Commands.argument("type", StringArgumentType.word())
                         .suggests { _, builder ->
-                            // ¡AÑADIDO "luzroja" A LAS SUGERENCIAS!
-                            listOf("tnttag", "tntrun", "simondice", "suelolava", "pillars", "sumo", "blockparty", "spleef", "tntspleef", "luzroja").forEach { builder.suggest(it) }
+                            listOf("tnttag", "tntrun", "simondice", "suelolava", "pillars", "sumo", "blockparty", "spleef", "tntspleef", "luzroja", "sillas", "ruletarusa").forEach { builder.suggest(it) }
                             builder.buildFuture()
                         }
                         .executes { ctx ->
@@ -147,6 +142,23 @@ object EventoCommand {
                 if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
                 session.spawns.add(sender.location)
                 sendMsg(sender, plugin, "commands.arena.spawn_added", Placeholder.parsed("map", session.name), Placeholder.parsed("count", session.spawns.size.toString()))
+                1
+            })
+            // --- NUEVO: AÑADIR SILLAS ---
+            .then(Commands.literal("addchair").executes { ctx ->
+                val sender = ctx.source.sender as? Player ?: return@executes 0
+                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
+                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+
+                val block = sender.getTargetBlockExact(5)
+                if (block == null || block.type.isAir) {
+                    sender.sendMessage(plugin.messageManager.parse("<red>Debes mirar directamente a un bloque (Slab/Escalera) para añadirlo como silla.</red>"))
+                    return@executes 0
+                }
+
+                session.chairs.add(block.location)
+                val prefix = plugin.languageManager.get("prefix")
+                sender.sendMessage(plugin.messageManager.parse("$prefix<green>🪑 <white>Silla #${session.chairs.size} añadida a <yellow>${session.name}</yellow>"))
                 1
             })
             .then(Commands.literal("save").executes { ctx ->
@@ -214,7 +226,6 @@ object EventoCommand {
         val ruleta = Commands.literal("ruleta").executes { ctx ->
             val sender = ctx.source.sender as? Player ?: return@executes 0
 
-            // Protección: No iniciar ruleta si ya hay un evento corriendo o votación activa
             if (plugin.eventManager.currentGame != null || plugin.eventManager.isVoting) {
                 sender.sendMessage(plugin.messageManager.parse("<red>¡Ya hay un evento en curso o una votación activa!</red>"))
                 return@executes 0
@@ -224,7 +235,6 @@ object EventoCommand {
             1
         }
 
-        // AÑADIMOS RELOAD AL COMANDO RAÍZ
         val commandNode = root.then(ayuda).then(reload).then(votacion).then(setup).then(arena).then(iniciar).then(detener).then(revivir).then(ruleta).build()
         commands.register(commandNode, "Core de Eventos Pumpkin", listOf("eventos", "ev"))
     }
@@ -251,7 +261,7 @@ object EventoCommand {
         }
 
         var spins = 0
-        val maxSpins = 30 // Cantidad de saltos que dará antes de detenerse
+        val maxSpins = 30
 
         fun spin(delay: Long) {
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
@@ -279,7 +289,6 @@ object EventoCommand {
                     }
                     spin(nextDelay)
                 } else {
-                    // --- FINAL DE LA RULETA ---
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                         val winnerTitle = Title.title(
                             plugin.messageManager.parse("<green>▶</green> <gold><bold>${game.displayName}</bold></gold> <green>◀</green>"),
@@ -292,13 +301,12 @@ object EventoCommand {
                             p.playSound(p.location, org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
                         }
 
-                        // --- MAGIA NUEVA: INICIAR LA CUENTA REGRESIVA TRAS 3 SEGUNDOS ---
                         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                             if (game is SimonDice) {
-                                game.mode = SimonMode.AUTOMATICO // Simón dice será automático por defecto
+                                game.mode = SimonMode.AUTOMATICO
                             }
                             plugin.eventManager.startCountdown(game)
-                        }, 60L) // 60 ticks = 3 segundos de espera para que lean el título
+                        }, 60L)
 
                     }, 10L)
                 }

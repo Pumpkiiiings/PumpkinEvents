@@ -8,6 +8,7 @@ description: Core avanzado de eventos para Pumpkin Network. Soporta TNT Games, S
 # Dependencias necesarias para que el plugin arranque
 depend:
   - LuckPerms
+  - GSit
 softdepend:
   - PlaceholderAPI
   - AdvancedSlimePaper

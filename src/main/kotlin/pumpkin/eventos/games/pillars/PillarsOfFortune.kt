@@ -6,19 +6,36 @@ import org.bukkit.GameRule
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.enchantments.Enchantment
+import org.bukkit.entity.Egg
+import org.bukkit.entity.Fireball
 import org.bukkit.entity.Player
+import org.bukkit.entity.Snowball
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
+import org.bukkit.inventory.meta.PotionMeta
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
+import org.bukkit.potion.PotionType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.ConcurrentLinkedQueue
 
-class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars", "<aqua>Pillars of Fortune</aqua>") {
+class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<aqua>Pillars of Fortune</aqua>"), Listener {
 
     var isPreparation = true
-    private var startTimer = 5
+    private var startTimer = 10
     var itemTimer = 10
 
     private val cageLocations = ConcurrentLinkedQueue<Location>()
+
+    init {
+        plugin.server.pluginManager.registerEvents(this, plugin)
+    }
 
     override fun getExtraPlaceholders(): Map<String, String> {
         return mapOf(
@@ -30,37 +47,44 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
     override fun getCustomGameRules(): Map<GameRule<*>, Any> {
         return mapOf(
             GameRule.FALL_DAMAGE to true,
-            GameRule.NATURAL_REGENERATION to false
+            GameRule.NATURAL_REGENERATION to false,
+            GameRule.DO_MOB_SPAWNING to false
         )
     }
 
     override fun onStart() {
         isPreparation = true
-        startTimer = 5
+        startTimer = 10
         itemTimer = 10
         cageLocations.clear()
 
-        val spawns = currentArena?.spawnPoints ?: emptyList()
+        val arena = currentArena ?: return
 
-        // Obtenemos el mundo en el que los jugadores ya están (el clonado)
-        val targetWorld = players.firstOrNull()?.world ?: currentArena?.centerLocation?.world ?: return
+        // Esperamos medio segundo (10 ticks) para garantizar que el EventManager ya teletransportó a todos
+        // Así podemos agarrar de forma segura el mundo de Slime cargado.
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            val targetWorld = players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
+            val spawns = arena.spawnPoints
+            var spawnIndex = 0
 
-        var spawnIndex = 0
+            players.forEach { player ->
+                player.gameMode = GameMode.SURVIVAL
+                player.inventory.clear()
+                player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
+                player.health = 20.0
+                player.foodLevel = 20
 
-        // Repartimos a los jugadores en los pilares
-        players.forEach { player ->
-            player.gameMode = GameMode.SURVIVAL
-            player.inventory.clear()
-            player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
+                if (spawns.isNotEmpty()) {
+                    val pilarLoc = spawns[spawnIndex % spawns.size].clone()
+                    pilarLoc.world = targetWorld // Seteamos el mundo clonado a la coordenada del spawn
+                    spawnIndex++
 
-            if (spawns.isNotEmpty()) {
-                val pilarLoc = spawns[spawnIndex % spawns.size].clone()
-                pilarLoc.world = targetWorld // Seteamos el mundo clonado a la coordenada del spawn
-                spawnIndex++
-                centerAndCage(player, pilarLoc)
+                    centerAndCage(player, pilarLoc)
+                }
             }
-        }
+        }, 10L)
 
+        // LOOP PRINCIPAL
         plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
@@ -87,9 +111,16 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
             }
 
             // -- FASE DE JUEGO --
+            // Chequeo de caída manual al vacío por si el daño de Void falla
             val toEliminate = players.filter { it.location.y <= it.world.minHeight + 5 }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
                 toEliminate.forEach { eliminate(it) }
+            }
+
+            if (players.size <= 1) {
+                task.cancel()
+                checkWinner()
+                return@runAtFixedRate
             }
 
             itemTimer--
@@ -98,15 +129,7 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
                 players.forEach { it.sendActionBar(actionMsg) }
             } else {
                 itemTimer = 10
-                val prefix = plugin.languageManager.get("prefix")
-                val receiveMsg = plugin.messageManager.parse("$prefix<#39FF14>¡Se te ha dado un ítem sorpresa!</#39FF14>")
-
-                players.forEach { p ->
-                    val randomItem = getRandomItem()
-                    p.inventory.addItem(randomItem)
-                    p.playSound(p.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1.5f)
-                    p.sendMessage(receiveMsg)
-                }
+                darItemsATodos()
             }
 
         }, 20L, 20L)
@@ -117,7 +140,7 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
         val centerLoc = Location(targetWorld, targetLoc.blockX + 0.5, targetLoc.blockY.toDouble(), targetLoc.blockZ + 0.5, targetLoc.yaw, targetLoc.pitch)
 
         player.teleportAsync(centerLoc).thenAccept {
-            plugin.server.regionScheduler.run(plugin, centerLoc) { _ ->
+            plugin.server.regionScheduler.runDelayed(plugin, centerLoc, { _ ->
                 val cx = centerLoc.blockX
                 val cy = centerLoc.blockY
                 val cz = centerLoc.blockZ
@@ -135,7 +158,7 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
                         }
                     }
                 }
-            }
+            }, 5L) // Retraso de 5 ticks para asegurar la carga del chunk (Igual a tu código original)
         }
     }
 
@@ -149,17 +172,144 @@ class PillarsOfFortune(private val plugin: PumpkinEventos) : EventGame("pillars"
         cageLocations.clear()
     }
 
-    private fun getRandomItem(): ItemStack {
-        val options = listOf(
-            Pair(Material.COBBLESTONE, 16..32), Pair(Material.OBSIDIAN, 4..8),
-            Pair(Material.GLASS, 8..16), Pair(Material.DIAMOND_CHESTPLATE, 1..1),
-            Pair(Material.IRON_SWORD, 1..1), Pair(Material.BOW, 1..1), Pair(Material.ARROW, 5..15),
-            Pair(Material.TNT, 1..4), Pair(Material.WATER_BUCKET, 1..1), Pair(Material.LAVA_BUCKET, 1..1),
-            Pair(Material.COBWEB, 2..5), Pair(Material.SNOWBALL, 8..16), Pair(Material.GOLDEN_APPLE, 1..2),
-            Pair(Material.ENDER_PEARL, 1..1)
-        )
-        val selected = options.random()
-        return ItemStack(selected.first, selected.second.random())
+    private fun darItemsATodos() {
+        val prefix = plugin.languageManager.get("prefix")
+        val receiveMsg = plugin.messageManager.parse("$prefix<#39FF14>¡Has recibido suministros!</#39FF14>")
+
+        players.forEach { p ->
+            val randomItems = getRandomItems()
+            randomItems.forEach { p.inventory.addItem(it) }
+            p.playSound(p.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1.5f)
+            p.sendMessage(receiveMsg)
+        }
+    }
+
+    // --- SISTEMA DE LOOT EXPANDIDO ---
+    private fun getRandomItems(): List<ItemStack> {
+        val chance = (1..100).random()
+        val items = mutableListOf<ItemStack>()
+
+        when {
+            // 45% Probabilidad: OBJETOS COMUNES
+            chance <= 45 -> {
+                val material = listOf(Material.OAK_PLANKS, Material.COBBLESTONE, Material.WHITE_WOOL, Material.DIRT, Material.GLASS, Material.ANDESITE).random()
+                items.add(ItemStack(material, (16..64).random()))
+
+                val util = listOf(
+                    ItemStack(Material.STONE_SWORD), ItemStack(Material.STONE_AXE),
+                    ItemStack(Material.COOKED_CHICKEN, 12), ItemStack(Material.APPLE, 8),
+                    ItemStack(Material.SNOWBALL, 16), ItemStack(Material.EGG, 16),
+                    ItemStack(Material.LEATHER_CHESTPLATE), ItemStack(Material.CHAINMAIL_BOOTS),
+                    ItemStack(Material.SHIELD)
+                ).random()
+                items.add(util)
+            }
+
+            // 35% Probabilidad: OBJETOS RAROS
+            chance <= 80 -> {
+                val list = listOf(
+                    listOf(ItemStack(Material.IRON_SWORD)),
+                    listOf(ItemStack(Material.IRON_CHESTPLATE)),
+                    listOf(ItemStack(Material.BOW), ItemStack(Material.ARROW, 24)),
+                    listOf(ItemStack(Material.IRON_PICKAXE), ItemStack(Material.IRON_AXE)),
+                    listOf(ItemStack(Material.WATER_BUCKET)),
+                    listOf(ItemStack(Material.LAVA_BUCKET)),
+                    listOf(ItemStack(Material.GOLDEN_APPLE, 2)),
+                    listOf(ItemStack(Material.ENDER_PEARL, 1)),
+                    listOf(ItemStack(Material.FISHING_ROD)),
+                    listOf(ItemStack(Material.FIRE_CHARGE, 4)),
+                    listOf(ItemStack(Material.COBWEB, 8)),
+                    listOf(crearPocion(PotionType.HEALING, true)),
+                    listOf(crearPocion(PotionType.SWIFTNESS, false))
+                ).random()
+                items.addAll(list)
+            }
+
+            // 15% Probabilidad: OBJETOS ÉPICOS
+            chance <= 95 -> {
+                val list = listOf(
+                    listOf(ItemStack(Material.DIAMOND_SWORD)),
+                    listOf(ItemStack(Material.DIAMOND_CHESTPLATE)),
+                    listOf(ItemStack(Material.DIAMOND_LEGGINGS)),
+                    listOf(ItemStack(Material.CROSSBOW).apply { addEnchantment(Enchantment.QUICK_CHARGE, 2) }, ItemStack(Material.ARROW, 32)),
+                    listOf(ItemStack(Material.TNT, 12), ItemStack(Material.FLINT_AND_STEEL)),
+                    listOf(ItemStack(Material.SLIME_BLOCK, 10)),
+                    listOf(ItemStack(Material.GOLDEN_APPLE, 5)),
+                    listOf(ItemStack(Material.ENDER_PEARL, 3)),
+                    listOf(crearPocion(PotionType.STRENGTH, false)),
+                    listOf(ItemStack(Material.OBSIDIAN, 12)),
+                    listOf(ItemStack(Material.TRIDENT).apply { addEnchantment(Enchantment.LOYALTY, 1) })
+                ).random()
+                items.addAll(list)
+            }
+
+            // 5% Probabilidad: OBJETOS LEGENDARIOS
+            else -> {
+                val bat = ItemStack(Material.STICK).apply {
+                    itemMeta = itemMeta?.apply {
+                        displayName(plugin.messageManager.parse("<#FF3131><b>Mega Bate Knockback</b></#FF3131>"))
+                        addEnchant(Enchantment.KNOCKBACK, 3, true)
+                    }
+                }
+                val setGod = listOf(
+                    listOf(bat),
+                    listOf(ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 1)),
+                    listOf(ItemStack(Material.NETHERITE_CHESTPLATE)),
+                    listOf(ItemStack(Material.ENDER_PEARL, 8)),
+                    listOf(ItemStack(Material.TOTEM_OF_UNDYING)),
+                    listOf(ItemStack(Material.WIND_CHARGE, 16)),
+                    listOf(ItemStack(Material.MACE))
+                ).random()
+                items.addAll(setGod)
+                plugin.server.broadcast(plugin.messageManager.parse("<gold>¡Alguien ha recibido un objeto <b>LEGENDARIO</b>!</gold>"))
+            }
+        }
+        return items
+    }
+
+    private fun crearPocion(tipo: PotionType, splash: Boolean): ItemStack {
+        val item = ItemStack(if (splash) Material.SPLASH_POTION else Material.POTION)
+        val meta = item.itemMeta as PotionMeta
+        meta.basePotionType = tipo
+        item.itemMeta = meta
+        return item
+    }
+
+    // --- HABILIDADES DE ITEMS ESPECIALES ---
+    @EventHandler
+    fun onInteract(e: PlayerInteractEvent) {
+        val p = e.player
+        if (plugin.eventManager.currentGame != this || !isRunning) return
+
+        if (e.action == Action.RIGHT_CLICK_AIR || e.action == Action.RIGHT_CLICK_BLOCK) {
+            // Habilidad Carga de Fuego
+            if (e.item?.type == Material.FIRE_CHARGE) {
+                e.isCancelled = true
+                e.item!!.amount -= 1
+
+                val fireball = p.launchProjectile(Fireball::class.java)
+                fireball.yield = 2.0f
+                fireball.setIsIncendiary(true)
+                fireball.velocity = p.location.direction.multiply(1.5)
+                p.playSound(p.location, Sound.ENTITY_GHAST_SHOOT, 1f, 1f)
+            }
+        }
+    }
+
+    @EventHandler
+    fun onProjectileDamage(e: EntityDamageByEntityEvent) {
+        val victim = e.entity as? Player ?: return
+        val damager = e.damager
+
+        if (plugin.eventManager.currentGame != this || !isRunning) return
+
+        // Extra Knockback a Bolas de nieve y Huevos
+        if (damager is Snowball || damager is Egg) {
+            e.damage = 0.01
+            val knockback = damager.velocity.normalize().multiply(0.6).setY(0.3)
+            victim.velocity = victim.velocity.add(knockback)
+            victim.playSound(victim.location, Sound.ENTITY_PLAYER_HURT, 1f, 1f)
+        }
     }
 
     override fun checkWinner() {

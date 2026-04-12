@@ -4,9 +4,10 @@ import org.bukkit.GameMode
 import org.bukkit.GameRule
 import org.bukkit.Sound
 import org.bukkit.entity.Player
+import pumpkin.eventos.PumpkinEventos // <-- Necesitamos acceso al plugin principal
 import pumpkin.eventos.arena.Arena
 
-abstract class EventGame(val id: String, val displayName: String) {
+abstract class EventGame(val plugin: PumpkinEventos, val id: String, val displayName: String) {
     var isRunning = false
     var currentArena: Arena? = null
     val players = mutableListOf<Player>()
@@ -15,19 +16,31 @@ abstract class EventGame(val id: String, val displayName: String) {
     abstract fun onStart()
     abstract fun onStop()
 
-    // --- MAGIA PARA SCOREBOARDS CUSTOM ---
     open fun getExtraPlaceholders(): Map<String, String> {
         return emptyMap()
     }
 
-    // --- MAGIA PARA REGLAS DE MUNDO CUSTOM (AÑADIR ESTO) ---
     open fun getCustomGameRules(): Map<GameRule<*>, Any> {
         return emptyMap()
     }
 
-    fun start(arena: Arena) {
+    // PASAMOS EL PLUGIN AL START PARA PODER ENVIAR EL MENSAJE
+    fun start(arena: Arena, plugin: PumpkinEventos) {
         currentArena = arena
         isRunning = true
+
+        // --- 1. ENVIAR TUTORIAL DEL CHAT (0-Hardcode) ---
+        val lines = plugin.languageManager.getList("tutorials.$id")
+        if (lines.isNotEmpty()) {
+            players.forEach { p ->
+                lines.forEach { line ->
+                    p.sendMessage(plugin.messageManager.parse(line))
+                }
+                p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 0.5f)
+            }
+        }
+        // -------------------------------------------------
+
         onStart()
     }
 

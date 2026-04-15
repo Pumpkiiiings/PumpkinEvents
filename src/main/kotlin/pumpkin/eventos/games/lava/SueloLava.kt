@@ -21,11 +21,11 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
     private var timer = 15
     var gameTimer = 300
 
-    // Coordenadas de los límites de la arena (Pos1 y Pos2)
     private var minX = 0
     private var maxX = 0
     private var minZ = 0
     private var maxZ = 0
+    private var maxY = 0
 
     private val lavaSpeedSeconds = 3L
 
@@ -45,138 +45,140 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
         gameTimer = 300
 
         val arena = currentArena ?: return
-        val pos1 = arena.dueloA ?: return // Obligatorio configurar DueloA (Pos1)
-        val pos2 = arena.dueloB ?: return // Obligatorio configurar DueloB (Pos2)
 
-        val targetWorld = players.firstOrNull()?.world ?: pos1.world ?: return
+        // --- FIX CRÍTICO 1: RETRASO PARA EL MUNDO CLONADO ---
+        // Esperamos medio segundo (10 ticks) para que el EventManager termine de teletransportar a todos.
+        // Así aseguramos que el "targetWorld" sea el mundo de juego y no el Lobby.
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            val targetWorld = players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
 
-        // Calculamos los límites absolutos del área (Pos1 y Pos2)
-        minX = min(pos1.blockX, pos2.blockX)
-        maxX = max(pos1.blockX, pos2.blockX)
-        minZ = min(pos1.blockZ, pos2.blockZ)
-        maxZ = max(pos1.blockZ, pos2.blockZ)
+            // Obtenemos los puntos de la arena
+            val p1 = arena.dueloA ?: return@runDelayed
+            val p2 = arena.dueloB ?: return@runDelayed
 
-        // Definimos la altura inicial de la lava basándonos en la coordenada Y más baja de los dos puntos
-        currentLavaY = min(pos1.blockY, pos2.blockY)
+            minX = min(p1.blockX, p2.blockX)
+            maxX = max(p1.blockX, p2.blockX)
+            minZ = min(p1.blockZ, p2.blockZ)
+            maxZ = max(p1.blockZ, p2.blockZ)
 
-        val mm = plugin.messageManager
-        val lang = plugin.languageManager
+            // La lava empieza en el punto más bajo de la selección
+            currentLavaY = min(p1.blockY, p2.blockY)
 
-        val rawTitle = lang.get("suelolava.title.preparation_main")
-        val rawSub = lang.get("suelolava.title.preparation_sub")
-        val title = Title.title(mm.parse(rawTitle), mm.parse(rawSub))
+            // --- FIX CRÍTICO 2: LAVA INFINITA ---
+            // Ignoramos la altura de tu selección. La lava subirá hasta el techo del mundo.
+            maxY = targetWorld.maxHeight
 
-        players.forEach { p ->
-            p.gameMode = GameMode.SURVIVAL
-            p.inventory.clear()
-            p.inventory.addItem(ItemStack(Material.TERRACOTTA, 64))
-            p.inventory.addItem(ItemStack(Material.TERRACOTTA, 64))
-            p.showTitle(title)
-            p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
-        }
+            val mm = plugin.messageManager
+            val lang = plugin.languageManager
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+            val rawTitle = lang.get("suelolava.title.preparation_main")
+            val rawSub = lang.get("suelolava.title.preparation_sub")
+            val title = Title.title(mm.parse(rawTitle), mm.parse(rawSub))
 
-            if (isPreparation) {
-                timer--
-                val rawPrep = lang.get("suelolava.actionbar.preparation")
-                val bar = mm.parse(rawPrep, Placeholder.parsed("time", timer.toString()))
-                players.forEach { it.sendActionBar(bar); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1f) }
+            players.forEach { p ->
+                p.gameMode = GameMode.SURVIVAL
+                p.inventory.clear()
+                p.inventory.addItem(ItemStack(Material.TERRACOTTA, 64))
+                p.inventory.addItem(ItemStack(Material.TERRACOTTA, 64))
+                p.showTitle(title)
+                p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+            }
 
-                if (timer <= 0) {
-                    isPreparation = false
-                    plugin.server.broadcast(mm.parse(lang.get("suelolava.broadcast.started")))
-                    startRisingLava(targetWorld)
+            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                if (!isRunning) { task.cancel(); return@runAtFixedRate }
+
+                if (isPreparation) {
+                    timer--
+                    val rawPrep = lang.get("suelolava.actionbar.preparation")
+                    val bar = mm.parse(rawPrep, Placeholder.parsed("time", timer.toString()))
+                    players.forEach { it.sendActionBar(bar); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1f) }
+
+                    if (timer <= 0) {
+                        isPreparation = false
+                        plugin.server.broadcast(mm.parse(lang.get("suelolava.broadcast.started")))
+                        startRisingLava(targetWorld)
+                    }
+                    return@runAtFixedRate
                 }
-                return@runAtFixedRate
-            }
 
-            gameTimer--
-            if (gameTimer <= 0) {
-                plugin.server.broadcast(mm.parse("<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"))
-                stop()
-                task.cancel()
-                return@runAtFixedRate
-            }
+                gameTimer--
+                if (gameTimer <= 0) {
+                    plugin.server.broadcast(mm.parse("<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"))
+                    stop()
+                    task.cancel()
+                    return@runAtFixedRate
+                }
 
-            val toEliminate = players.filter { it.location.block.type == Material.LAVA || it.location.y <= it.world.minHeight + 2 }
-            plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                toEliminate.forEach { eliminate(it) }
-            }
+                // Comprobar eliminación (si toca lava o cae al vacío)
+                val toEliminate = players.filter { it.location.block.type == Material.LAVA || it.location.y <= targetWorld.minHeight + 2 }
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                    toEliminate.forEach { eliminate(it) }
+                }
 
-            // Validar si solo queda un jugador
-            if (players.size <= 1) {
-                plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
-                task.cancel()
-            }
+                if (players.size <= 1) {
+                    plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
+                    task.cancel()
+                }
 
-        }, 1, 1, TimeUnit.SECONDS)
+            }, 1, 1, TimeUnit.SECONDS)
+
+        }, 10L)
     }
 
     private fun startRisingLava(world: World) {
-        val mm = plugin.messageManager
-        val lang = plugin.languageManager
-
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) {
                 task.cancel()
                 return@runAtFixedRate
             }
 
-            val rawRising = lang.get("suelolava.actionbar.rising")
-            val bar = mm.parse(rawRising, Placeholder.parsed("y", currentLavaY.toString()))
+            // Si llegamos al techo del mundo, dejamos de subir
+            if (currentLavaY > maxY) {
+                task.cancel()
+                return@runAtFixedRate
+            }
+
+            val rawRising = plugin.languageManager.get("suelolava.actionbar.rising")
+            val bar = plugin.messageManager.parse(rawRising, Placeholder.parsed("y", currentLavaY.toString()))
 
             players.forEach {
                 it.sendActionBar(bar)
                 it.playSound(it.location, Sound.BLOCK_LAVA_EXTINGUISH, 0.5f, 1.5f)
             }
 
-            // Subir la lava en las coordenadas seleccionadas
-            fillLavaSafe(world, currentLavaY, currentLavaY + 1)
+            // Rellenamos 1 capa por vez
+            fillLavaLayer(world, currentLavaY)
 
-            currentLavaY += 2
+            currentLavaY++
 
         }, lavaSpeedSeconds, lavaSpeedSeconds, TimeUnit.SECONDS)
     }
 
-    /**
-     * Rellena con lava el área exacta entre DueloA y DueloB.
-     * Delega el trabajo a los hilos de los Chunks para compatibilidad total con Folia/Paper.
-     */
-    private fun fillLavaSafe(world: World, startY: Int, endY: Int) {
-        // Convertir las coordenadas de bloques a coordenadas de Chunks
+    private fun fillLavaLayer(world: World, y: Int) {
         val minChunkX = minX shr 4
         val maxChunkX = maxX shr 4
         val minChunkZ = minZ shr 4
         val maxChunkZ = maxZ shr 4
 
-        // Iterar chunk por chunk para asegurar que Folia no bloquee la ejecución cruzada
         for (chunkX in minChunkX..maxChunkX) {
             for (chunkZ in minChunkZ..maxChunkZ) {
-
                 plugin.server.regionScheduler.run(plugin, world, chunkX, chunkZ) { _ ->
                     if (!isRunning) return@run
 
-                    // Definir qué bloques pertenecen a ESTE chunk y al mismo tiempo están dentro de los límites del jugador
-                    val startX = max(minX, chunkX shl 4)
-                    val endX = min(maxX, (chunkX shl 4) + 15)
+                    val startBlockX = max(minX, chunkX shl 4)
+                    val endBlockX = min(maxX, (chunkX shl 4) + 15)
                     val startBlockZ = max(minZ, chunkZ shl 4)
                     val endBlockZ = min(maxZ, (chunkZ shl 4) + 15)
 
-                    // Cambiar los bloques a lava
-                    for (x in startX..endX) {
+                    for (x in startBlockX..endBlockX) {
                         for (z in startBlockZ..endBlockZ) {
-                            for (y in startY..endY) {
-                                val block = world.getBlockAt(x, y, z)
-                                val type = block.type
+                            val block = world.getBlockAt(x, y, z)
+                            val type = block.type
 
-                                // Lista de bloques "blandos" que la lava destruirá y reemplazará
-                                if (type.isAir || type == Material.WATER || type == Material.SHORT_GRASS ||
-                                    type == Material.TALL_GRASS || type == Material.SNOW || type == Material.FERN) {
+                            if (type.isAir || type == Material.WATER || type.name.contains("GRASS") ||
+                                type == Material.SNOW || type == Material.FERN || type == Material.TALL_GRASS) {
 
-                                    block.setType(Material.LAVA, false) // False = No avisa a los bloques vecinos (Evita lag de físicas)
-                                }
+                                block.setType(Material.LAVA, false)
                             }
                         }
                     }
@@ -191,8 +193,6 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
         winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()
     }
 

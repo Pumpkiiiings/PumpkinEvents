@@ -62,7 +62,7 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
         spectators.clear()
     }
 
-    fun eliminate(player: Player) {
+    open fun eliminate(player: Player) {
         if (!players.contains(player)) return
         players.remove(player)
         spectators.add(player)

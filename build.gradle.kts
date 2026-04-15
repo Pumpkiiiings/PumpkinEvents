@@ -5,14 +5,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("org.ow2.asm:asm:9.6")
+        classpath("org.ow2.asm:asm:9.9.1")
         classpath("org.ow2.asm:asm-commons:9.6")
     }
 }
 
 plugins {
     java
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.3.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
 }
@@ -46,19 +46,19 @@ dependencies {
     implementation(kotlin("stdlib"))
 
     // Librerías que se incluirán en el JAR (Shadow)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("com.github.retrooper:packetevents-spigot:2.11.2")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
+    implementation("com.github.retrooper:packetevents-spigot:2.12.0")
     implementation("dev.triumphteam:triumph-gui:3.1.13")
-    implementation("org.slf4j:slf4j-simple:2.0.9")
+    implementation("org.slf4j:slf4j-simple:2.0.17")
     implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")
     compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
     compileOnly(files("libs/GSit-3.3.3.jar"))
-    compileOnly("net.luckperms:api:5.4")
-    compileOnly("me.clip:placeholderapi:2.11.7")
+    compileOnly("net.luckperms:api:5.5")
+    compileOnly("me.clip:placeholderapi:2.12.2")
 
     // Paper ya incluye Adventure y MiniMessage nativamente
-    compileOnly("net.kyori:adventure-text-minimessage:4.17.0")
-    compileOnly("org.jetbrains:annotations:24.0.1")
+    compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
+    compileOnly("org.jetbrains:annotations:26.1.0")
 }
 
 tasks {
@@ -73,7 +73,6 @@ tasks {
         relocate("dev.triumphteam.gui", "liric.mistaken.libs.gui")
         relocate("kotlin", "liric.mistaken.libs.kotlin")
 
-        // AQUÍ ESTÁ LO QUE FALTABA PARA QUITAR LO ROJO:
         relocate("kotlinx", "liric.mistaken.libs.kotlinx")
     }
 

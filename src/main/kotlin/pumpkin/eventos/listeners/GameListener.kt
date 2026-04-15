@@ -28,6 +28,7 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.cristales.Cristales
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.luzroja.LuzEstado
 import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
@@ -42,6 +43,7 @@ import pumpkin.eventos.games.tntgames.TntTag
 
 class GameListener(private val plugin: PumpkinEventos) : Listener {
 
+    // --- PROTECCIÓN DE BLOQUES ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockPlace(e: BlockPlaceEvent) {
         val game = plugin.eventManager.currentGame
@@ -71,6 +73,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    // --- DETECCIÓN DE MOVIMIENTO OPTIMIZADA PARA BEDROCK ---
     @EventHandler
     fun onMove(e: PlayerMoveEvent) {
         val p = e.player
@@ -138,6 +141,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    // --- FLECHAS PARA TNT SPLEEF ---
     @EventHandler
     fun onProjectileHit(e: ProjectileHitEvent) {
         val proj = e.entity
@@ -200,11 +204,24 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    // --- GOLPES Y PVP ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onPunch(e: EntityDamageByEntityEvent) {
         val attacker = e.damager as? Player ?: return
         val victim = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
+
+        // Bloqueo Absoluto de PVP (No se pueden golpear)
+        if (game is RuletaRusa || game is pumpkin.eventos.games.jalarcuerda.JalarCuerda) {
+            e.isCancelled = true
+            return
+        }
+
+        // Golpes permitidos pero sin daño letal (Solo empuje)
+        if (game is SillasMusicales || game is Cristales) {
+            e.damage = 0.001
+            return
+        }
 
         if (game is TntTag && game.isRunning) {
             e.damage = 0.001
@@ -231,6 +248,11 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
     fun onDamage(e: EntityDamageEvent) {
         val player = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
+
+        if (game is pumpkin.eventos.games.jalarcuerda.JalarCuerda) {
+            e.isCancelled = true // Sin daño de ningún tipo en Jalar Cuerda
+            return
+        }
 
         if (e.cause == EntityDamageEvent.DamageCause.SUFFOCATION || e.cause == EntityDamageEvent.DamageCause.FALLING_BLOCK) {
             e.isCancelled = true
@@ -266,8 +288,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- PRIORIDAD LOWEST PARA ADELANTARSE A GSIT ---
-    @EventHandler(priority = EventPriority.LOWEST)
+    @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         if (e.hand != EquipmentSlot.HAND) return
 
@@ -285,7 +306,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         if (currentGame is SillasMusicales && currentGame.isRunning) {
             val clickedBlock = e.clickedBlock
             if (clickedBlock != null && e.action.isRightClick) {
-                // Bloqueamos a GSit instantáneamente para que no interfiera en la lógica del minijuego
                 e.isCancelled = true
                 currentGame.intentarSentarse(player, clickedBlock.location)
                 return
@@ -346,6 +366,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    // --- PROTECCIONES GSIT ---
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onGSitStop(e: EntityStopSitEvent) {
         val player = e.entity as? Player ?: return
@@ -364,7 +385,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 val loc = game.jugadoresSentados[player] ?: return
                 plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
                     GSitAPI.createSeat(loc.block, player)
-                    player.sendMessage(plugin.messageManager.parse("<red>¡Estás atado a la ruleta, no puedes huir!</red>"))
                 }, 1L)
             }
         }
@@ -395,6 +415,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
         if (game.isRunning) {
             if (player.health - e.finalDamage <= 0) {
+
                 val mainHand = player.inventory.itemInMainHand.type
                 val offHand = player.inventory.itemInOffHand.type
 
@@ -407,7 +428,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 player.fireTicks = 0
                 player.world.spawnParticle(org.bukkit.Particle.SOUL, player.location, 20, 0.5, 1.0, 0.5, 0.1)
 
-                // --- NUEVO: SISTEMA DE PUNTOS POR ASESINATO ---
                 var killer: Player? = null
                 if (e is EntityDamageByEntityEvent) {
                     val damager = e.damager
@@ -419,10 +439,18 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 }
 
                 if (killer != null && killer != player && game.players.contains(killer)) {
-                    plugin.puntajeManager.addPoints(killer, 2, "¡Asesinato!")
                     killer.playSound(killer.location, Sound.ENTITY_ARROW_HIT_PLAYER, 1f, 1.5f)
                 }
-                // ----------------------------------------------
+
+                if (game is PillarsOfFortune) {
+                    val loc = player.location
+                    player.inventory.contents.forEach { item ->
+                        if (item != null && item.type != Material.AIR) {
+                            val droppedItem = loc.world.dropItemNaturally(loc, item)
+                            droppedItem.pickupDelay = 40
+                        }
+                    }
+                }
 
                 game.eliminate(player)
             }

@@ -9,6 +9,8 @@ import pumpkin.eventos.commands.GamemodeCommand
 import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
 import pumpkin.eventos.games.blockparty.BlockParty
+import pumpkin.eventos.games.cristales.Cristales
+import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
 import pumpkin.eventos.games.pillars.PillarsOfFortune
@@ -30,8 +32,8 @@ import pumpkin.eventos.listeners.ChatListener
 import pumpkin.eventos.listeners.ConnectionListener
 import pumpkin.eventos.listeners.DeathListener
 import pumpkin.eventos.listeners.GameListener
-import pumpkin.eventos.listeners.WorldListener
 import pumpkin.eventos.listeners.LobbyProtectionListener
+import pumpkin.eventos.listeners.WorldListener
 import pumpkin.eventos.manager.EventManager
 import pumpkin.eventos.manager.MapManager
 import pumpkin.eventos.manager.PuntajeManager
@@ -50,7 +52,7 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var voteManager: VoteManager
     lateinit var eventManager: EventManager
     lateinit var boardManager: BoardManager
-    lateinit var puntajeManager: PuntajeManager // <-- NUEVO
+    lateinit var puntajeManager: PuntajeManager // <-- SISTEMA DE PUNTOS
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
@@ -67,7 +69,7 @@ class PumpkinEventos : JavaPlugin() {
         componentLogger.info(mm.deserialize("<#FF9900> / ____/ /_/ / / / / / / /_/ / / / / /  </#FF9900>"))
         componentLogger.info(mm.deserialize("<#FF9900>/_/    \\__,_/_/ /_/ /_/_.___/_/_/ /_/   </#FF9900>"))
         componentLogger.info(mm.deserialize(""))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v2.0 - CARGADO CON ÉXITO ⚡</#CCFF00>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v2.5 - CARGADO CON ÉXITO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#39FF14>✔ AdvancedSlimePaper Detectado (0 Lag Enabled)</#39FF14>"))
         componentLogger.info(mm.deserialize("<#39FF14>✔ Compatibilidad Folia Activa</#39FF14>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
@@ -81,7 +83,7 @@ class PumpkinEventos : JavaPlugin() {
             componentLogger.warn(mm.deserialize("<yellow>Archivos de configuración ya existen o no se pudieron copiar.</yellow>"))
         }
 
-        // --- 3. INICIALIZACIÓN ---
+        // --- 3. INICIALIZACIÓN DE MANAGERS ---
         messageManager = MessageManager()
         languageManager = LanguageManager(this)
         chatFormatManager = ChatFormatManager(this)
@@ -92,7 +94,7 @@ class PumpkinEventos : JavaPlugin() {
         mapManager = MapManager(this)
         voteManager = VoteManager()
         eventManager = EventManager(this)
-        puntajeManager = PuntajeManager(this) // <-- NUEVO
+        puntajeManager = PuntajeManager(this)
 
         papaCalienteGame = PapaCaliente(this)
         congeladosGame = Congelados(this)
@@ -107,15 +109,18 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(SueloLava(this))
         eventManager.registerGame(PillarsOfFortune(this))
         eventManager.registerGame(Sumo(this))
+        eventManager.registerGame(BlockParty(this))
         eventManager.registerGame(LuzRojaLuzVerde(this))
         eventManager.registerGame(SillasMusicales(this))
         eventManager.registerGame(RuletaRusa(this))
+        eventManager.registerGame(Cristales(this)) // NUEVO
+        eventManager.registerGame(JalarCuerda(this)) // NUEVO
 
-        // --- 5. HUD ---
+        // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
         boardManager.startTasks()
 
-        // --- 6. EVENTOS (Listeners) ---
+        // --- 6. EVENTOS (LISTENERS) ---
         val pm = server.pluginManager
         pm.registerEvents(ChatListener(this), this)
         pm.registerEvents(GameListener(this), this)
@@ -124,9 +129,9 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(ConnectionListener(this), this)
         pm.registerEvents(WorldListener(), this)
         pm.registerEvents(LobbyProtectionListener(this), this)
+        pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this) // Utilidad de vacío
 
-        pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
-
+        // Listeners de sub-juegos de Simón
         pm.registerEvents(papaCalienteGame, this)
         pm.registerEvents(congeladosGame, this)
         pm.registerEvents(dueloFinalGame, this)
@@ -137,6 +142,7 @@ class PumpkinEventos : JavaPlugin() {
         getCommand("puntaje")?.setExecutor(puntajeCmd)
         getCommand("puntaje")?.tabCompleter = puntajeCmd
 
+        // Comandos de Brigadier (Paper 1.21+)
         this.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             val commands = event.registrar()
             EventoCommand.register(commands, this)

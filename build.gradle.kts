@@ -57,7 +57,7 @@ dependencies {
     compileOnly("me.clip:placeholderapi:2.11.7")
 
     // Paper ya incluye Adventure y MiniMessage nativamente
-    compileOnly("net.kyori:adventure-text-minimessage:4.17.0")
+    compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:24.0.1")
 }
 

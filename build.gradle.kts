@@ -53,7 +53,7 @@ dependencies {
     implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")
     compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
     compileOnly(files("libs/GSit-3.3.3.jar"))
-    compileOnly("net.luckperms:api:5.4")
+    compileOnly("net.luckperms:api:5.5")
     compileOnly("me.clip:placeholderapi:2.11.7")
 
     // Paper ya incluye Adventure y MiniMessage nativamente

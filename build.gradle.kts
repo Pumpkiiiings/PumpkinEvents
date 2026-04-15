@@ -47,7 +47,7 @@ dependencies {
 
     // Librerías que se incluirán en el JAR (Shadow)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    implementation("com.github.retrooper:packetevents-spigot:2.11.2")
+    implementation("com.github.retrooper:packetevents-spigot:2.12.0")
     implementation("dev.triumphteam:triumph-gui:3.1.13")
     implementation("org.slf4j:slf4j-simple:2.0.17")
     implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")

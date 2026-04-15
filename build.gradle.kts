@@ -5,14 +5,14 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("org.ow2.asm:asm:9.6")
+        classpath("org.ow2.asm:asm:9.9.1")
         classpath("org.ow2.asm:asm-commons:9.6")
     }
 }
 
 plugins {
     java
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.3.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
 }
@@ -58,7 +58,7 @@ dependencies {
 
     // Paper ya incluye Adventure y MiniMessage nativamente
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
-    compileOnly("org.jetbrains:annotations:24.0.1")
+    compileOnly("org.jetbrains:annotations:26.1.0")
 }
 
 tasks {
@@ -73,7 +73,6 @@ tasks {
         relocate("dev.triumphteam.gui", "liric.mistaken.libs.gui")
         relocate("kotlin", "liric.mistaken.libs.kotlin")
 
-        // AQUÍ ESTÁ LO QUE FALTABA PARA QUITAR LO ROJO:
         relocate("kotlinx", "liric.mistaken.libs.kotlinx")
     }
 

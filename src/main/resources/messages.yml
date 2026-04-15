@@ -6,7 +6,7 @@ prefix: "<#FF5500><bold>⚡ EVENTOS</bold></#FF5500> <dark_gray>»</dark_gray> "
 commands:
   help:
     - ""
-    - "<#FF5500><bold>⚡ PUMPKIN EVENTOS CORE</bold></##FF5500> <white>v2.5 ⚡</white>"
+    - "<#FF5500><bold>⚡ PUMPKIN EVENTOS CORE</bold></#FF5500> <white>v2.5 ⚡</white>"
     - ""
     - "<#39FF14>🗡 /evento setup lobby|waiting</#39FF14> <gray>» Configurar Lobbies</gray>"
     - "<#39FF14>🗡 /evento arena create <mapa> <tipo></#39FF14> <gray>» Crear Mapa</gray>"
@@ -48,12 +48,12 @@ commands:
 vote:
   no_active: "<#FF3131>¡No hay ninguna votación activa en este momento!</#FF3131>"
   already_voted: "<#FF3131>¡Ya has emitido tu voto! ¡Espera los resultados!</#FF3131>"
-  not_found: "<#FF3131>¡Ese modo de juego no existe!</##FF3131>"
+  not_found: "<#FF3131>¡Ese modo de juego no existe!</#FF3131>"
   success: "<#39FF14>✔</#39FF14> <white>Has votado por: <#00FFFF><bold><game></bold></#00FFFF></white>"
 
 event_manager:
   vote_start:
-    header: "<newline><#FF5500><bold>¡LA VOTACIÓN HA COMENZADO!</bold></##FF5500><newline><gray>Elige el evento que se jugará a continuación:</gray><newline>"
+    header: "<newline><#FF5500><bold>¡LA VOTACIÓN HA COMENZADO!</bold></#FF5500><newline><gray>Elige el evento que se jugará a continuación:</gray><newline>"
     item: "<click:run_command:'/votar <id>'><hover:show_text:'<gray>Haz clic para votar por <white><name>'><#CCFF00>•</#CCFF00> <name> <dark_gray>(Clic para votar)</dark_gray></hover></click>"
     footer: "<newline><gray>La votación termina en <white>30 segundos</white>.</gray><newline>"
   vote_end: "<newline><#39FF14><b>¡VOTACIÓN TERMINADA!</b></#39FF14> <white>El ganador es: <#00FFFF><game></#00FFFF><newline>"
@@ -70,85 +70,102 @@ deaths:
 
 tutorials:
   ruletarusa:
-    - "<newline><#FF3131><bold>━━━━━━━━━━━━ RULETA RUSA ━━━━━━━━━━━━</bold></#FF3131>"
+    - "<newline><#FF3131><bold>━━━━━━━ RULETA RUSA ━━━━━━━</bold></#FF3131>"
     - ""
-    - "<gray>» <white>Serás sentado en la mesa de la suerte.</white>"
-    - "<gray>» <white>La flecha dorada elegirá al tirador de la ronda.</white>"
-    - "<gray>» <white>Si eres elegido, tienes el arma: <#39FF14>Clic Der</#39FF14> dispara.</white>"
-    - "<gray>» <white>Opcional: <#00FFFF>Q</#00FFFF> pasa el arma pero sube tu riesgo.</white>"
-    - "<gray>» <#FF3131>Si la bala sale... ¡Quedas eliminado!</##FF3131>"
-    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+    - "<gray>»</gray> <white>La flecha elegirá al <#FFCC00>tirador de la ronda</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Si eres elegido, <#39FF14>Clic Der</#39FF14> dispara el arma.</white>"
+    - "<gray>»</gray> <white>Opcional: La tecla <#FFCC00>Q</#FFCC00> pasa el arma pero sube tu riesgo.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Si la bala sale, serás eliminado!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   sillas:
-    - "<newline><#BF00FF><bold>━━━━━━━━━━━━ SILLAS MUSICALES ━━━━━━━━━━━━</bold></#BF00FF>"
+    - "<newline><#BF00FF><bold>━━━━━━ SILLAS MUSICALES ━━━━━━</bold></#BF00FF>"
     - ""
-    - "<gray>» <white>Baila y muévete mientras suene la música.</#white>"
-    - "<gray>» <white>Cuando la música pare, ¡Haz <#39FF14>Clic Derecho</#39FF14> en un asiento!</white>"
-    - "<gray>» <#FF3131>Quien se quede de pie será eliminado.</##FF3131>"
+    - "<gray>»</gray> <white>Baila y muévete mientras suene la <#FFCC00>música</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Cuando pare, haz <#39FF14>Clic Derecho</#39FF14> en un asiento.</white>"
+    - "<gray>»</gray> <white><#FF3131>Quien se quede de pie será eliminado.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   luzroja:
-    - "<newline><#39FF14><bold>━━━━━━━━━━ LUZ ROJA, LUZ VERDE ━━━━━━━━━━</bold></#39FF14>"
+    - "<newline><#39FF14><bold>━━━━━ LUZ ROJA, LUZ VERDE ━━━━━</bold></#39FF14>"
     - ""
-    - "<gray>» <white>En luz <#39FF14>verde</#39FF14>, ¡corre hacia la meta!</white>"
-    - "<gray>» <white>En luz <#FF3131>roja</#FF3131>, quédate totalmente quieto.</white>"
-    - "<gray>» <#FF3131>Si te mueves en rojo, el rayo te eliminará.</##FF3131>"
+    - "<gray>»</gray> <white>En luz <#39FF14>VERDE</#39FF14>, ¡corre hacia la meta!</white>"
+    - "<gray>»</gray> <white>En luz <#FF3131>ROJA</#FF3131>, quédate totalmente quieto.</white>"
+    - "<gray>»</gray> <white><#FF3131>Si te mueves en rojo, serás eliminado.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   tntrun:
-    - "<newline><#FFCC00><bold>━━━━━━━━━━━━━━━ TNT RUN ━━━━━━━━━━━━━━━</bold></#FFCC00>"
+    - "<newline><#FFCC00><bold>━━━━━━━━━━━ TNT RUN ━━━━━━━━━━━</bold></#FFCC00>"
     - ""
-    - "<gray>» <white>El suelo desaparece al pisarlo.</white>"
-    - "<gray>» <white>No dejes de correr y busca los niveles superiores.</white>"
-    - "<gray>» <#FF3131>Si caes al vacío, quedas fuera.</##FF3131>"
+    - "<gray>»</gray> <white>El suelo <#FFCC00>desaparecerá</#FFCC00> debajo de ti al pisarlo.</white>"
+    - "<gray>»</gray> <white>Mantente en constante movimiento.</white>"
+    - "<gray>»</gray> <white><#FF3131>Si caes al vacío, quedarás fuera del juego.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   tnttag:
-    - "<newline><#FF3131><bold>━━━━━━━━━━━━━━━ TNT TAG ━━━━━━━━━━━━━━━</bold></#FF3131>"
+    - "<newline><#FF3131><bold>━━━━━━━━━━━ TNT TAG ━━━━━━━━━━━</bold></#FF3131>"
     - ""
-    - "<gray>» <white>Si tienes la TNT, golpea a otros para pasarla.</white>"
-    - "<gray>» <white>Si no la tienes, ¡huye lo más lejos posible!</white>"
-    - "<gray>» <#FF3131>Cuando el tiempo acabe, la TNT explotará.</##FF3131>"
+    - "<gray>»</gray> <white>Si tienes la TNT, <#FFCC00>golpea a otro jugador</#FFCC00> para pasarla.</white>"
+    - "<gray>»</gray> <white>Si NO la tienes, ¡huye lo más lejos posible!</white>"
+    - "<gray>»</gray> <white><#FF3131>Cuando el tiempo acabe, la TNT explotará.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   pillars:
-    - "<newline><#00FFFF><bold>━━━━━━━━━━━ PILLARS OF FORTUNE ━━━━━━━━━━━</bold></#00FFFF>"
+    - "<newline><#00FFFF><bold>━━━━━━ PILLARS OF FORTUNE ━━━━━━</bold></#00FFFF>"
     - ""
-    - "<gray>» <white>Recibirás objetos aleatorios cada 10 segundos.</white>"
-    - "<gray>» <white>Úsalos para construir, atacar o sobrevivir.</white>"
-    - "<gray>» <#FF3131>Sé el último en pie sobre los pilares.</##FF3131>"
+    - "<gray>»</gray> <white>Recibirás un objeto al azar cada <#FFCC00>10 segundos</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Úsalos inteligentemente para sobrevivir a los demás.</white>"
+    - "<gray>»</gray> <white><#FF3131>Caer de tu pilar es muerte instantánea.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   suelolava:
-    - "<newline><#FF4500><bold>━━━━━━━━━━━━ EL SUELO ES LAVA ━━━━━━━━━━━━</bold></#FF4500>"
+    - "<newline><#FF4500><bold>━━━━━━ EL SUELO ES LAVA ━━━━━━</bold></#FF4500>"
     - ""
-    - "<gray>» <white>La lava subirá capa por capa cada pocos segundos.</white>"
-    - "<gray>» <white>Usa tus bloques para subir a lo más alto.</white>"
-    - "<gray>» <#FF3131>Tocar la lava es muerte instantánea.</##FF3131>"
+    - "<gray>»</gray> <white>La lava <#FFCC00>subirá capa por capa</#FFCC00> poco a poco.</white>"
+    - "<gray>»</gray> <white>Usa tus bloques para escalar y mantenerte a salvo.</white>"
+    - "<gray>»</gray> <white><#FF3131>Tocar la lava te derretirá al instante.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   sumo:
-    - "<newline><#FF9900><bold>━━━━━━━━━━━━━━━ SUMO 1v1 ━━━━━━━━━━━━━━━</bold></#FF9900>"
+    - "<newline><#FF9900><bold>━━━━━━━━━━ SUMO 1v1 ━━━━━━━━━━</bold></#FF9900>"
     - ""
-    - "<gray>» <white>Duelos eliminatorios en una plataforma pequeña.</white>"
-    - "<gray>» <white>Usa el palo para empujar a tu rival fuera.</white>"
-    - "<gray>» <#FF3131>Tocar el agua o el suelo es eliminación.</##FF3131>"
+    - "<gray>»</gray> <white>Duelos mano a mano en una pequeña plataforma.</white>"
+    - "<gray>»</gray> <white>Usa tu <#FFCC00>Palo de Sumo</#FFCC00> para empujar a tu rival.</white>"
+    - "<gray>»</gray> <white><#FF3131>Tocar el suelo fuera de la arena es eliminación.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   blockparty:
-    - "<newline><#FF1493><bold>━━━━━━━━━━━━━ BLOCK PARTY ━━━━━━━━━━━━━</bold></#FF1493>"
+    - "<newline><#FF1493><bold>━━━━━━━━━ BLOCK PARTY ━━━━━━━━━</bold></#FF1493>"
     - ""
-    - "<gray>» <white>Mira el color en tu inventario o BossBar.</white>"
-    - "<gray>» <white>Párate sobre ese color antes de que el tiempo acabe.</white>"
-    - "<gray>» <#FF3131>Los demás bloques desaparecerán.</##FF3131>"
+    - "<gray>»</gray> <white>Mira el color que aparecerá en tu inventario.</white>"
+    - "<gray>»</gray> <white>Párate sobre <#FFCC00>ese color</#FFCC00> antes de que acabe el tiempo.</white>"
+    - "<gray>»</gray> <white><#FF3131>Los bloques incorrectos desaparecerán bajo tus pies.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
   simondice:
-    - "<newline><#39FF14><bold>━━━━━━━━━━━━━ SIMÓN DICE ━━━━━━━━━━━━━</bold></#39FF14>"
+    - "<newline><#39FF14><bold>━━━━━━━━━ SIMÓN DICE ━━━━━━━━━</bold></#39FF14>"
     - ""
-    - "<gray>» <white>Solo obedece si Simón dice la frase: <#39FF14>'Simón Dice'</#39FF14>.</white>"
-    - "<gray>» <white>Si Simón no lo dice y haces la acción, mueres.</white>"
-    - "<gray>» <#FF3131>¡Presta mucha atención al chat!</##FF3131>"
+    - "<gray>»</gray> <white>Solo obedece si la frase empieza con <#39FF14>'Simón Dice'</#39FF14>.</white>"
+    - "<gray>»</gray> <white>Si Simón NO lo dice y obedeces, serás castigado.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Presta mucha atención al chat!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  cristales:
+    - "<newline><#00FFFF><bold>━━━━━━ PUENTE DE CRISTAL ━━━━━━</bold></#00FFFF>"
+    - ""
+    - "<gray>»</gray> <white>Cruza al otro lado antes de que acabe el <#FFCC00>tiempo</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>De cada fila de cristales, solo <#39FF14>UNO</#39FF14> es seguro.</white>"
+    - "<gray>»</gray> <white><#FF3131>El cristal falso se romperá al pisarlo.</#FF3131></white>"
+    - "<gray>»</gray> <white><#FF3131>¡Cuidado! Más de 3 personas romperán el cristal real.</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  jalarcuerda:
+    - "<newline><#FF9900><bold>━━━━━━ JALAR LA CUERDA ━━━━━━</bold></#FF9900>"
+    - ""
+    - "<gray>»</gray> <white>¡Prepárate para hacer fuerza en equipo!</white>"
+    - "<gray>»</gray> <white>Golpea la cadena o el heno al <#FFCC00>ritmo de la barra</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Acertar al <#39FF14>VERDE</#39FF14> da +3 puntos y sube la velocidad.</white>"
+    - "<gray>»</gray> <white><#FF3131>Fallar en el ROJO te penaliza con lentitud.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
 tntrun:
@@ -210,6 +227,19 @@ ruletarusa:
     saved: "<newline><#39FF14><b>¡<player> TUVO SUERTE!</b></#39FF14> <white>La recámara estaba vacía.</white><newline>"
     died: "<newline><#FF3131><b>¡BAM!</b></#FF3131> <white><player> no sobrevivió a la ruleta.</white><newline>"
     winner: "<newline><#BF00FF><b>RULETA RUSA</b></#BF00FF> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
+
+cristales:
+  actionbar:
+    preparation: "<white>El puente se abre en: <aqua><bold><time></bold>s"
+  broadcast:
+    winner: "<newline><#00FFFF><b>PUENTE DE CRISTAL</b></#00FFFF> <white>» ¡<player> sobrevivieron al puente!<newline>"
+    overweight: "<red><b>¡CRACK!</b> ¡Un cristal se ha roto por exceso de peso!</red>"
+
+jalarcuerda:
+  actionbar:
+    preparation: "<white>El duelo inicia en: <aqua><bold><time></bold>s"
+  broadcast:
+    winner: "<newline><#FF9900><b>JALAR LA CUERDA</b></#FF9900> <white>» <color:#67FF00><player></color> ganó con <b><score></b> puntos!<newline>"
 
 scoreboard:
   title: "<#FFD700><b>⚡ EVENTOS ⚡</b></#FFD700>"
@@ -289,6 +319,25 @@ scoreboard:
     - " <dark_gray>|</dark_gray> <#FFCC00>🪑</#FFCC00> <white>Sillas:</white> <#39FF14>%sillas%</#39FF14>"
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+  ingame_cristales:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>🪟</#00FFFF> <white>Evento:</white> <#FFCC00>Cristales</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>✔</#39FF14> <white>Salvados:</white> <#00FFFF>%salvados%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+  ingame_jalarcuerda:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF9900>⛓</#FF9900> <white>Evento:</white> <#FFCC00>Jalar Cuerda</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>Pts Rojo:</#FF3131> <white>%pts_rojo%</white>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>Pts Azul:</#00FFFF> <white>%pts_azul%</white>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
 bossbar:
   waiting: "<bold>EVENTO:</bold> <gray>Ninguno</gray>"
@@ -300,10 +349,12 @@ bossbar:
   ingame_simondice: "⚡ <yellow>Simón Dice</yellow> <gray>|</gray> <white>%orden% <gray>|</gray> ⏳ %time%s</white>"
   ingame_luzroja: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Llegaron: %meta%</white>"
   ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
+  ingame_cristales: "<bold>CRISTALES:</bold> <aqua>Salvados: %salvados%</aqua> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_jalarcuerda: "<bold>CUERDA:</bold> <#FF9900>¡Atina al verde para ganar puntos!</#FF9900> <gray>|</gray> <white>⏳ %time_left%s</white>"
 
 gamemode:
-  invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></##FF3131>"
-  player_not_found: "<prefix><#FF3131>No se encontró al jugador <#CCFF00><target></#CCFF00>.</##FF3131>"
+  invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></#FF3131>"
+  player_not_found: "<prefix><#FF3131>No se encontró al jugador <#CCFF00><target></#CCFF00>.</#FF3131>"
   changed_self: "<prefix><#39FF14>Modo de juego cambiado a <#00FFFF><bold><mode></bold></#00FFFF>.</#39FF14>"
   changed_other: "<prefix><#39FF14>Has cambiado el modo de <#CCFF00><target></#CCFF00> a <#00FFFF><mode></#00FFFF>.</#39FF14>"
   changed_by_other: "<prefix><#39FF14>Tu modo de juego ha sido cambiado a <#00FFFF><mode></#00FFFF> por <#CCFF00><sender></#CCFF00>.</#39FF14>"

@@ -6,7 +6,7 @@ buildscript {
     }
     dependencies {
         classpath("org.ow2.asm:asm:9.9.1")
-        classpath("org.ow2.asm:asm-commons:9.9.1")
+        classpath("org.ow2.asm:asm-commons:9.6")
     }
 }
 
@@ -73,7 +73,6 @@ tasks {
         relocate("dev.triumphteam.gui", "liric.mistaken.libs.gui")
         relocate("kotlin", "liric.mistaken.libs.kotlin")
 
-        // AQUÍ ESTÁ LO QUE FALTABA PARA QUITAR LO ROJO:
         relocate("kotlinx", "liric.mistaken.libs.kotlinx")
     }
 

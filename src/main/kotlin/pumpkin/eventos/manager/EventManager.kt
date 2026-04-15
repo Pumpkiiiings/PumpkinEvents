@@ -104,33 +104,33 @@ class EventManager(private val plugin: PumpkinEventos) {
 
         val customRules = game.getCustomGameRules()
 
+        // Cargamos el mundo Slime
         plugin.mapManager.loadArenaWorld(arenaTemplate.slimeWorldName!!, customRules).thenAccept { world ->
             if (world == null) {
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.map_error_slime")))
                 return@thenAccept
             }
 
+            // Entramos al hilo global para mover gente e iniciar
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 val actualSpawn = arenaTemplate.centerLocation?.clone() ?: world.spawnLocation
-                actualSpawn.world = world
+                actualSpawn.world = world // Forzamos el mundo clonado
 
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // Respetamos no teletransportarlos si es PillarsOfFortune
-                    if (game !is PillarsOfFortune) {
-                        p.teleportAsync(actualSpawn)
-                    }
-
+                    // Teletransporte asíncrono al mundo nuevo
+                    p.teleportAsync(actualSpawn)
                     p.inventory.clear()
                     game.players.add(p)
                 }
 
                 currentGame = game
 
-                // --> IMPORTANTE: Le pasamos el 'world' ya instanciado al inicio del juego <--
+                // --- ¡AQUÍ ESTÁ LA SOLUCIÓN! ---
+                // Le pasamos el 'world' que capturamos del CompletableFuture
                 game.start(arenaTemplate, plugin, world)
 
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
-            }, 20L)
+            }, 20L) // 1 segundo de cortesía para que carguen los chunks
         }
     }
 }

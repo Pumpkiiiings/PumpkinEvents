@@ -19,6 +19,7 @@ import pumpkin.eventos.PumpkinEventos
 import java.util.concurrent.ConcurrentLinkedQueue
 
 enum class BoosterType(val material: Material, val displayName: String, val color: String) {
+    // --- BOOSTERS DE MOVIMIENTO ---
     SPEED_1(Material.FEATHER, "Velocidad I", "<#00FF00>") {
         override fun applyEffect(player: Player, plugin: PumpkinEventos) {
             player.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 200, 0))
@@ -34,7 +35,7 @@ enum class BoosterType(val material: Material, val displayName: String, val colo
             player.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, 200, 0))
         }
     },
-    MIX(Material.BLAZE_POWDER, "Mix Poder", "<#FF00FF>") {
+    MIX(Material.BLAZE_POWDER, "Mix Poder", "<#BF00FF>") {
         override fun applyEffect(player: Player, plugin: PumpkinEventos) {
             player.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 100, 1))
             player.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, 100, 1))
@@ -45,8 +46,42 @@ enum class BoosterType(val material: Material, val displayName: String, val colo
             val item = ItemStack(Material.ENDER_PEARL)
             val meta = item.itemMeta
             meta.displayName(plugin.messageManager.parse("<#00FFFF><b>Perla de Salvación</b>"))
-            val key = NamespacedKey(plugin, "event_item")
+            val key = NamespacedKey(plugin, "tnt_item") // Importante: usar "tnt_item" para que el GameListener lo detecte
             meta.persistentDataContainer.set(key, PersistentDataType.STRING, "pearl")
+            item.itemMeta = meta
+            player.inventory.addItem(item)
+        }
+    },
+
+    // --- NUEVO: BOOSTERS DE COMBATE (Para WoolWars, etc) ---
+    STRENGTH_1(Material.REDSTONE, "Fuerza Bruta", "<#FF3131>") {
+        override fun applyEffect(player: Player, plugin: PumpkinEventos) {
+            player.addPotionEffect(PotionEffect(PotionEffectType.STRENGTH, 200, 0))
+        }
+    },
+    REGEN_1(Material.GHAST_TEAR, "Regeneración", "<#FF1493>") {
+        override fun applyEffect(player: Player, plugin: PumpkinEventos) {
+            player.addPotionEffect(PotionEffect(PotionEffectType.REGENERATION, 160, 1))
+        }
+    },
+    INSTA_HEAL(Material.GLISTERING_MELON_SLICE, "Cura Instantánea", "<#FF5500>") {
+        override fun applyEffect(player: Player, plugin: PumpkinEventos) {
+            player.health = (player.health + 8.0).coerceAtMost(player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: 20.0)
+            player.world.spawnParticle(org.bukkit.Particle.HEART, player.location.add(0.0, 1.0, 0.0), 5, 0.5, 0.5, 0.5, 0.0)
+        }
+    },
+    ABSORPTION(Material.GOLD_INGOT, "Escudo Extra", "<#FFD700>") {
+        override fun applyEffect(player: Player, plugin: PumpkinEventos) {
+            player.addPotionEffect(PotionEffect(PotionEffectType.ABSORPTION, 600, 1))
+        }
+    },
+    GAPPLE(Material.GOLDEN_APPLE, "Manzana Dorada", "<#CCFF00>") {
+        override fun applyEffect(player: Player, plugin: PumpkinEventos) {
+            val item = ItemStack(Material.GOLDEN_APPLE)
+            val meta = item.itemMeta
+            meta.displayName(plugin.messageManager.parse("<#CCFF00><b>Manzana Dorada</b>"))
+            val key = NamespacedKey(plugin, "tnt_item")
+            meta.persistentDataContainer.set(key, PersistentDataType.STRING, "gapple")
             item.itemMeta = meta
             player.inventory.addItem(item)
         }
@@ -163,7 +198,7 @@ class BoosterManager(private val plugin: PumpkinEventos, private val game: Event
                     picker.scheduler.run(plugin, { _ ->
                         type.applyEffect(picker, plugin)
                         picker.playSound(picker.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f)
-                        picker.sendMessage(plugin.messageManager.parse("<purple><b>!</b> <white>Has recogido: ${type.color}<b>${type.displayName}</b>"))
+                        picker.sendMessage(plugin.messageManager.parse("<purple><b>!</b></purple> <white>Has recogido: ${type.color}<b>${type.displayName}</b></white>"))
                     }, null)
 
                     world.spawnParticle(org.bukkit.Particle.FIREWORK, currentLoc, 15, 0.2, 0.2, 0.2, 0.1)

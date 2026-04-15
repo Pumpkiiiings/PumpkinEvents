@@ -46,8 +46,10 @@ object EventoCommand {
             1
         }
 
+        // --- RELOAD ---
         val reload = Commands.literal("reload").executes { ctx ->
             val sender = ctx.source.sender
+
             plugin.reloadConfig()
             plugin.languageManager.reload()
 
@@ -80,7 +82,8 @@ object EventoCommand {
                 .then(Commands.argument("name", StringArgumentType.word())
                     .then(Commands.argument("type", StringArgumentType.word())
                         .suggests { _, builder ->
-                            listOf("tnttag", "tntrun", "simondice", "suelolava", "pillars", "sumo", "blockparty", "spleef", "tntspleef", "luzroja", "sillas", "ruletarusa").forEach { builder.suggest(it) }
+                            // ¡AÑADIDOS CRISTALES Y JALARCUERDA!
+                            listOf("tnttag", "tntrun", "simondice", "suelolava", "pillars", "sumo", "blockparty", "spleef", "tntspleef", "luzroja", "sillas", "ruletarusa", "cristales", "jalarcuerda").forEach { builder.suggest(it) }
                             builder.buildFuture()
                         }
                         .executes { ctx ->
@@ -144,7 +147,6 @@ object EventoCommand {
                 sendMsg(sender, plugin, "commands.arena.spawn_added", Placeholder.parsed("map", session.name), Placeholder.parsed("count", session.spawns.size.toString()))
                 1
             })
-            // --- NUEVO: AÑADIR SILLAS ---
             .then(Commands.literal("addchair").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
                 val session = plugin.arenaManager.activeSetups[sender.uniqueId]

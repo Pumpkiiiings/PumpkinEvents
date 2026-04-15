@@ -12,7 +12,7 @@ buildscript {
 
 plugins {
     java
-    kotlin("jvm") version "2.1.0"
+    kotlin("jvm") version "2.3.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
 }

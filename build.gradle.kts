@@ -54,7 +54,7 @@ dependencies {
     compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
     compileOnly(files("libs/GSit-3.3.3.jar"))
     compileOnly("net.luckperms:api:5.5")
-    compileOnly("me.clip:placeholderapi:2.11.7")
+    compileOnly("me.clip:placeholderapi:2.12.2")
 
     // Paper ya incluye Adventure y MiniMessage nativamente
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")

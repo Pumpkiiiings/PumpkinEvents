@@ -13,7 +13,7 @@ import java.util.concurrent.TimeUnit
 
 enum class LuzEstado { ROJA, VERDE, PREPARACION }
 
-class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<b><color:#FF0000>Luz Roja</color></b><color:#AAAAAA>,</color> <b><color:#00FF19>Luz Verde</color></b>") {
+class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<color:#FF0000>Luz Roja</color><color:#AAAAAA>,</color> <color:#00FF19>Luz Verde</color>") {
 
     var estado = LuzEstado.PREPARACION
     private var timerGlobal = 300 // 5 minutos máximo

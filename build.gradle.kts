@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 buildscript {
@@ -12,13 +13,14 @@ buildscript {
 
 plugins {
     java
+    // Mantenemos tu versión experimental de Kotlin
     kotlin("jvm") version "2.3.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
 }
 
-group = "liric.mistaken" // Actualizado a tu nuevo package
-version = "3.0"
+group = "liric.mistaken"
+version = "3.0.2"
 
 java {
     toolchain {
@@ -45,7 +47,6 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
     implementation(kotlin("stdlib"))
 
-    // Librerías que se incluirán en el JAR (Shadow)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
     implementation("com.github.retrooper:packetevents-spigot:2.12.0")
     implementation("dev.triumphteam:triumph-gui:3.1.13")
@@ -56,7 +57,6 @@ dependencies {
     compileOnly("net.luckperms:api:5.5")
     compileOnly("me.clip:placeholderapi:2.12.2")
 
-    // Paper ya incluye Adventure y MiniMessage nativamente
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
 }
@@ -68,22 +68,25 @@ tasks {
         isZip64 = true
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-        // RELOCACIONES: Para que no haya conflicto con otros plugins
         relocate("com.github.retrooper.packetevents", "liric.mistaken.libs.packetevents")
         relocate("dev.triumphteam.gui", "liric.mistaken.libs.gui")
         relocate("kotlin", "liric.mistaken.libs.kotlin")
-
         relocate("kotlinx", "liric.mistaken.libs.kotlinx")
     }
 
     withType<JavaCompile> {
         options.encoding = "UTF-8"
-        sourceCompatibility = "21"
-        targetCompatibility = "21"
     }
 
-    withType<KotlinCompile> {
-        kotlinOptions.jvmTarget = "21"
+    // 🔥 LA CORRECCIÓN CLAVE: Migración de kotlinOptions a compilerOptions
+    withType<KotlinCompile>().configureEach {
+        compilerOptions {
+            // Se usa el enum JvmTarget en lugar de Strings
+            jvmTarget.set(JvmTarget.JVM_21)
+
+            // Opcional: Activar optimizaciones de K2
+            freeCompilerArgs.add("-Xjsr305=strict")
+        }
     }
 
     processResources {
@@ -96,6 +99,7 @@ tasks {
     }
 
     build {
+        // Asegura que siempre se genere el ShadowJar al compilar
         dependsOn(shadowJar)
     }
 }

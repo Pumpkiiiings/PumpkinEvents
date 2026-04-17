@@ -6,7 +6,6 @@ import org.bukkit.Bukkit
 import org.bukkit.Sound
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
-import pumpkin.eventos.games.pillars.PillarsOfFortune
 import java.util.concurrent.TimeUnit
 
 class EventManager(private val plugin: PumpkinEventos) {
@@ -19,7 +18,6 @@ class EventManager(private val plugin: PumpkinEventos) {
 
     fun startVoting() {
         if (isVoting || currentGame != null) return
-
         isVoting = true
         plugin.voteManager.resetVotes()
 
@@ -32,16 +30,13 @@ class EventManager(private val plugin: PumpkinEventos) {
 
         val builder = StringBuilder(header)
         games.values.forEach { game ->
-            val formattedItem = itemTemplate
-                .replace("<id>", game.id)
-                .replace("<name>", game.displayName)
+            val formattedItem = itemTemplate.replace("<id>", game.id).replace("<name>", game.displayName)
             builder.append(formattedItem).append("\n")
         }
         builder.append(footer)
 
         Bukkit.broadcast(mm.parse(builder.toString()))
         Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f) }
-
         plugin.server.asyncScheduler.runDelayed(plugin, { _ -> endVoting() }, 30, TimeUnit.SECONDS)
     }
 
@@ -49,40 +44,24 @@ class EventManager(private val plugin: PumpkinEventos) {
         isVoting = false
         val winnerId = plugin.voteManager.getWinningGame(games)
         val winnerGame = games[winnerId] ?: return
-
-        val rawMsg = plugin.languageManager.get("event_manager.vote_end")
-        Bukkit.broadcast(plugin.messageManager.parse(rawMsg, Placeholder.parsed("game", winnerGame.displayName)))
-
+        Bukkit.broadcast(plugin.messageManager.parse(plugin.languageManager.get("event_manager.vote_end"), Placeholder.parsed("game", winnerGame.displayName)))
         startCountdown(winnerGame)
     }
 
     fun startCountdown(game: EventGame) {
         var timeLeft = 10
-        val lang = plugin.languageManager
-
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (timeLeft <= 0) {
                 task.cancel()
                 prepareMapAndStart(game)
                 return@runAtFixedRate
             }
-
-            val rawTitle = lang.get("event_manager.countdown_title")
-            val rawSub = lang.get("event_manager.countdown_subtitle")
-
             val title = Title.title(
-                plugin.messageManager.parse(rawTitle, Placeholder.parsed("time", timeLeft.toString())),
-                plugin.messageManager.parse(rawSub, Placeholder.parsed("game", game.displayName))
+                plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_title"), Placeholder.parsed("time", timeLeft.toString())),
+                plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_subtitle"), Placeholder.parsed("game", game.displayName))
             )
-
-            Bukkit.getOnlinePlayers().forEach { p ->
-                p.showTitle(title)
-                p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f)
-            }
-
-            val rawChat = lang.get("event_manager.countdown_chat")
-            Bukkit.broadcast(plugin.messageManager.parse(rawChat, Placeholder.parsed("time", timeLeft.toString()), Placeholder.parsed("game", game.displayName)))
-
+            Bukkit.getOnlinePlayers().forEach { p -> p.showTitle(title); p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f) }
+            Bukkit.broadcast(plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_chat"), Placeholder.parsed("time", timeLeft.toString()), Placeholder.parsed("game", game.displayName)))
             timeLeft--
         }, 0, 1, TimeUnit.SECONDS)
     }
@@ -92,45 +71,34 @@ class EventManager(private val plugin: PumpkinEventos) {
         val mm = plugin.messageManager
 
         Bukkit.broadcast(mm.parse(lang.get("event_manager.map_loading")))
-
-        val arenasCompatibles = plugin.arenaManager.getAvailableArenas().filter { it.type.lowercase() == game.id.lowercase() }
-        val arenaTemplate = arenasCompatibles.randomOrNull()
+        val arenaTemplate = plugin.arenaManager.getAvailableArenas().filter { it.type.lowercase() == game.id.lowercase() }.randomOrNull()
 
         if (arenaTemplate == null || arenaTemplate.slimeWorldName == null) {
-            val errorMsg = lang.get("event_manager.map_error_no_arena")
-            Bukkit.broadcast(mm.parse("$errorMsg <gray>(Falta crear un mapa de tipo '${game.id}')</gray>"))
+            Bukkit.broadcast(mm.parse("${lang.get("event_manager.map_error_no_arena")} <gray>(Falta crear un mapa de tipo '${game.id}')</gray>"))
             return
         }
 
-        val customRules = game.getCustomGameRules()
-
-        // Cargamos el mundo Slime
-        plugin.mapManager.loadArenaWorld(arenaTemplate.slimeWorldName!!, customRules).thenAccept { world ->
+        plugin.mapManager.loadArenaWorld(arenaTemplate.slimeWorldName!!, game.getCustomGameRules()).thenAccept { world ->
             if (world == null) {
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.map_error_slime")))
                 return@thenAccept
             }
 
-            // Entramos al hilo global para mover gente e iniciar
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 val actualSpawn = arenaTemplate.centerLocation?.clone() ?: world.spawnLocation
-                actualSpawn.world = world // Forzamos el mundo clonado
+                actualSpawn.world = world
 
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // Teletransporte asíncrono al mundo nuevo
+                    // --- REGLA DE ORO: Teletransportar a TODOS ---
                     p.teleportAsync(actualSpawn)
                     p.inventory.clear()
                     game.players.add(p)
                 }
 
                 currentGame = game
-
-                // --- ¡AQUÍ ESTÁ LA SOLUCIÓN! ---
-                // Le pasamos el 'world' que capturamos del CompletableFuture
-                game.start(arenaTemplate, plugin, world)
-
+                game.start(arenaTemplate, plugin, world) // Pasamos el mundo clonado al juego
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
-            }, 20L) // 1 segundo de cortesía para que carguen los chunks
+            }, 20L)
         }
     }
 }

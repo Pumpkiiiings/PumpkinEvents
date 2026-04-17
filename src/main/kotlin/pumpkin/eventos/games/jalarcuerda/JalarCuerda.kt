@@ -11,6 +11,8 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.player.PlayerAnimationEvent
+import org.bukkit.event.player.PlayerAnimationType
 import org.bukkit.event.player.PlayerInteractEvent
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
@@ -72,64 +74,75 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         playerTeam.clear()
 
         val arena = currentArena ?: return
-        val posRojo = arena.dueloA ?: arena.spawnPoints.getOrNull(0) ?: return
-        val posAzul = arena.dueloB ?: arena.spawnPoints.getOrNull(1) ?: return
-        val targetWorld = players.firstOrNull()?.world ?: posRojo.world ?: return
 
-        posRojo.world = targetWorld
-        posAzul.world = targetWorld
+        // --- RETRASO PARA RE-UBICAR A LOS EQUIPOS ---
+        // Esperamos 10 ticks para que el EventManager los termine de llevar al centro
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
 
-        // --- DIVISIÓN EQUITATIVA DE EQUIPOS ---
-        val shuffledPlayers = players.shuffled()
-        for (i in shuffledPlayers.indices) {
-            val p = shuffledPlayers[i]
-            p.gameMode = GameMode.ADVENTURE
-            p.inventory.clear()
-            playerData[p] = PlayerRhythmData()
+            // Tomamos el mundo actual donde ya fueron teletransportados
+            val targetWorld = players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
 
-            if (i % 2 == 0) {
-                playerTeam[p] = EquipoCuerda.ROJO
-                p.teleportAsync(posRojo)
-                p.sendMessage(plugin.messageManager.parse("<white>¡Has sido asignado al <#FF3131><b>Equipo Rojo</b></#FF3131>!</white>"))
-            } else {
-                playerTeam[p] = EquipoCuerda.AZUL
-                p.teleportAsync(posAzul)
-                p.sendMessage(plugin.messageManager.parse("<white>¡Has sido asignado al <#00FFFF><b>Equipo Azul</b></#00FFFF>!</white>"))
-            }
-        }
+            val posRojo = arena.dueloA ?: arena.spawnPoints.getOrNull(0) ?: return@runDelayed
+            val posAzul = arena.dueloB ?: arena.spawnPoints.getOrNull(1) ?: return@runDelayed
 
-        // --- RELOJ PRINCIPAL (1 SEGUNDO) ---
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+            posRojo.world = targetWorld
+            posAzul.world = targetWorld
 
-            if (isPreparation) {
-                if (prepTimer > 0) {
-                    val rawMsg = plugin.languageManager.get("jalarcuerda.actionbar.preparation")
-                    val bar = plugin.messageManager.parse(rawMsg ?: "<yellow>El duelo inicia en: <bold>$prepTimer</bold>s</yellow>")
-                    players.forEach {
-                        it.sendActionBar(bar)
-                        it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f)
-                    }
-                    prepTimer--
+            // --- DIVISIÓN EQUITATIVA DE EQUIPOS ---
+            val shuffledPlayers = players.shuffled()
+            for (i in shuffledPlayers.indices) {
+                val p = shuffledPlayers[i]
+
+                // MODO SURVIVAL OBLIGATORIO: Permite interactuar con los bloques (Golpear al aire)
+                p.gameMode = GameMode.SURVIVAL
+                p.inventory.clear()
+                playerData[p] = PlayerRhythmData()
+
+                if (i % 2 == 0) {
+                    playerTeam[p] = EquipoCuerda.ROJO
+                    p.teleportAsync(posRojo)
+                    p.sendMessage(plugin.messageManager.parse("<white>¡Has sido asignado al <#FF3131><b>Equipo Rojo</b></#FF3131>!</white>"))
                 } else {
-                    isPreparation = false
-                    val startMsg = plugin.messageManager.parse("<#39FF14><b>¡JALEN LA CUERDA!</b></#39FF14>")
-                    players.forEach {
-                        it.sendActionBar(startMsg)
-                        it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
-                    }
-                    iniciarMotorRitmo() // Inicia el motor visual rápido
+                    playerTeam[p] = EquipoCuerda.AZUL
+                    p.teleportAsync(posAzul)
+                    p.sendMessage(plugin.messageManager.parse("<white>¡Has sido asignado al <#00FFFF><b>Equipo Azul</b></#00FFFF>!</white>"))
                 }
-                return@runAtFixedRate
             }
 
-            gameTimer--
-            if (gameTimer <= 0) {
-                task.cancel()
-                plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
-            }
+            // --- RELOJ PRINCIPAL (1 SEGUNDO) ---
+            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
-        }, 1, 1, TimeUnit.SECONDS)
+                if (isPreparation) {
+                    if (prepTimer > 0) {
+                        val rawMsg = plugin.languageManager.get("jalarcuerda.actionbar.preparation")
+                        val bar = plugin.messageManager.parse(rawMsg ?: "<yellow>El duelo inicia en: <bold>$prepTimer</bold>s</yellow>")
+                        players.forEach {
+                            it.sendActionBar(bar)
+                            it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f)
+                        }
+                        prepTimer--
+                    } else {
+                        isPreparation = false
+                        val startMsg = plugin.messageManager.parse("<#39FF14><b>¡JALEN LA CUERDA!</b></#39FF14>")
+                        players.forEach {
+                            it.sendActionBar(startMsg)
+                            it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+                        }
+                        iniciarMotorRitmo() // Inicia el motor visual rápido
+                    }
+                    return@runAtFixedRate
+                }
+
+                gameTimer--
+                if (gameTimer <= 0) {
+                    task.cancel()
+                    plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
+                }
+
+            }, 1, 1, TimeUnit.SECONDS)
+
+        }, 10L)
     }
 
     // --- MOTOR DE RITMO (CADA 50ms = 1 TICK APROX) ---
@@ -177,17 +190,35 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         p.showTitle(title)
     }
 
-    // --- DETECTAR CLICS EN LA CUERDA (CADENAS / HENO) ---
+    // --- DETECTAR CLICS EN LA CUERDA ---
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         val p = e.player
         if (plugin.eventManager.currentGame != this || !isRunning || isPreparation) return
 
-        // Solo detectamos si hace clic a un bloque
-        if (e.action == Action.LEFT_CLICK_BLOCK || e.action == Action.RIGHT_CLICK_BLOCK) {
-            val blockName = e.clickedBlock?.type?.name ?: return
+        if (e.action == Action.LEFT_CLICK_BLOCK || e.action == Action.RIGHT_CLICK_BLOCK ||
+            e.action == Action.LEFT_CLICK_AIR || e.action == Action.RIGHT_CLICK_AIR) {
 
-            // Validar que le estén dando clic a una cadena o a heno
+            // Verificamos el bloque que el jugador está mirando (hasta a 6 bloques de distancia)
+            val block = p.getTargetBlockExact(6) ?: return
+            val blockName = block.type.name
+
+            if (blockName.contains("CHAIN") || blockName.contains("HAY")) {
+                registrarJalon(p)
+            }
+        }
+    }
+
+    // Backup de seguridad para jugadores de Bedrock (Geyser) que a veces fallan el Interact Event
+    @EventHandler
+    fun onSwing(e: PlayerAnimationEvent) {
+        val p = e.player
+        if (plugin.eventManager.currentGame != this || !isRunning || isPreparation) return
+
+        if (e.animationType == PlayerAnimationType.ARM_SWING) {
+            val block = p.getTargetBlockExact(6) ?: return
+            val blockName = block.type.name
+
             if (blockName.contains("CHAIN") || blockName.contains("HAY")) {
                 registrarJalon(p)
             }

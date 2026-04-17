@@ -1,11 +1,10 @@
 package pumpkin.eventos.games.cristales
 
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
-import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
+import org.bukkit.GameRule
 import org.bukkit.Location
 import org.bukkit.Material
-import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
@@ -29,13 +28,12 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
 
     var isPreparation = true
     private var prepTimer = 10
-    private var gameTimer = 180 // 3 minutos para cruzar
+    private var gameTimer = 180
 
     private val ganadores = mutableSetOf<UUID>()
-    private val panels = mutableListOf<GlassPanel>()
-    private val panelMap = mutableMapOf<Location, GlassPanel>()
+    private val fakeBlocks = mutableSetOf<Location>() // Guarda cada bloque falso exacto
+    private val panelsByLocation = mutableMapOf<Location, GlassPanel>() // Para el sobrepeso
 
-    // Variables de orientación y límites para ganar
     private var isZAxis = true
     private var movingPositive = true
     private var minLimit = 0
@@ -55,13 +53,17 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
         )
     }
 
+    override fun getCustomGameRules(): Map<GameRule<*>, Any> {
+        return mapOf(GameRule.FALL_DAMAGE to true)
+    }
+
     override fun onStart() {
         isPreparation = true
         prepTimer = 10
         gameTimer = 180
         ganadores.clear()
-        panels.clear()
-        panelMap.clear()
+        fakeBlocks.clear()
+        panelsByLocation.clear()
 
         val arena = currentArena ?: return
         val posA = arena.dueloA ?: return
@@ -74,12 +76,68 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
             p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
         }
 
-        // Escanear la selección de DueloA a DueloB
+        // --- ESCANEO GARANTIZADO DE CRISTALES ---
         plugin.server.regionScheduler.run(plugin, targetWorld, posA.blockX shr 4, posA.blockZ shr 4) { _ ->
-            escanearPuente(targetWorld, posA, posB)
+            val minX = min(posA.blockX, posB.blockX); val maxX = max(posA.blockX, posB.blockX)
+            val minY = min(posA.blockY, posB.blockY); val maxY = max(posA.blockY, posB.blockY)
+            val minZ = min(posA.blockZ, posB.blockZ); val maxZ = max(posA.blockZ, posB.blockZ)
+
+            // 1. Detectar dirección del puente
+            isZAxis = abs(maxZ - minZ) > abs(maxX - minX)
+            val startLoc = arena.spawnPoints.firstOrNull() ?: posA
+
+            if (isZAxis) {
+                movingPositive = startLoc.z < (minZ + maxZ) / 2
+                minLimit = minZ
+                maxLimit = maxZ
+            } else {
+                movingPositive = startLoc.x < (minX + maxX) / 2
+                minLimit = minX
+                maxLimit = maxX
+            }
+
+            // 2. Extraer todos los cristales del área
+            val allGlass = mutableListOf<Location>()
+            for (x in minX..maxX) {
+                for (y in minY..maxY) {
+                    for (z in minZ..maxZ) {
+                        val b = targetWorld.getBlockAt(x, y, z)
+                        if (b.type.name.contains("GLASS")) {
+                            allGlass.add(b.location)
+                        }
+                    }
+                }
+            }
+
+            // 3. Agrupar por nivel de avance (Filas o "Pasos")
+            // Si avanzan en Z, todos los cristales con el mismo Z son de la misma fila
+            val groupedByStep = allGlass.groupBy { if (isZAxis) it.blockZ else it.blockX }
+
+            for ((_, locsEnMismoPaso) in groupedByStep) {
+                // Separamos los paneles si están en lados distintos (Izquierda vs Derecha)
+                // Lo hacemos agrupando por el EJE CONTRARIO. Ej: Si avanzan en Z, se separan por X
+                val groupedPanels = locsEnMismoPaso.groupBy { if (isZAxis) it.blockX else it.blockZ }
+
+                // Elegimos UN panel seguro al azar de las opciones disponibles en este nivel
+                val keys = groupedPanels.keys.toList()
+                if (keys.isEmpty()) continue
+
+                val safeKey = keys.random()
+
+                for ((key, locsEnPanel) in groupedPanels) {
+                    val panel = GlassPanel()
+                    panel.blocks.addAll(locsEnPanel)
+                    panel.isFake = (key != safeKey) // Si no es la llave segura, es un cristal falso
+
+                    locsEnPanel.forEach { loc ->
+                        panelsByLocation[loc] = panel
+                        if (panel.isFake) fakeBlocks.add(loc)
+                    }
+                }
+            }
         }
 
-        // Loop de Tiempo
+        // --- BUCLE DE JUEGO ---
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
@@ -103,7 +161,6 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
                 return@runAtFixedRate
             }
 
-            // Comprobar daño/caída
             val toEliminate = players.filter { it.location.y <= it.world.minHeight + 2 && !ganadores.contains(it.uniqueId) }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
                 toEliminate.forEach {
@@ -137,85 +194,6 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
         }, 1, 1, TimeUnit.SECONDS)
     }
 
-    private fun escanearPuente(world: org.bukkit.World, posA: Location, posB: Location) {
-        val minX = min(posA.blockX, posB.blockX); val maxX = max(posA.blockX, posB.blockX)
-        val minY = min(posA.blockY, posB.blockY); val maxY = max(posA.blockY, posB.blockY)
-        val minZ = min(posA.blockZ, posB.blockZ); val maxZ = max(posA.blockZ, posB.blockZ)
-
-        // Definir si el puente avanza en X o en Z
-        isZAxis = abs(maxZ - minZ) > abs(maxX - minX)
-        val startLoc = currentArena?.spawnPoints?.firstOrNull() ?: posA
-
-        if (isZAxis) {
-            movingPositive = startLoc.z < (minZ + maxZ) / 2
-            minLimit = minZ
-            maxLimit = maxZ
-        } else {
-            movingPositive = startLoc.x < (minX + maxX) / 2
-            minLimit = minX
-            maxLimit = maxX
-        }
-
-        val visited = mutableSetOf<Location>()
-
-        // Buscar grupos de cristal usando Flood Fill
-        for (x in minX..maxX) {
-            for (y in minY..maxY) {
-                for (z in minZ..maxZ) {
-                    val loc = Location(world, x.toDouble(), y.toDouble(), z.toDouble())
-                    val block = world.getBlockAt(loc)
-
-                    if (!visited.contains(loc) && block.type.name.contains("GLASS")) {
-                        val newPanel = GlassPanel()
-                        val queue = java.util.LinkedList<Location>()
-                        queue.add(loc)
-                        visited.add(loc)
-
-                        while (queue.isNotEmpty()) {
-                            val current = queue.poll()
-                            newPanel.blocks.add(current)
-
-                            val directions = listOf(
-                                current.clone().add(1.0, 0.0, 0.0), current.clone().add(-1.0, 0.0, 0.0),
-                                current.clone().add(0.0, 0.0, 1.0), current.clone().add(0.0, 0.0, -1.0)
-                            )
-
-                            for (dir in directions) {
-                                if (!visited.contains(dir) && dir.block.type.name.contains("GLASS")) {
-                                    // Limitamos a que NO agrupe cristales si están separados por aire.
-                                    visited.add(dir)
-                                    queue.add(dir)
-                                }
-                            }
-                        }
-                        panels.add(newPanel)
-                    }
-                }
-            }
-        }
-
-        // Agrupar los paneles por "Paso" (para saber cuáles están frente a frente)
-        val groupedPanels = panels.groupBy { panel ->
-            if (isZAxis) panel.blocks.map { it.blockZ }.average().toInt()
-            else panel.blocks.map { it.blockX }.average().toInt()
-        }
-
-        // De cada par de cristales (izquierdo y derecho), marcamos uno como Falso al azar
-        for ((_, panelList) in groupedPanels) {
-            if (panelList.size > 1) {
-                val safePanel = panelList.random()
-                for (p in panelList) {
-                    if (p != safePanel) p.isFake = true
-                    p.blocks.forEach { loc -> panelMap[loc] = p }
-                }
-            } else {
-                // Si por error de construcción solo hay 1 panel en esa línea, lo hacemos seguro por defecto
-                val p = panelList.first()
-                p.blocks.forEach { loc -> panelMap[loc] = p }
-            }
-        }
-    }
-
     @EventHandler
     fun onPlayerMove(e: PlayerMoveEvent) {
         if (!isRunning || isPreparation) return
@@ -233,35 +211,28 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
             }
         }
 
-        // 2. COMPROBAR QUÉ ESTÁN PISANDO (Falso o Verdadero)
-        val blockBelow = to.clone().subtract(0.0, 0.1, 0.0).block
-        if (blockBelow.type.name.contains("GLASS")) {
-            val panel = panelMap[blockBelow.location]
-            if (panel != null && !panel.shattered) {
+        // 2. COMPROBAR QUÉ ESTÁN PISANDO
+        val blockBelowLoc = to.clone().subtract(0.0, 0.1, 0.0).block.location
+        val panel = panelsByLocation[blockBelowLoc]
 
-                // Si es falso, se rompe inmediatamente
-                if (panel.isFake) {
+        if (panel != null && !panel.shattered) {
+            if (panel.isFake) {
+                panel.shattered = true
+                romperCristal(panel, false)
+            } else {
+                // SISTEMA DE SOBRECARGA
+                var jugadoresEnElCristal = 0
+                players.filter { !ganadores.contains(it.uniqueId) }.forEach { vivo ->
+                    val footLoc = vivo.location.clone().subtract(0.0, 0.1, 0.0).block.location
+                    if (panel.blocks.contains(footLoc)) jugadoresEnElCristal++
+                }
+
+                // Más de 4 jugadores = Rompe cristal verdadero
+                if (jugadoresEnElCristal >= 4) {
                     panel.shattered = true
-                    romperCristal(panel, false)
-                } else {
-                    // --- SISTEMA DE SOBRECARGA (MÁXIMO 3 JUGADORES) ---
-                    // Contamos cuántos jugadores activos están sobre los bloques de este panel específico
-                    var jugadoresEnElCristal = 0
-                    players.filter { !ganadores.contains(it.uniqueId) }.forEach { vivo ->
-                        val footBlock = vivo.location.clone().subtract(0.0, 0.1, 0.0).block
-                        if (panel.blocks.any { it.blockX == footBlock.x && it.blockZ == footBlock.z }) {
-                            jugadoresEnElCristal++
-                        }
-                    }
-
-                    // Si hay 4 o más jugadores, se rompe por sobrepeso (aunque sea el verdadero)
-                    if (jugadoresEnElCristal >= 4) {
-                        panel.shattered = true
-                        romperCristal(panel, true)
-
-                        val msg = plugin.messageManager.parse("<red>⚠️ <b>¡CRISTAL ROTO POR SOBREPESO!</b></red>")
-                        players.forEach { it.sendMessage(msg) }
-                    }
+                    romperCristal(panel, true)
+                    val msg = plugin.messageManager.parse("<red>⚠️ <b>¡CRISTAL ROTO POR SOBREPESO!</b></red>")
+                    players.forEach { it.sendMessage(msg) }
                 }
             }
         }
@@ -272,15 +243,17 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
         val world = firstBlock.world
 
         plugin.server.regionScheduler.run(plugin, firstBlock) { _ ->
-            // Sonido más grave si se rompió por sobrepeso
             if (porSobrepeso) world.playSound(firstBlock, Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1f, 0.5f)
             world.playSound(firstBlock, Sound.BLOCK_GLASS_BREAK, 2f, 1f)
 
             panel.blocks.forEach { loc ->
                 val block = loc.block
                 val blockData = block.blockData
-                block.setType(Material.AIR, false) // Quita el cristal sin físicas de agua
-                world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 10, 0.3, 0.3, 0.3, blockData)
+                block.setType(Material.AIR, false)
+                world.spawnParticle(org.bukkit.Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 10, 0.3, 0.3, 0.3, blockData)
+
+                // Limpiamos los bloques falsos si es que este era falso
+                fakeBlocks.remove(loc)
             }
         }
     }
@@ -308,15 +281,15 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
 
     override fun checkWinner() {
         val winnersStr = if (ganadores.isEmpty()) "Nadie" else "${ganadores.size} jugadores"
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#00FFFF><b>PUENTE DE CRISTAL</b></#00FFFF> <white>» ¡$winnersStr lograron cruzar el puente!<newline>"))
+        val rawWin = plugin.languageManager.get("cristales.broadcast.winner")
+        plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winnersStr)))
         stop()
     }
 
     override fun onStop() {
-        org.bukkit.event.HandlerList.unregisterAll(this)
+        org.bukkit.event.HandlerList.unregisterAll(this) // Nos desregistramos del listener interno
         plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
+        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
 
         (players + spectators).forEach { p ->
             p.inventory.clear()

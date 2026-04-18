@@ -10,6 +10,8 @@ import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.util.*
@@ -18,6 +20,7 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+// Representa un grupo entero de cristales (ej: tu panel de 2x2)
 class GlassPanel {
     val blocks = mutableSetOf<Location>()
     var isFake = false
@@ -27,19 +30,20 @@ class GlassPanel {
 class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FFFF>Puente de Cristal</#00FFFF>"), Listener {
 
     var isPreparation = true
-    private var prepTimer = 10
+    private var prepTimer = 5
     private var gameTimer = 180
 
     private val ganadores = mutableSetOf<UUID>()
-    private val fakeBlocks = mutableSetOf<Location>() // Guarda cada bloque falso exacto
-    private val panelsByLocation = mutableMapOf<Location, GlassPanel>() // Para el sobrepeso
+    private val panels = mutableListOf<GlassPanel>()
 
     private var isZAxis = true
     private var movingPositive = true
     private var minLimit = 0
     private var maxLimit = 0
+    private var alturaPuente = 0 // NUEVO: Altura Y del puente para muertes por caída instantáneas
 
     init {
+        // Registramos el Listener una sola vez al cargar el plugin
         plugin.server.pluginManager.registerEvents(this, plugin)
     }
 
@@ -59,85 +63,109 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
 
     override fun onStart() {
         isPreparation = true
-        prepTimer = 10
+        prepTimer = 5
         gameTimer = 180
         ganadores.clear()
-        fakeBlocks.clear()
-        panelsByLocation.clear()
+        panels.clear()
 
         val arena = currentArena ?: return
         val posA = arena.dueloA ?: return
         val posB = arena.dueloB ?: return
-        val targetWorld = players.firstOrNull()?.world ?: posA.world ?: return
 
-        players.forEach { p ->
-            p.gameMode = GameMode.ADVENTURE
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-        }
+        // Guardamos la altura del puente (el Y más bajo de tu selección)
+        alturaPuente = min(posA.blockY, posB.blockY)
 
-        // --- ESCANEO GARANTIZADO DE CRISTALES ---
-        plugin.server.regionScheduler.run(plugin, targetWorld, posA.blockX shr 4, posA.blockZ shr 4) { _ ->
-            val minX = min(posA.blockX, posB.blockX); val maxX = max(posA.blockX, posB.blockX)
-            val minY = min(posA.blockY, posB.blockY); val maxY = max(posA.blockY, posB.blockY)
-            val minZ = min(posA.blockZ, posB.blockZ); val maxZ = max(posA.blockZ, posB.blockZ)
+        // Asegurarnos de usar el mundo donde fueron teletransportados
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            val targetWorld = players.firstOrNull()?.world ?: return@runDelayed
 
-            // 1. Detectar dirección del puente
-            isZAxis = abs(maxZ - minZ) > abs(maxX - minX)
-            val startLoc = arena.spawnPoints.firstOrNull() ?: posA
-
-            if (isZAxis) {
-                movingPositive = startLoc.z < (minZ + maxZ) / 2
-                minLimit = minZ
-                maxLimit = maxZ
-            } else {
-                movingPositive = startLoc.x < (minX + maxX) / 2
-                minLimit = minX
-                maxLimit = maxX
+            players.forEach { p ->
+                p.gameMode = GameMode.ADVENTURE
+                p.inventory.clear()
+                p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
             }
 
-            // 2. Extraer todos los cristales del área
-            val allGlass = mutableListOf<Location>()
-            for (x in minX..maxX) {
-                for (y in minY..maxY) {
-                    for (z in minZ..maxZ) {
-                        val b = targetWorld.getBlockAt(x, y, z)
-                        if (b.type.name.contains("GLASS")) {
-                            allGlass.add(b.location)
+            // --- ESCANEO INTELIGENTE DE CRISTALES (Flood Fill) ---
+            plugin.server.regionScheduler.run(plugin, targetWorld, posA.blockX shr 4, posA.blockZ shr 4) { _ ->
+                val minX = min(posA.blockX, posB.blockX); val maxX = max(posA.blockX, posB.blockX)
+                val minY = min(posA.blockY, posB.blockY); val maxY = max(posA.blockY, posB.blockY)
+                val minZ = min(posA.blockZ, posB.blockZ); val maxZ = max(posA.blockZ, posB.blockZ)
+
+                isZAxis = abs(maxZ - minZ) > abs(maxX - minX)
+                val startLoc = arena.spawnPoints.firstOrNull() ?: posA
+
+                if (isZAxis) {
+                    movingPositive = startLoc.z < (minZ + maxZ) / 2
+                    minLimit = minZ
+                    maxLimit = maxZ
+                } else {
+                    movingPositive = startLoc.x < (minX + maxX) / 2
+                    minLimit = minX
+                    maxLimit = maxX
+                }
+
+                val visited = mutableSetOf<String>()
+
+                for (x in minX..maxX) {
+                    for (y in minY..maxY) {
+                        for (z in minZ..maxZ) {
+                            val coordKey = "$x,$y,$z"
+                            val b = targetWorld.getBlockAt(x, y, z)
+
+                            if (!visited.contains(coordKey) && b.type.name.contains("GLASS")) {
+                                val panel = GlassPanel()
+                                val queue = java.util.LinkedList<org.bukkit.block.Block>()
+                                queue.add(b)
+                                visited.add(coordKey)
+
+                                while (queue.isNotEmpty()) {
+                                    val current = queue.poll()
+                                    panel.blocks.add(current.location)
+
+                                    val neighbors = listOf(
+                                        current.getRelative(1, 0, 0), current.getRelative(-1, 0, 0),
+                                        current.getRelative(0, 0, 1), current.getRelative(0, 0, -1)
+                                    )
+
+                                    for (n in neighbors) {
+                                        val nKey = "${n.x},${n.y},${n.z}"
+                                        if (n.x in minX..maxX && n.y in minY..maxY && n.z in minZ..maxZ) {
+                                            if (!visited.contains(nKey) && n.type.name.contains("GLASS")) {
+                                                visited.add(nKey)
+                                                queue.add(n)
+                                            }
+                                        }
+                                    }
+                                }
+                                panels.add(panel)
+                            }
                         }
                     }
                 }
-            }
 
-            // 3. Agrupar por nivel de avance (Filas o "Pasos")
-            // Si avanzan en Z, todos los cristales con el mismo Z son de la misma fila
-            val groupedByStep = allGlass.groupBy { if (isZAxis) it.blockZ else it.blockX }
+                val groupedByStep = panels.groupBy { panel ->
+                    if (isZAxis) kotlin.math.round(panel.blocks.map { it.blockZ }.average()).toInt()
+                    else kotlin.math.round(panel.blocks.map { it.blockX }.average()).toInt()
+                }
 
-            for ((_, locsEnMismoPaso) in groupedByStep) {
-                // Separamos los paneles si están en lados distintos (Izquierda vs Derecha)
-                // Lo hacemos agrupando por el EJE CONTRARIO. Ej: Si avanzan en Z, se separan por X
-                val groupedPanels = locsEnMismoPaso.groupBy { if (isZAxis) it.blockX else it.blockZ }
-
-                // Elegimos UN panel seguro al azar de las opciones disponibles en este nivel
-                val keys = groupedPanels.keys.toList()
-                if (keys.isEmpty()) continue
-
-                val safeKey = keys.random()
-
-                for ((key, locsEnPanel) in groupedPanels) {
-                    val panel = GlassPanel()
-                    panel.blocks.addAll(locsEnPanel)
-                    panel.isFake = (key != safeKey) // Si no es la llave segura, es un cristal falso
-
-                    locsEnPanel.forEach { loc ->
-                        panelsByLocation[loc] = panel
-                        if (panel.isFake) fakeBlocks.add(loc)
+                for ((_, panelList) in groupedByStep) {
+                    if (panelList.size > 1) {
+                        val safePanel = panelList.random()
+                        for (p in panelList) {
+                            p.isFake = (p != safePanel)
+                        }
+                    } else {
+                        panelList.firstOrNull()?.isFake = false
                     }
                 }
             }
-        }
 
-        // --- BUCLE DE JUEGO ---
+            iniciarReloj()
+
+        }, 10L)
+    }
+
+    private fun iniciarReloj() {
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
@@ -153,15 +181,22 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
                 } else {
                     isPreparation = false
                     val startMsg = plugin.messageManager.parse("<#39FF14><b>¡PUEDEN CRUZAR!</b></#39FF14>")
-                    players.forEach {
-                        it.sendActionBar(startMsg)
-                        it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+
+                    // FIX: Enviar las pociones a través del GlobalRegionScheduler para evitar el Crash de Folia
+                    plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                        players.forEach { p ->
+                            p.sendActionBar(startMsg)
+                            p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+
+                            p.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 99999, 0, false, false, false))
+                        }
                     }
                 }
                 return@runAtFixedRate
             }
 
-            val toEliminate = players.filter { it.location.y <= it.world.minHeight + 2 && !ganadores.contains(it.uniqueId) }
+            val targetWorld = players.firstOrNull()?.world ?: return@runAtFixedRate
+            val toEliminate = players.filter { it.location.y <= (alturaPuente - 2) && !ganadores.contains(it.uniqueId) }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
                 toEliminate.forEach {
                     it.world.strikeLightningEffect(it.location)
@@ -196,11 +231,21 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
 
     @EventHandler
     fun onPlayerMove(e: PlayerMoveEvent) {
-        if (!isRunning || isPreparation) return
+        if (!isRunning) return
         val p = e.player
         if (!players.contains(p) || ganadores.contains(p.uniqueId)) return
 
+        val from = e.from
         val to = e.to
+
+        // --- BLOQUEO DE MOVIMIENTO MEJORADO ---
+        if (isPreparation) {
+            // Permitimos mover la cabeza, pero si las coordenadas X o Z cambian, cancelamos y lo obligamos a quedarse en el sitio
+            if (from.x != to.x || from.z != to.z) {
+                e.setTo(Location(from.world, from.x, from.y, from.z, to.yaw, to.pitch))
+            }
+            return
+        }
 
         // 1. COMPROBAR VICTORIA
         if (haCruzado(to)) {
@@ -211,30 +256,39 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
             }
         }
 
-        // 2. COMPROBAR QUÉ ESTÁN PISANDO
-        val blockBelowLoc = to.clone().subtract(0.0, 0.1, 0.0).block.location
-        val panel = panelsByLocation[blockBelowLoc]
+        // 2. COMPROBAR SI ESTÁ PISANDO UN CRISTAL
+        val footBlock = to.clone().subtract(0.0, 0.1, 0.0).block
+        if (footBlock.type.name.contains("GLASS")) {
 
-        if (panel != null && !panel.shattered) {
-            if (panel.isFake) {
-                panel.shattered = true
-                romperCristal(panel, false)
-            } else {
-                // SISTEMA DE SOBRECARGA
-                var jugadoresEnElCristal = 0
-                players.filter { !ganadores.contains(it.uniqueId) }.forEach { vivo ->
-                    val footLoc = vivo.location.clone().subtract(0.0, 0.1, 0.0).block.location
-                    if (panel.blocks.contains(footLoc)) jugadoresEnElCristal++
-                }
+            val panel = getPanelAt(footBlock)
 
-                // Más de 4 jugadores = Rompe cristal verdadero
-                if (jugadoresEnElCristal >= 4) {
+            if (panel != null && !panel.shattered) {
+                if (panel.isFake) {
                     panel.shattered = true
-                    romperCristal(panel, true)
-                    val msg = plugin.messageManager.parse("<red>⚠️ <b>¡CRISTAL ROTO POR SOBREPESO!</b></red>")
-                    players.forEach { it.sendMessage(msg) }
+                    romperCristal(panel, false)
+                } else {
+                    var jugadoresEnElCristal = 0
+                    players.filter { !ganadores.contains(it.uniqueId) }.forEach { vivo ->
+                        val posVivo = vivo.location.clone().subtract(0.0, 0.1, 0.0).block
+                        if (panel.blocks.any { it.blockX == posVivo.x && it.blockZ == posVivo.z }) {
+                            jugadoresEnElCristal++
+                        }
+                    }
+
+                    if (jugadoresEnElCristal >= 4) { // Si hay 4, se rompe.
+                        panel.shattered = true
+                        romperCristal(panel, true)
+                        val msg = plugin.messageManager.parse("<red>⚠️ <b>¡CRISTAL ROTO POR SOBREPESO!</b></red>")
+                        players.forEach { it.sendMessage(msg) }
+                    }
                 }
             }
+        }
+    }
+
+    private fun getPanelAt(block: org.bukkit.block.Block): GlassPanel? {
+        return panels.firstOrNull { panel ->
+            panel.blocks.any { it.blockX == block.x && it.blockY == block.y && it.blockZ == block.z }
         }
     }
 
@@ -251,9 +305,6 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
                 val blockData = block.blockData
                 block.setType(Material.AIR, false)
                 world.spawnParticle(org.bukkit.Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 10, 0.3, 0.3, 0.3, blockData)
-
-                // Limpiamos los bloques falsos si es que este era falso
-                fakeBlocks.remove(loc)
             }
         }
     }
@@ -268,6 +319,9 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
 
     private fun markWinner(p: Player) {
         ganadores.add(p.uniqueId)
+
+        p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
+
         p.sendMessage(plugin.messageManager.parse("<#39FF14>✔ <b>¡CRUZASTE EL PUENTE!</b></#39FF14> <white>Estás a salvo.</white>"))
         p.playSound(p.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
 
@@ -287,12 +341,13 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
     }
 
     override fun onStop() {
-        org.bukkit.event.HandlerList.unregisterAll(this) // Nos desregistramos del listener interno
         plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
+        var lobby = plugin.arenaManager.mainLobby
+        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
 
         (players + spectators).forEach { p ->
             p.inventory.clear()
+            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
             p.gameMode = GameMode.ADVENTURE
             p.teleportAsync(lobby)
         }

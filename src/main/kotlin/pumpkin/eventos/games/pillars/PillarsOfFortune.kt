@@ -18,6 +18,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.PotionMeta
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import org.bukkit.potion.PotionType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
@@ -108,11 +110,34 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 return@runAtFixedRate
             }
 
-            // -- FASE DE JUEGO --
-            // Solo cuenta como caída al vacío a los jugadores que SÍ ESTÉN en el mundo correcto.
+            // -- FASE DE JUEGO (DETECCIÓN DE CAÍDA Y TÓTEMS) --
             val toEliminate = players.filter { it.world == gameWorld && it.location.y <= it.world.minHeight + 5 }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                toEliminate.forEach { eliminate(it) }
+                toEliminate.forEach { p ->
+                    val mainHand = p.inventory.itemInMainHand
+                    val offHand = p.inventory.itemInOffHand
+
+                    // Si el jugador tiene un tótem, ¡SE SALVA DE LA CAÍDA!
+                    if (mainHand.type == Material.TOTEM_OF_UNDYING || offHand.type == Material.TOTEM_OF_UNDYING) {
+
+                        // Restar el tótem
+                        if (mainHand.type == Material.TOTEM_OF_UNDYING) mainHand.amount -= 1
+                        else offHand.amount -= 1
+
+                        p.playEffect(org.bukkit.EntityEffect.valueOf("TOTEM_RESURRECT"))
+                        p.health = 20.0
+                        p.addPotionEffect(PotionEffect(PotionEffectType.REGENERATION, 900, 1))
+                        p.addPotionEffect(PotionEffect(PotionEffectType.FIRE_RESISTANCE, 800, 0))
+                        p.addPotionEffect(PotionEffect(PotionEffectType.ABSORPTION, 100, 1))
+
+                        // Lo disparamos hacia arriba para que caiga de nuevo en la arena
+                        p.velocity = org.bukkit.util.Vector(0.0, 3.5, 0.0)
+                        p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.5f)
+                        plugin.server.broadcast(plugin.messageManager.parse("<yellow>¡<b>${p.name}</b> usó un Tótem de Inmortalidad para salvarse del vacío!</yellow>"))
+                    } else {
+                        eliminate(p) // Sin tótem, muere
+                    }
+                }
             }
 
             if (players.size <= 1) {

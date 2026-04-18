@@ -129,7 +129,7 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(ConnectionListener(this), this)
         pm.registerEvents(WorldListener(), this)
         pm.registerEvents(LobbyProtectionListener(this), this)
-        pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this) // Utilidad de vacío
+        pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
 
         // Listeners de sub-juegos de Simón
         pm.registerEvents(papaCalienteGame, this)

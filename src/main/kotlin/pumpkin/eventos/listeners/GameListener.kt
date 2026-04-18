@@ -29,6 +29,7 @@ import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.cristales.Cristales
+import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.luzroja.LuzEstado
 import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
@@ -212,7 +213,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val game = plugin.eventManager.currentGame ?: return
 
         // Bloqueo Absoluto de PVP (No se pueden golpear)
-        if (game is RuletaRusa || game is pumpkin.eventos.games.jalarcuerda.JalarCuerda) {
+        if (game is RuletaRusa || game is JalarCuerda) {
             e.isCancelled = true
             return
         }
@@ -242,6 +243,41 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
             e.isCancelled = false
             return
         }
+
+        // --- MECÁNICA: ROBAR ÍTEM EN EL RETO CONSIGUE (SIMÓN DICE) ---
+        if (game is SimonDice && game.isRunning) {
+            if (game.activeChallenge == "CONSIGUE") {
+                e.damage = 0.001 // No matamos, solo contamos golpes
+
+                // Solo nos importa si golpean a alguien que YA tiene el ítem en la mano
+                if (victim.inventory.itemInMainHand.type == game.targetMaterial) {
+                    val golpesRecibidos = (game.hitCounter[victim.uniqueId] ?: 0) + 1
+                    game.hitCounter[victim.uniqueId] = golpesRecibidos
+
+                    if (golpesRecibidos >= 3) {
+                        // Soltar el ítem al suelo y quitárselo de la mano
+                        victim.inventory.itemInMainHand.amount = 0
+                        game.savedPlayers.remove(victim.uniqueId) // Ya no está a salvo
+                        victim.isGlowing = false // Quitarle el brillo de victoria
+
+                        val dropLoc = victim.location.clone().add(0.0, 1.0, 0.0)
+                        val drop = victim.world.dropItem(dropLoc, org.bukkit.inventory.ItemStack(game.targetMaterial!!))
+                        drop.velocity = attacker.location.direction.multiply(0.5) // Sale volando hacia adelante
+                        drop.setGlowing(true)
+
+                        victim.sendMessage(plugin.messageManager.parse("<red>¡Te han robado el ítem a base de golpes!</red>"))
+                        victim.playSound(victim.location, Sound.ITEM_SHIELD_BREAK, 1f, 1f)
+                        game.hitCounter[victim.uniqueId] = 0 // Reiniciar su contador
+                    } else {
+                        victim.playSound(victim.location, Sound.ENTITY_PLAYER_HURT, 1f, 1f)
+                    }
+                }
+            } else {
+                // En cualquier otro momento de Simón, el PVP está bloqueado
+                e.isCancelled = true
+            }
+            return
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -249,8 +285,9 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val player = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
-        if (game is pumpkin.eventos.games.jalarcuerda.JalarCuerda) {
-            e.isCancelled = true // Sin daño de ningún tipo en Jalar Cuerda
+        // Jalar Cuerda y Ruleta Rusa prohíben absolutamente todo tipo de daño
+        if (game is JalarCuerda || game is RuletaRusa) {
+            e.isCancelled = true
             return
         }
 

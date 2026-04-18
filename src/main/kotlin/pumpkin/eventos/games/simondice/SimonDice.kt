@@ -8,6 +8,7 @@ import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.attribute.Attribute
+import org.bukkit.entity.Item
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
@@ -18,6 +19,8 @@ import pumpkin.eventos.games.EventGame
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.cos
+import kotlin.math.sin
 
 enum class SimonMode { AUTOMATICO, MANUAL }
 
@@ -27,26 +30,31 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     var streamer: Player? = null
 
     val savedPlayers = mutableSetOf<UUID>()
+    val failedMathPlayers = mutableSetOf<UUID>() // NUEVO: Jugadores que respondieron mal
+
     var activeChallenge: String = "NINGUNO"
     var actionText = "Esperando orden..."
 
     var targetPhrase = ""
     var targetMathResult = 0.0
+    var targetMaterial: Material? = null // Para el reto CONSIGUE
 
     private var bossBar: BossBar? = null
     private var autoTask: ScheduledTask? = null
     private var challengeTask: ScheduledTask? = null
 
-    // Aquí guardamos el último reto para no repetirlo
     private var ultimoReto = ""
     private var phaseWaitTimer = 10
     private var isWaitingPhase = true
 
-    // Variables exportables para Scoreboard y BossBar dinámicos
     private var displayTime = 10
     private var displayOrden = "Preparando..."
 
-    private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR")
+    // AÑADIDO: PAPACALIENTE A LA RULETA AUTOMÁTICA
+    private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR", "CONSIGUE", "PAPACALIENTE")
+
+    // Rastreador de golpes para el reto de Conseguir
+    val hitCounter = mutableMapOf<UUID, Int>()
 
     override fun getExtraPlaceholders(): Map<String, String> {
         return mapOf(
@@ -57,15 +65,15 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
     override fun onStart() {
         savedPlayers.clear()
+        failedMathPlayers.clear()
+        hitCounter.clear()
         activeChallenge = "NINGUNO"
-        ultimoReto = "" // Reiniciamos el último reto al empezar
+        ultimoReto = ""
 
-        // Seguridad: Si es manual y no hay streamer, asignamos al primero disponible
         if (mode == SimonMode.MANUAL && streamer == null) {
             streamer = players.firstOrNull()
         }
 
-        // Configuración visual inicial dependiendo del modo
         if (mode == SimonMode.MANUAL) {
             displayOrden = "Esperando al Host..."
             displayTime = 0
@@ -79,7 +87,6 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
         bossBar = BossBar.bossBar(plugin.messageManager.parse("⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white>$displayOrden"), 1f, BossBar.Color.WHITE, BossBar.Overlay.NOTCHED_6)
 
-        // Limpiar jugadores y dar Bossbar (Esperamos un poco para asegurarnos de que el MapManager ya los movió)
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             players.forEach { p ->
                 p.inventory.clear()
@@ -101,21 +108,19 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             } else {
                 startAutoLoop()
             }
-        }, 20L) // 1 Segundo de retraso para que todo cargue bien
+        }, 20L)
     }
 
     private fun startAutoLoop() {
         autoTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
-            // Si queda solo 1 o nadie, terminar
             if (players.size <= 1) {
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
                 task.cancel()
                 return@runAtFixedRate
             }
 
-            // Si hay un reto en curso, no contamos el tiempo de espera
             if (activeChallenge != "NINGUNO") return@runAtFixedRate
 
             if (isWaitingPhase) {
@@ -124,7 +129,6 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 displayOrden = "Pensando orden..."
                 updateBossBar(BossBar.Color.WHITE)
 
-                // Aviso de últimos 5 segundos de espera
                 if (phaseWaitTimer in 1..5) {
                     val color = if (phaseWaitTimer <= 3) "<red>" else "<yellow>"
                     val title = Title.title(
@@ -140,12 +144,9 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 if (phaseWaitTimer <= 0) {
                     isWaitingPhase = false
 
-                    // --- ALGORITMO ANTI-REPETICIÓN ---
                     var elegido = retosDisponibles.random()
-                    while (elegido == ultimoReto) {
-                        elegido = retosDisponibles.random()
-                    }
-                    ultimoReto = elegido // Guardamos para la siguiente ronda
+                    while (elegido == ultimoReto) { elegido = retosDisponibles.random() }
+                    ultimoReto = elegido
 
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         when (elegido) {
@@ -153,17 +154,46 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                             "AGACHARSE" -> startChallenge("AGACHARSE", "▼ <yellow>¡AGÁCHENSE!</yellow>", 10)
                             "CAMINAR" -> startChallenge("CAMINAR", "⇄ <aqua>¡CAMINEN!</aqua>", 10)
                             "QUIETO" -> startChallenge("QUIETO", "⏹ <red>¡QUIETOS!</red>", 10)
-                            "GOLPEAR" -> startChallenge("GOLPEAR", "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10) // <-- RETO NUEVO
+                            "GOLPEAR" -> startChallenge("GOLPEAR", "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10)
                             "MATES" -> {
+                                failedMathPlayers.clear() // Limpiamos los que fallaron mates la vez anterior
                                 val num1 = (1..20).random(); val num2 = (1..20).random()
                                 targetPhrase = "$num1+$num2"; targetMathResult = (num1 + num2).toDouble()
                                 startChallenge("MATES", "⌗ CUÁNTO ES: <white>$targetPhrase</white>", 15)
                             }
+                            "CONSIGUE" -> lanzarRetoConsigue()
+                            "PAPACALIENTE" -> startChallenge("PAPACALIENTE", "🥔 <gold>LA PAPA CALIENTE</gold>", 1)
                         }
                     }
                 }
             }
-        }, 1, 1, TimeUnit.SECONDS) // Reloj asíncrono perfecto de 1 segundo
+        }, 1, 1, TimeUnit.SECONDS)
+    }
+
+    fun lanzarRetoConsigue() {
+        hitCounter.clear() // Reiniciamos el contador de golpes
+        val itemsPosibles = listOf(Material.APPLE, Material.DIAMOND, Material.BONE, Material.EMERALD, Material.FEATHER)
+        targetMaterial = itemsPosibles.random()
+
+        val cantidad = maxOf(1, players.size - 1)
+        val arena = currentArena ?: return
+        val center = arena.centerLocation ?: return
+        val world = center.world
+
+        plugin.server.regionScheduler.run(plugin, center) { _ ->
+            for (i in 1..cantidad) {
+                val angle = Math.random() * Math.PI * 2
+                val radius = Math.random() * 10.0
+                val loc = center.clone().add(cos(angle) * radius, 10.0, sin(angle) * radius)
+
+                val drop = world.dropItem(loc, ItemStack(targetMaterial!!))
+                drop.velocity = Vector(0.0, -0.2, 0.0)
+                drop.setGlowing(true)
+            }
+        }
+
+        val nombreTraducido = targetMaterial!!.name.replace("_", " ").lowercase()
+        startChallenge("CONSIGUE", "🎁 <aqua>¡CONSIGUE Y SOSTÉN: $nombreTraducido!</aqua>", 15)
     }
 
     fun startChallenge(id: String, msg: String, tiempo: Int) {
@@ -173,6 +203,13 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         displayTime = tiempo
 
         if (id == "QUIETO") players.forEach { savedPlayers.add(it.uniqueId) }
+
+        if (id == "PAPACALIENTE") {
+            plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF4500><b>¡MINIJUEGO DE SIMÓN: LA PAPA CALIENTE!</b></#FF4500><newline>"))
+            plugin.papaCalienteGame.iniciar(this,120)
+            activeChallenge = "MINIJUEGO" // Ponemos al bot en pausa
+            return
+        }
 
         plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>¡SIMÓN DICE!</b></yellow> <white>» $msg<newline>"))
         updateBossBar(BossBar.Color.GREEN)
@@ -185,11 +222,23 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         var restante = tiempo
 
         challengeTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning || activeChallenge == "NINGUNO") { task.cancel(); return@runAtFixedRate }
+            if (!isRunning || activeChallenge == "NINGUNO" || activeChallenge == "MINIJUEGO") {
+                task.cancel(); return@runAtFixedRate
+            }
 
             restante--
             displayTime = restante
             updateBossBar(BossBar.Color.GREEN)
+
+            if (activeChallenge == "CONSIGUE") {
+                players.forEach { p ->
+                    if (!savedPlayers.contains(p.uniqueId)) {
+                        if (p.inventory.itemInMainHand.type == targetMaterial) {
+                            plugin.server.globalRegionScheduler.run(plugin) { _ -> markSaved(p) }
+                        }
+                    }
+                }
+            }
 
             if (restante <= 0) {
                 task.cancel()
@@ -219,10 +268,17 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             p.playSound(p.location, Sound.BLOCK_BELL_USE, 1f, 0.5f)
         }
 
-        val perdedores = players.filter { !savedPlayers.contains(it.uniqueId) }
+        // Determinar perdedores: Los que no se salvaron, o los que fallaron las matemáticas
+        val perdedores = players.filter { !savedPlayers.contains(it.uniqueId) || failedMathPlayers.contains(it.uniqueId) }
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
             perdedores.forEach { aplicarCuello(it) }
+
+            if (activeChallenge == "CONSIGUE") {
+                val center = currentArena?.centerLocation
+                center?.world?.getNearbyEntities(center, 30.0, 30.0, 30.0)?.filterIsInstance<Item>()?.forEach { it.remove() }
+                players.forEach { it.inventory.clear() }
+            }
 
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 activeChallenge = "NINGUNO"
@@ -238,7 +294,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
                 updateBossBar(BossBar.Color.WHITE)
                 players.forEach { it.isGlowing = false }
-            }, 60L) // 3 segundos de suspenso antes de reiniciar
+            }, 60L)
         }
     }
 
@@ -324,6 +380,12 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         val allPlayers = players + spectators
         allPlayers.forEach { p ->
             p.getAttribute(Attribute.SCALE)?.baseValue = 1.0
+        }
+
+        currentArena?.centerLocation?.world?.let { w ->
+            currentArena?.centerLocation?.let { loc ->
+                w.getNearbyEntities(loc, 40.0, 40.0, 40.0).filterIsInstance<Item>().forEach { it.remove() }
+            }
         }
 
         plugin.eventManager.currentGame = null

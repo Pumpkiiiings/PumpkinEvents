@@ -32,11 +32,73 @@ class PuntajeCommand(private val plugin: PumpkinEventos) : CommandExecutor, TabC
                     }
                 }
             }
+
+            // --- SISTEMA DE HOLOGRAMA PERSONALIZABLE ---
+            "holo" -> {
+                if (!sender.hasPermission("pumpkin.admin")) return true
+                if (sender !is Player) return true
+
+                // Crear o mover el holograma: /puntaje holo
+                if (args.size == 1) {
+                    plugin.puntajeHoloManager.spawnHolograma(sender.location)
+                    sender.sendMessage(mm.parse("<#39FF14>✔</#39FF14> <white>Holograma de puntajes creado/movido a tu posición.</white>"))
+                    return true
+                }
+
+                // Editar propiedades: /puntaje holo <propiedad> <valor>
+                val propiedad = args[1].lowercase()
+                if (args.size < 3) {
+                    sender.sendMessage(mm.parse("<red>Uso: /puntaje holo $propiedad <valor></red>"))
+                    return true
+                }
+                val valor = args[2]
+
+                when (propiedad) {
+                    "billboard" -> {
+                        val validos = listOf("CENTER", "FIXED", "VERTICAL", "HORIZONTAL")
+                        if (!validos.contains(valor.uppercase())) {
+                            sender.sendMessage(mm.parse("<red>Valor inválido. Usa: $validos</red>"))
+                            return true
+                        }
+                        plugin.config.set("holograma.billboard", valor.uppercase())
+                    }
+                    "shadow" -> {
+                        plugin.config.set("holograma.shadow", valor.toBoolean())
+                    }
+                    "background" -> {
+                        if (!valor.startsWith("#") || valor.length < 7) {
+                            sender.sendMessage(mm.parse("<red>Usa formato Hex ARGB (Ej: #80000000)</red>"))
+                            return true
+                        }
+                        plugin.config.set("holograma.background_color", valor)
+                    }
+                    "scale" -> {
+                        val num = valor.toDoubleOrNull() ?: 1.5
+                        plugin.config.set("holograma.scale", num)
+                    }
+                    else -> {
+                        sender.sendMessage(mm.parse("<red>Propiedad desconocida.</red>"))
+                        return true
+                    }
+                }
+
+                plugin.saveConfig()
+                plugin.puntajeHoloManager.actualizarVisuales()
+                sender.sendMessage(mm.parse("<#39FF14>✔</#39FF14> <white>Propiedad <yellow>$propiedad</yellow> actualizada a <yellow>$valor</yellow>.</white>"))
+            }
+
+            "holoremove" -> {
+                if (!sender.hasPermission("pumpkin.admin")) return true
+                plugin.puntajeHoloManager.eliminarHolograma()
+                sender.sendMessage(mm.parse("<#FF3131>✘</#FF3131> <white>Holograma de puntajes eliminado correctamente.</white>"))
+            }
+
             "clearall" -> {
                 if (!sender.hasPermission("pumpkin.admin")) return true
                 pm.clearAll()
                 sender.sendMessage(mm.parse("<red>Todos los puntajes han sido reiniciados a 0.</red>"))
             }
+
             "add" -> {
                 if (!sender.hasPermission("pumpkin.admin")) return true
                 if (args.size < 3) {
@@ -48,9 +110,10 @@ class PuntajeCommand(private val plugin: PumpkinEventos) : CommandExecutor, TabC
                 if (pm.addPointsAdmin(target, amount)) {
                     sender.sendMessage(mm.parse("<#39FF14>Se añadieron $amount puntos a $target.</#39FF14>"))
                 } else {
-                    sender.sendMessage(mm.parse("<red>Jugador no encontrado en la base de datos.</red>"))
+                    sender.sendMessage(mm.parse("<red>Jugador no encontrado.</red>"))
                 }
             }
+
             "remove" -> {
                 if (!sender.hasPermission("pumpkin.admin")) return true
                 if (args.size < 3) {
@@ -65,6 +128,7 @@ class PuntajeCommand(private val plugin: PumpkinEventos) : CommandExecutor, TabC
                     sender.sendMessage(mm.parse("<red>Jugador no encontrado.</red>"))
                 }
             }
+
             "clear" -> {
                 if (!sender.hasPermission("pumpkin.admin")) return true
                 if (args.size < 2) {
@@ -78,6 +142,7 @@ class PuntajeCommand(private val plugin: PumpkinEventos) : CommandExecutor, TabC
                     sender.sendMessage(mm.parse("<red>Jugador no encontrado.</red>"))
                 }
             }
+
             else -> {
                 val target = args[0]
                 val pts = pm.getPointsByName(target)
@@ -92,13 +157,26 @@ class PuntajeCommand(private val plugin: PumpkinEventos) : CommandExecutor, TabC
     }
 
     override fun onTabComplete(sender: CommandSender, command: Command, alias: String, args: Array<out String>): List<String> {
-        if (args.size == 1) {
-            val list = mutableListOf("top")
-            if (sender.hasPermission("pumpkin.admin")) {
-                list.addAll(listOf("add", "remove", "clear", "clearall"))
+        if (!sender.hasPermission("pumpkin.admin")) return if (args.size == 1) listOf("top") else emptyList()
+
+        return when (args.size) {
+            1 -> listOf("top", "add", "remove", "clear", "clearall", "holo", "holoremove").filter { it.startsWith(args[0].lowercase()) }
+            2 -> {
+                if (args[0].lowercase() == "holo") listOf("billboard", "shadow", "background", "scale").filter { it.startsWith(args[1].lowercase()) }
+                else emptyList()
             }
-            return list.filter { it.startsWith(args[0].lowercase()) }
+            3 -> {
+                if (args[0].lowercase() == "holo") {
+                    when (args[1].lowercase()) {
+                        "billboard" -> listOf("CENTER", "FIXED", "VERTICAL", "HORIZONTAL")
+                        "shadow" -> listOf("true", "false")
+                        "background" -> listOf("#00000000", "#80000000", "#FF000000")
+                        "scale" -> listOf("1.0", "1.5", "2.0")
+                        else -> emptyList()
+                    }
+                } else emptyList()
+            }
+            else -> emptyList()
         }
-        return emptyList()
     }
 }

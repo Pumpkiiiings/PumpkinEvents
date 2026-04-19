@@ -1,5 +1,5 @@
 name: PumpkinEventos
-version: '3.0.3'
+version: '3.0.5'
 main: pumpkin.eventos.PumpkinEventos
 api-version: '1.21'
 author: Pumpkingz
@@ -40,6 +40,8 @@ commands:
   puntaje:
     description: "Sistema de puntajes del servidor"
     aliases: [puntos, score]
+  espectear:
+    description: Vuelve al mapa del evento como espectador.
 
 permissions:
   pumpkin.admin:

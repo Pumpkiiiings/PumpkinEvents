@@ -94,6 +94,10 @@ class PuntajeManager(private val plugin: PumpkinEventos) {
         save()
     }
 
+    fun getAllSorted(): List<PlayerScore> {
+        return scores.values.sortedByDescending { it.points }
+    }
+
     fun getTop10(): List<PlayerScore> {
         return scores.values.sortedByDescending { it.points }.take(10)
     }

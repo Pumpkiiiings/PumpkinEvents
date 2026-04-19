@@ -8,6 +8,11 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.triggerAnvils
+import pumpkin.eventos.games.triggerGeoffrey
+import pumpkin.eventos.games.triggerLava
+import pumpkin.eventos.games.triggerStorm
+import pumpkin.eventos.games.triggerTornado
 import java.util.concurrent.TimeUnit
 
 class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag</red>") {

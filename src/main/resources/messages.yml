@@ -44,6 +44,13 @@ commands:
     no_event: "<prefix><#FF3131>No hay ningún evento corriendo.</#FF3131>"
   revive:
     success: "<prefix><#39FF14>🍖</#39FF14> <white><player> ha sido revivido.</white>"
+  espectear:
+    instruction:
+      - ""
+      - "<#FF3131><b>☠ ¡HAS SIDO ELIMINADO!</b></##FF3131>"
+      - "<white>Pero no te vayas aún... puedes seguir viendo la partida.</white>"
+      - "<click:run_command:'/espectear'><hover:show_text:'<gray>Haz clic para volver al mapa como fantasma'><#00FFFF><b>[CLIC AQUÍ PARA ESPECTEAR]</b></#00FFFF></hover></click>"
+      - ""
 
 vote:
   no_active: "<#FF3131>¡No hay ninguna votación activa en este momento!</#FF3131>"
@@ -362,3 +369,18 @@ gamemode:
 connection:
   join: "<prefix><#CCFF00><player></#CCFF00> <#39FF14>se ha unido al evento!</#39FF14>"
   quit: "<prefix><#CCFF00><player></#CCFF00> <#FF3131>ha abandonado el evento.</#FF3131>"
+
+hologram:
+  title: "<#FF5500><bold>⚡ TOP PUNTAJES ⚡</bold></#FF5500>"
+  page_info: "<gray>Página <page> de <total></gray>"
+  empty: "<red>No hay puntajes registrados aún.</red>"
+  entry: "<rank_color><b>#<rank></b> <white><name></white> <dark_gray>»</dark_gray> <#39FF14><points> pts</#39FF14>"
+  rank_colors:
+    "1": "<gold>"
+    "2": "<#C0C0C0>"
+    "3": "<#CD7F32>"
+    default: "<white>"
+  footer:
+    - ""
+    - "&#29FF00&l[ CLIC PARA SIGUIENTE PÁGINA ]"
+    - "&r&#FFE600mc.liric.xyz"

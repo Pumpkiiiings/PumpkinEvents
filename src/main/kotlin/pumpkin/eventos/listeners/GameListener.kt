@@ -5,7 +5,6 @@ import dev.geco.gsit.api.event.EntityStopSitEvent
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.Sound
-import org.bukkit.block.BlockFace
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.Projectile
@@ -13,6 +12,7 @@ import org.bukkit.entity.TNTPrimed
 import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.Listener
+import org.bukkit.event.block.Action
 import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
@@ -36,7 +36,6 @@ import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
 import pumpkin.eventos.games.pillars.PillarsOfFortune
 import pumpkin.eventos.games.ruletarusa.RuletaRusa
 import pumpkin.eventos.games.sillas.SillasMusicales
-import pumpkin.eventos.games.simondice.SimonDice
 import pumpkin.eventos.games.spleef.Spleef
 import pumpkin.eventos.games.sumo.Sumo
 import pumpkin.eventos.games.tntgames.TntSpleef
@@ -44,37 +43,33 @@ import pumpkin.eventos.games.tntgames.TntTag
 
 class GameListener(private val plugin: PumpkinEventos) : Listener {
 
-    // --- PROTECCIÓN DE BLOQUES ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockPlace(e: BlockPlaceEvent) {
         val game = plugin.eventManager.currentGame
         if (e.player.hasPermission("pumpkin.admin")) return
-
-        val allowedGames = game is SueloLava || game is PillarsOfFortune
-        if (game == null || !game.isRunning || !allowedGames || (game is PillarsOfFortune && game.isPreparation)) {
-            e.isCancelled = true
-        }
+        if (game == null || !game.isRunning) { e.isCancelled = true; return }
+        if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
+        if (game is PillarsOfFortune || game is SueloLava) return
+        e.isCancelled = true
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onBlockBreak(e: BlockBreakEvent) {
         val game = plugin.eventManager.currentGame
         if (e.player.hasPermission("pumpkin.admin")) return
+        if (game == null || !game.isRunning) { e.isCancelled = true; return }
 
-        if (game is Spleef && game.isRunning && !game.isPreparation) {
+        if (game is Spleef && !game.isPreparation) {
             if (e.block.type == Material.SNOW_BLOCK || e.block.type == Material.SNOW) {
                 e.isDropItems = false
                 return
             }
         }
-
-        val allowedGames = game is PillarsOfFortune
-        if (game == null || !game.isRunning || !allowedGames || (game is PillarsOfFortune && game.isPreparation)) {
-            e.isCancelled = true
-        }
+        if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
+        if (game is PillarsOfFortune) return
+        e.isCancelled = true
     }
 
-    // --- DETECCIÓN DE MOVIMIENTO OPTIMIZADA PARA BEDROCK ---
     @EventHandler
     fun onMove(e: PlayerMoveEvent) {
         val p = e.player
@@ -83,11 +78,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
         if (game is LuzRojaLuzVerde) {
             if (game.isPlayerSaved(p)) return
-
-            if (game.hasReachedMeta(e.to)) {
-                game.markWinner(p)
-                return
-            }
+            if (game.hasReachedMeta(e.to)) { game.markWinner(p); return }
 
             if (game.estado == LuzEstado.ROJA) {
                 val diffX = Math.abs(e.to.x - e.from.x)
@@ -98,24 +89,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 }
             }
             return
-        }
-
-        if (game is SimonDice) {
-            if (game.activeChallenge == "SALTAR" && e.to.y > e.from.y && !p.location.block.getRelative(BlockFace.DOWN).type.isAir) game.markSaved(p)
-
-            val diffX = Math.abs(e.to.x - e.from.x)
-            val diffZ = Math.abs(e.to.z - e.from.z)
-
-            if (diffX > 0.05 || diffZ > 0.05) {
-                if (game.activeChallenge == "CAMINAR") game.markSaved(p)
-                if (game.activeChallenge == "QUIETO") {
-                    if (game.savedPlayers.contains(p.uniqueId)) {
-                        game.savedPlayers.remove(p.uniqueId)
-                        p.isGlowing = false
-                        p.sendMessage(plugin.messageManager.parse("<red>⚠️ <b>¡TE MOVISTE!</b></red> <white>Has perdido tu salvación."))
-                    }
-                }
-            }
         }
     }
 
@@ -136,13 +109,8 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 return
             }
         }
-
-        if (game is SimonDice) {
-            if (e.isSneaking && game.activeChallenge == "AGACHARSE") game.markSaved(p)
-        }
     }
 
-    // --- FLECHAS PARA TNT SPLEEF ---
     @EventHandler
     fun onProjectileHit(e: ProjectileHitEvent) {
         val proj = e.entity
@@ -153,11 +121,9 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
             if (block.type == Material.TNT) {
                 proj.remove()
-
                 plugin.server.regionScheduler.run(plugin, block.location) { _ ->
                     val world = block.world
                     val centerLoc = block.location
-
                     val totalTntsToFall = (2..5).random()
                     var convertedTnts = 0
 
@@ -205,20 +171,17 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- GOLPES Y PVP ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onPunch(e: EntityDamageByEntityEvent) {
         val attacker = e.damager as? Player ?: return
         val victim = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
-        // Bloqueo Absoluto de PVP (No se pueden golpear)
         if (game is RuletaRusa || game is JalarCuerda) {
             e.isCancelled = true
             return
         }
 
-        // Golpes permitidos pero sin daño letal (Solo empuje)
         if (game is SillasMusicales || game is Cristales) {
             e.damage = 0.001
             return
@@ -243,41 +206,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
             e.isCancelled = false
             return
         }
-
-        // --- MECÁNICA: ROBAR ÍTEM EN EL RETO CONSIGUE (SIMÓN DICE) ---
-        if (game is SimonDice && game.isRunning) {
-            if (game.activeChallenge == "CONSIGUE") {
-                e.damage = 0.001 // No matamos, solo contamos golpes
-
-                // Solo nos importa si golpean a alguien que YA tiene el ítem en la mano
-                if (victim.inventory.itemInMainHand.type == game.targetMaterial) {
-                    val golpesRecibidos = (game.hitCounter[victim.uniqueId] ?: 0) + 1
-                    game.hitCounter[victim.uniqueId] = golpesRecibidos
-
-                    if (golpesRecibidos >= 3) {
-                        // Soltar el ítem al suelo y quitárselo de la mano
-                        victim.inventory.itemInMainHand.amount = 0
-                        game.savedPlayers.remove(victim.uniqueId) // Ya no está a salvo
-                        victim.isGlowing = false // Quitarle el brillo de victoria
-
-                        val dropLoc = victim.location.clone().add(0.0, 1.0, 0.0)
-                        val drop = victim.world.dropItem(dropLoc, org.bukkit.inventory.ItemStack(game.targetMaterial!!))
-                        drop.velocity = attacker.location.direction.multiply(0.5) // Sale volando hacia adelante
-                        drop.setGlowing(true)
-
-                        victim.sendMessage(plugin.messageManager.parse("<red>¡Te han robado el ítem a base de golpes!</red>"))
-                        victim.playSound(victim.location, Sound.ITEM_SHIELD_BREAK, 1f, 1f)
-                        game.hitCounter[victim.uniqueId] = 0 // Reiniciar su contador
-                    } else {
-                        victim.playSound(victim.location, Sound.ENTITY_PLAYER_HURT, 1f, 1f)
-                    }
-                }
-            } else {
-                // En cualquier otro momento de Simón, el PVP está bloqueado
-                e.isCancelled = true
-            }
-            return
-        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -285,8 +213,7 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val player = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
-        // Jalar Cuerda y Ruleta Rusa prohíben absolutamente todo tipo de daño
-        if (game is JalarCuerda || game is RuletaRusa) {
+        if (game is JalarCuerda) {
             e.isCancelled = true
             return
         }
@@ -297,11 +224,8 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         }
 
         if (game is PillarsOfFortune) {
-            if (game.isPreparation) {
-                e.isCancelled = true
-            } else {
-                e.isCancelled = false
-            }
+            if (game.isPreparation) e.isCancelled = true
+            else e.isCancelled = false
             return
         }
 
@@ -329,26 +253,33 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
     fun onInteract(e: PlayerInteractEvent) {
         if (e.hand != EquipmentSlot.HAND) return
         val player = e.player
-        val game = plugin.eventManager.currentGame ?: return
+        val currentGame = plugin.eventManager.currentGame ?: return
 
-        // --- SILLAS MUSICALES ---
-        if (game is SillasMusicales && game.isRunning) {
+        if (currentGame is RuletaRusa && currentGame.isRunning) {
+            if (e.action.isRightClick && e.item?.type == Material.IRON_HORSE_ARMOR) {
+                e.isCancelled = true
+                currentGame.procesarEleccion(player, true)
+                return
+            }
+        }
+
+        if (currentGame is SillasMusicales && currentGame.isRunning) {
             val clickedBlock = e.clickedBlock
             if (clickedBlock != null && e.action.isRightClick) {
                 e.isCancelled = true
-                game.intentarSentarse(player, clickedBlock.location)
+                currentGame.intentarSentarse(player, clickedBlock.location)
                 return
             }
         }
 
         val item = e.item ?: return
-        if (game is SimonDice && game.mode == pumpkin.eventos.games.simondice.SimonMode.MANUAL && item.type == Material.NETHER_STAR) return
-        if (!game.isRunning) return
+        if (!currentGame.isRunning) return
 
         val key = NamespacedKey(plugin, "tnt_item")
         val type = item.itemMeta?.persistentDataContainer?.get(key, PersistentDataType.STRING) ?: return
 
         e.isCancelled = true
+
         when (type) {
             "dash" -> {
                 if (player.hasCooldown(Material.SUGAR)) return
@@ -376,15 +307,24 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
     @EventHandler
     fun onDrop(e: PlayerDropItemEvent) {
-        val game = plugin.eventManager.currentGame ?: return
+        val game = plugin.eventManager.currentGame
+        val player = e.player
 
-        // Bloqueamos tirar ítems en todos los juegos, excepto en Pillars (donde sí pueden dropear cosas a otros)
-        if (game.isRunning && game !is PillarsOfFortune) {
-            e.isCancelled = true
+        if (game != null && game.isRunning) {
+            if (game is RuletaRusa) {
+                e.isCancelled = true
+                if (e.itemDrop.itemStack.type == Material.IRON_HORSE_ARMOR) {
+                    game.procesarEleccion(player, false)
+                }
+                return
+            }
+
+            if (game !is PillarsOfFortune) {
+                e.isCancelled = true
+            }
         }
     }
 
-    // --- PROTECCIONES GSIT ---
     @EventHandler(priority = EventPriority.HIGHEST)
     fun onGSitStop(e: EntityStopSitEvent) {
         val player = e.entity as? Player ?: return

@@ -4,6 +4,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.title.Title
 import org.bukkit.Color
+import org.bukkit.GameMode
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -20,6 +21,8 @@ import pumpkin.eventos.games.EventGame
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
+import kotlin.math.cos
+import kotlin.math.sin
 
 enum class SimonMode { AUTOMATICO, MANUAL }
 
@@ -31,7 +34,9 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     val savedPlayers = mutableSetOf<UUID>()
     val failedMathPlayers = mutableSetOf<UUID>()
 
-    var activeChallenge: String = "NINGUNO"
+    // Variable para la lista de retos
+    var activeChallenges = mutableListOf<String>()
+
     var actionText = "Esperando orden..."
 
     var targetPhrase = ""
@@ -49,7 +54,15 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     private var displayTime = 10
     private var displayOrden = "Preparando..."
 
-    private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR", "CONSIGUE", "PAPACALIENTE")
+    private val retosSimples = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR", "CONSIGUE", "PAPACALIENTE")
+
+    private val combosPermitidos = listOf(
+        listOf("SALTAR", "CAMINAR"),
+        listOf("AGACHARSE", "CAMINAR"),
+        listOf("SALTAR", "GOLPEAR"),
+        listOf("CAMINAR", "GOLPEAR"),
+        listOf("AGACHARSE", "GOLPEAR")
+    )
 
     val hitCounter = mutableMapOf<UUID, Int>()
 
@@ -64,7 +77,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         savedPlayers.clear()
         failedMathPlayers.clear()
         hitCounter.clear()
-        activeChallenge = "NINGUNO"
+        activeChallenges.clear()
         ultimoReto = ""
 
         if (mode == SimonMode.MANUAL && streamer == null) {
@@ -93,6 +106,10 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             if (mode == SimonMode.MANUAL) {
                 streamer?.let { s ->
                     if (!s.isOnline) return@let
+
+                    s.gameMode = GameMode.CREATIVE
+                    s.isFlying = true
+
                     s.inventory.clear()
                     val star = ItemStack(Material.NETHER_STAR)
                     val meta = star.itemMeta
@@ -108,17 +125,25 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         }, 20L)
     }
 
+    private fun getJugadoresValidos(): List<Player> {
+        return players.filter { it != streamer }
+    }
+
+    private fun getJugadoresVivosReales(): Int {
+        return getJugadoresValidos().size
+    }
+
     private fun startAutoLoop() {
         autoTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
-            if (players.size <= 1) {
+            if (getJugadoresVivosReales() <= 1) {
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
                 task.cancel()
                 return@runAtFixedRate
             }
 
-            if (activeChallenge != "NINGUNO") return@runAtFixedRate
+            if (activeChallenges.isNotEmpty()) return@runAtFixedRate
 
             if (isWaitingPhase) {
                 phaseWaitTimer--
@@ -132,7 +157,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                         plugin.messageManager.parse("$color<bold>$phaseWaitTimer</bold>"),
                         plugin.messageManager.parse("<white>Simón está por dar la orden...")
                     )
-                    players.forEach {
+                    getJugadoresValidos().forEach {
                         it.showTitle(title)
                         it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_SNARE, 1f, 1f)
                     }
@@ -141,25 +166,33 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 if (phaseWaitTimer <= 0) {
                     isWaitingPhase = false
 
-                    var elegido = retosDisponibles.random()
-                    while (elegido == ultimoReto) { elegido = retosDisponibles.random() }
-                    ultimoReto = elegido
+                    val esCombo = Math.random() <= 0.20
 
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                        when (elegido) {
-                            "SALTAR" -> startChallenge("SALTAR", "▲ <green>¡SALTEN!</green>", 10)
-                            "AGACHARSE" -> startChallenge("AGACHARSE", "▼ <yellow>¡AGÁCHENSE!</yellow>", 10)
-                            "CAMINAR" -> startChallenge("CAMINAR", "⇄ <aqua>¡CAMINEN!</aqua>", 10)
-                            "QUIETO" -> startChallenge("QUIETO", "⏹ <red>¡QUIETOS!</red>", 10)
-                            "GOLPEAR" -> startChallenge("GOLPEAR", "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10)
-                            "MATES" -> {
-                                failedMathPlayers.clear()
-                                val num1 = (1..20).random(); val num2 = (1..20).random()
-                                targetPhrase = "$num1+$num2"; targetMathResult = (num1 + num2).toDouble()
-                                startChallenge("MATES", "⌗ CUÁNTO ES: <white>$targetPhrase</white>", 15)
+                        if (esCombo) {
+                            val comboElegido = combosPermitidos.random()
+                            val textoCombo = comboElegido.joinToString(" y ") { it }
+                            startChallenge(comboElegido, "🔥 <#BF00FF>¡COMBO: $textoCombo!</#BF00FF>", 15)
+                        } else {
+                            var elegido = retosSimples.random()
+                            while (elegido == ultimoReto) { elegido = retosSimples.random() }
+                            ultimoReto = elegido
+
+                            when (elegido) {
+                                "SALTAR" -> startChallenge(listOf("SALTAR"), "▲ <green>¡SALTEN!</green>", 10)
+                                "AGACHARSE" -> startChallenge(listOf("AGACHARSE"), "▼ <yellow>¡AGÁCHENSE!</yellow>", 10)
+                                "CAMINAR" -> startChallenge(listOf("CAMINAR"), "⇄ <aqua>¡CAMINEN!</aqua>", 10)
+                                "QUIETO" -> startChallenge(listOf("QUIETO"), "⏹ <red>¡QUIETOS!</red>", 10)
+                                "GOLPEAR" -> startChallenge(listOf("GOLPEAR"), "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10)
+                                "MATES" -> {
+                                    failedMathPlayers.clear()
+                                    val num1 = (1..20).random(); val num2 = (1..20).random()
+                                    targetPhrase = "$num1+$num2"; targetMathResult = (num1 + num2).toDouble()
+                                    startChallenge(listOf("MATES"), "⌗ CUÁNTO ES: <white>$targetPhrase</white>", 15)
+                                }
+                                "CONSIGUE" -> lanzarRetoConsigue()
+                                "PAPACALIENTE" -> startChallenge(listOf("PAPACALIENTE"), "🥔 <gold>LA PAPA CALIENTE</gold>", 1)
                             }
-                            "CONSIGUE" -> lanzarRetoConsigue()
-                            "PAPACALIENTE" -> startChallenge("PAPACALIENTE", "🥔 <gold>LA PAPA CALIENTE</gold>", 1)
                         }
                     }
                 }
@@ -167,28 +200,23 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         }, 1, 1, TimeUnit.SECONDS)
     }
 
-    // --- NUEVO SISTEMA DE BÚSQUEDA SEGURA (Estilo Booster) ---
     fun lanzarRetoConsigue() {
         hitCounter.clear()
         val itemsPosibles = listOf(Material.APPLE, Material.DIAMOND, Material.BONE, Material.EMERALD, Material.FEATHER)
         targetMaterial = itemsPosibles.random()
 
-        // Cantidad de ítems = Jugadores vivos menos 1 (Mínimo 1)
-        val cantidad = maxOf(1, players.size - 1)
+        val cantidad = maxOf(1, getJugadoresVivosReales() - 1)
         val arena = currentArena ?: return
         val world = arena.centerLocation?.world ?: players.firstOrNull()?.world ?: return
 
         var spawneados = 0
 
-        // Función recursiva para intentar encontrar suelo sólido para cada ítem
         fun intentarSpawnear() {
             if (spawneados >= cantidad || !isRunning) return
 
-            // Tomamos la ubicación de un jugador al azar como base
-            val targetPlayer = players.randomOrNull() ?: return
+            val targetPlayer = getJugadoresValidos().randomOrNull() ?: return
             val centerLoc = targetPlayer.location
 
-            // Offset aleatorio alrededor del jugador (hasta 12 bloques lejos)
             val offsetX = (Math.random() * 24 - 12)
             val offsetZ = (Math.random() * 24 - 12)
             val searchLoc = centerLoc.clone().add(offsetX, 0.0, offsetZ)
@@ -197,7 +225,6 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 var highestY = searchLoc.blockY
                 var foundSolid = false
 
-                // Raytracing vertical hacia abajo buscando suelo sólido
                 for (y in (searchLoc.blockY + 15) downTo (searchLoc.blockY - 20)) {
                     val b = world.getBlockAt(searchLoc.blockX, y, searchLoc.blockZ)
                     if (b.type.isSolid) {
@@ -207,50 +234,46 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                     }
                 }
 
-                // Si encontramos suelo, lo tiramos 1 bloque por encima
                 if (foundSolid) {
                     val finalLoc = Location(world, searchLoc.x, highestY + 1.2, searchLoc.z)
                     val drop = world.dropItem(finalLoc, ItemStack(targetMaterial!!))
-                    drop.velocity = Vector(0.0, -0.1, 0.0) // Pequeña caída
-                    drop.setGlowing(true) // Brilla para que lo vean a través de paredes
+                    drop.velocity = Vector(0.0, -0.1, 0.0)
+                    drop.setGlowing(true)
 
                     world.spawnParticle(Particle.HAPPY_VILLAGER, finalLoc, 15, 0.5, 0.5, 0.5)
                     world.playSound(finalLoc, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.5f)
 
                     spawneados++
                 }
-
-                // Llamamos recursivamente hasta completar la cantidad
                 intentarSpawnear()
             }
         }
 
-        // Iniciamos el ciclo de spawneo
         intentarSpawnear()
 
         val nombreTraducido = targetMaterial!!.name.replace("_", " ").lowercase()
-        startChallenge("CONSIGUE", "🎁 <aqua>¡CONSIGUE Y SOSTÉN: $nombreTraducido!</aqua>", 30)
+        startChallenge(listOf("CONSIGUE"), "🎁 <aqua>¡CONSIGUE Y SOSTÉN: $nombreTraducido!</aqua>", 30)
     }
 
-    fun startChallenge(id: String, msg: String, tiempo: Int) {
+    fun startChallenge(retos: List<String>, msg: String, tiempo: Int) {
         savedPlayers.clear()
-        activeChallenge = id
+        activeChallenges = retos.toMutableList()
         displayOrden = msg
         displayTime = tiempo
 
-        if (id == "QUIETO") players.forEach { savedPlayers.add(it.uniqueId) }
+        if (activeChallenges.contains("QUIETO")) getJugadoresValidos().forEach { savedPlayers.add(it.uniqueId) }
 
-        if (id == "PAPACALIENTE") {
+        if (activeChallenges.contains("PAPACALIENTE")) {
             plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF4500><b>¡MINIJUEGO DE SIMÓN: LA PAPA CALIENTE!</b></#FF4500><newline>"))
             plugin.papaCalienteGame.iniciar(this, 30)
-            activeChallenge = "MINIJUEGO"
+            activeChallenges = mutableListOf("MINIJUEGO")
             return
         }
 
         plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>¡SIMÓN DICE!</b></yellow> <white>» $msg<newline>"))
         updateBossBar(BossBar.Color.GREEN)
 
-        players.forEach { p ->
+        getJugadoresValidos().forEach { p ->
             p.showTitle(Title.title(plugin.messageManager.parse("<#39FF14><b>¡NUEVA ORDEN!</b></#39FF14>"), plugin.messageManager.parse(msg)))
             p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1f, 1f)
         }
@@ -258,7 +281,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         var restante = tiempo
 
         challengeTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning || activeChallenge == "NINGUNO" || activeChallenge == "MINIJUEGO") {
+            if (!isRunning || activeChallenges.isEmpty() || activeChallenges.contains("MINIJUEGO")) {
                 task.cancel(); return@runAtFixedRate
             }
 
@@ -266,10 +289,11 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             displayTime = restante
             updateBossBar(BossBar.Color.GREEN)
 
-            if (activeChallenge == "CONSIGUE") {
-                players.forEach { p ->
+            if (activeChallenges.contains("CONSIGUE")) {
+                getJugadoresValidos().forEach { p ->
                     if (!savedPlayers.contains(p.uniqueId)) {
-                        if (p.inventory.itemInMainHand.type == targetMaterial) {
+                        // REVISIÓN INTELIGENTE: Escaneamos todo el inventario, no solo la mano
+                        if (p.inventory.contains(targetMaterial!!)) {
                             plugin.server.globalRegionScheduler.run(plugin) { _ -> markSaved(p) }
                         }
                     }
@@ -286,9 +310,9 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 val color = if (restante <= 3) "<red>" else "<yellow>"
                 val titleAviso = Title.title(
                     plugin.messageManager.parse("$color<bold>$restante</bold>"),
-                    plugin.messageManager.parse("<white>¡Cumple la orden!</white>")
+                    plugin.messageManager.parse("<white>¡Sigue la orden!</white>")
                 )
-                players.forEach { it.showTitle(titleAviso); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f) }
+                getJugadoresValidos().forEach { it.showTitle(titleAviso); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f) }
             }
 
         }, 1, 1, TimeUnit.SECONDS)
@@ -299,24 +323,31 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         displayTime = 0
         updateBossBar(BossBar.Color.RED)
 
-        players.forEach { p ->
-            p.showTitle(Title.title(plugin.messageManager.parse("<red><b>¡TIEMPO AGOTADO!</b></red>"), plugin.messageManager.parse("<white>La guadaña está pasando...</white>")))
-            p.playSound(p.location, Sound.BLOCK_BELL_USE, 1f, 0.5f)
-        }
-
-        val perdedores = players.filter { !savedPlayers.contains(it.uniqueId) || failedMathPlayers.contains(it.uniqueId) }
-
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
+            if (activeChallenges.contains("AGACHARSE")) {
+                getJugadoresValidos().forEach { p ->
+                    if (p.isSneaking && isPlayerCompletingOtherCombos(p)) savedPlayers.add(p.uniqueId)
+                    else savedPlayers.remove(p.uniqueId)
+                }
+            }
+
+            getJugadoresValidos().forEach { p ->
+                p.showTitle(Title.title(plugin.messageManager.parse("<red><b>¡TIEMPO AGOTADO!</b></red>"), plugin.messageManager.parse("<white>La guadaña está pasando...</white>")))
+                p.playSound(p.location, Sound.BLOCK_BELL_USE, 1f, 0.5f)
+            }
+
+            val perdedores = getJugadoresValidos().filter { !savedPlayers.contains(it.uniqueId) || failedMathPlayers.contains(it.uniqueId) }
+
             perdedores.forEach { aplicarCuello(it) }
 
-            if (activeChallenge == "CONSIGUE") {
+            if (activeChallenges.contains("CONSIGUE")) {
                 val center = currentArena?.centerLocation
                 center?.world?.getNearbyEntities(center, 40.0, 40.0, 40.0)?.filterIsInstance<Item>()?.forEach { it.remove() }
-                players.forEach { it.inventory.clear() }
+                getJugadoresValidos().forEach { it.inventory.clear() }
             }
 
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                activeChallenge = "NINGUNO"
+                activeChallenges.clear()
 
                 if (mode == SimonMode.MANUAL) {
                     displayOrden = "Esperando al Host..."
@@ -328,12 +359,13 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 }
 
                 updateBossBar(BossBar.Color.WHITE)
-                players.forEach { it.isGlowing = false }
+                getJugadoresValidos().forEach { it.isGlowing = false }
             }, 60L)
         }
     }
 
     fun markSaved(p: Player) {
+        if (p == streamer) return
         if (!savedPlayers.contains(p.uniqueId)) {
             savedPlayers.add(p.uniqueId)
             p.sendMessage(plugin.messageManager.parse("<green>✔ <b>¡SALVADO!</b></green> <white>Misión completada.</white>"))
@@ -343,7 +375,23 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         }
     }
 
+    private fun isPlayerCompletingOtherCombos(p: Player): Boolean {
+        if (activeChallenges.contains("AGACHARSE") && !p.isSneaking) return false
+        return true
+    }
+
+    fun removeSaved(p: Player) {
+        if (p == streamer) return
+        if (savedPlayers.contains(p.uniqueId)) {
+            savedPlayers.remove(p.uniqueId)
+            p.isGlowing = false
+            p.sendMessage(plugin.messageManager.parse("<red>⚠️ <b>¡PARA!</b></red> <white>Has dejado de cumplir la orden. ¡Mueres si no sigues!</white>"))
+            p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f)
+        }
+    }
+
     fun aplicarCuello(p: Player) {
+        if (p == streamer) return
         eliminate(p)
         p.addPotionEffect(PotionEffect(PotionEffectType.DARKNESS, 40, 1, false, false))
         p.isGlowing = true
@@ -388,13 +436,13 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     }
 
     private fun updateBossBar(color: BossBar.Color) {
-        val titleText = plugin.messageManager.parse("⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white>$displayOrden <dark_gray>|</dark_gray> <green>⭐ Vivos: ${players.size}</green>")
+        val titleText = plugin.messageManager.parse("⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white>$displayOrden <dark_gray>|</dark_gray> <green>⭐ Vivos: ${getJugadoresVivosReales()}</green>")
         bossBar?.name(titleText)
         bossBar?.color(color)
     }
 
     override fun checkWinner() {
-        val winner = players.firstOrNull() ?: return
+        val winner = getJugadoresValidos().firstOrNull() ?: return
         plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <color:#67FF00>${winner.name}</color> es el ganador definitivo!<newline>"))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
@@ -433,7 +481,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         allPlayers.forEach { p ->
             p.inventory.clear()
             p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = org.bukkit.GameMode.ADVENTURE
+            p.gameMode = GameMode.ADVENTURE
             p.teleportAsync(lobby)
         }
     }

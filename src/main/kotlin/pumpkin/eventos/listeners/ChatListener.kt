@@ -24,8 +24,7 @@ class ChatListener(private val plugin: PumpkinEventos) : Listener {
         var messageComponent = event.message()
         val game = plugin.eventManager.currentGame as? SimonDice
 
-        // --- 1. LÓGICA DE SIMÓN DICE (MATEMÁTICAS) ---
-        if (game != null && game.isRunning && game.activeChallenge == "MATES" && game.players.contains(player)) {
+        if (game != null && game.isRunning && game.activeChallenges.contains("MATES") && game.players.contains(player)) {
             val msgText = PlainTextComponentSerializer.plainText().serialize(event.message()).lowercase().trim()
             val resultNum = game.targetMathResult.toInt().toString()
             val resultText = convertirALetras(game.targetMathResult.toInt())
@@ -43,14 +42,12 @@ class ChatListener(private val plugin: PumpkinEventos) : Listener {
                     msgFiltrado.contains(resultText)
 
             if (esCorrecto) {
-                // Ofuscamos el componente de mensaje para el renderizado final
                 messageComponent = plugin.messageManager.parse("<obfuscated><#39FF14>HIDDEN_ANSWER</#39FF14></obfuscated>")
 
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     game.markSaved(player)
                 }
             } else {
-                // Si no está salvado, lo marcamos como fallido (morirá al terminar el tiempo)
                 if (!game.savedPlayers.contains(player.uniqueId)) {
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         game.failedMathPlayers.add(player.uniqueId)

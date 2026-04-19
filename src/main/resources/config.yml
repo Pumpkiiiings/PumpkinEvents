@@ -12,3 +12,12 @@ tab:
        <#00FF00>🔔 <#FFFFFF>Jugadores: <#FFFF00>%players%   
        <#FFAA00>mc.liric.xyz   
     <newline>
+
+holograma:
+  display_uuid: ""
+  interaction_uuid: ""
+  # Opciones visuales
+  billboard: CENTER # FIXED, CENTER, VERTICAL, HORIZONTAL
+  shadow: true
+  background_color: "#00000000" # Formato ARGB (#TransparenciaRojoVerdeAzul)
+  scale: 1.5

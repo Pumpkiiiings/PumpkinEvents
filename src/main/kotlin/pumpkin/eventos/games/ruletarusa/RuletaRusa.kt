@@ -337,7 +337,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         }
     }
 
-    private fun procesarEleccion(jugador: Player, decidioDisparar: Boolean) {
+    fun procesarEleccion(jugador: Player, decidioDisparar: Boolean) {
         if (!esperandoDecision) return
         esperandoDecision = false
         jugador.inventory.clear()

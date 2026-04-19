@@ -32,21 +32,20 @@ object SimonMenu {
 
         // --- FILA 2: MOVIMIENTO Y ACCIÓN ---
         gui.setItem(11, crearBoton(plugin, Material.LIME_WOOL, "<#39FF14><b>▲ SALTAR</b>", "<gray>Orden: Todos deben saltar.") {
-            manejarSeleccion(plugin, streamer, "SALTAR") { game.startChallenge("SALTAR", "▲ <#39FF14>¡SALTEN!</#39FF14>", 10); gui.close(streamer) }
+            manejarSeleccion(plugin, streamer, "SALTAR") { game.startChallenge(listOf("SALTAR"), "▲ <#39FF14>¡SALTEN!</#39FF14>", 10); gui.close(streamer) }
         })
         gui.setItem(12, crearBoton(plugin, Material.YELLOW_WOOL, "<#CCFF00><b>▼ AGACHARSE</b>", "<gray>Orden: Todos al suelo.") {
-            manejarSeleccion(plugin, streamer, "AGACHARSE") { game.startChallenge("AGACHARSE", "▼ <#CCFF00>¡AGÁCHENSE!</#CCFF00>", 10); gui.close(streamer) }
+            manejarSeleccion(plugin, streamer, "AGACHARSE") { game.startChallenge(listOf("AGACHARSE"), "▼ <#CCFF00>¡AGÁCHENSE!</#CCFF00>", 10); gui.close(streamer) }
         })
         gui.setItem(13, crearBoton(plugin, Material.LEATHER_BOOTS, "<#00FFFF><b>⇄ CAMINAR</b>", "<gray>Orden: Nadie puede estar quieto.") {
-            manejarSeleccion(plugin, streamer, "CAMINAR") { game.startChallenge("CAMINAR", "⇄ <#00FFFF>¡CAMINEN!</#00FFFF>", 10); gui.close(streamer) }
+            manejarSeleccion(plugin, streamer, "CAMINAR") { game.startChallenge(listOf("CAMINAR"), "⇄ <#00FFFF>¡CAMINEN!</#00FFFF>", 10); gui.close(streamer) }
         })
         gui.setItem(14, crearBoton(plugin, Material.RED_WOOL, "<#FF3131><b>⏹ QUIETOS</b>", "<gray>Orden: El que se mueva muere.") {
-            manejarSeleccion(plugin, streamer, "QUIETO") { game.startChallenge("QUIETO", "⏹ <#FF3131>¡QUIETOS!</#FF3131>", 10); gui.close(streamer) }
+            manejarSeleccion(plugin, streamer, "QUIETO") { game.startChallenge(listOf("QUIETO"), "⏹ <#FF3131>¡QUIETOS!</#FF3131>", 10); gui.close(streamer) }
         })
 
-        // --- NUEVO BOTÓN: GOLPEAR ---
         gui.setItem(15, crearBoton(plugin, Material.WOODEN_SWORD, "<#FFA500><b>⚔ GOLPEAR</b>", "<gray>Orden: Golpea a alguien o algo.") {
-            manejarSeleccion(plugin, streamer, "GOLPEAR") { game.startChallenge("GOLPEAR", "⚔ <#FFA500>¡GOLPEEN A ALGUIEN!</#FFA500>", 10); gui.close(streamer) }
+            manejarSeleccion(plugin, streamer, "GOLPEAR") { game.startChallenge(listOf("GOLPEAR"), "⚔ <#FFA500>¡GOLPEEN A ALGUIEN!</#FFA500>", 10); gui.close(streamer) }
         })
 
         // --- FILA 3: CHAT Y LÓGICA ---
@@ -57,12 +56,17 @@ object SimonMenu {
             manejarSeleccionInput(plugin, streamer, "MATES", "<#CCFF00>⌗ <b>Simón dice:</b> <white>Escribe la operación...", gui)
         })
 
-        // --- FILA 5: MINIJUEGOS (Opcionales / Extras) ---
+        // --- BOTÓN DE CONSEGUIR ÍTEM ---
+        gui.setItem(22, crearBoton(plugin, Material.CHEST, "<#00FF00><b>🎁 CONSIGUE EL ÍTEM</b>", "<gray>Orden: Lluvia de ítems, el que se quede sin él muere.") {
+            manejarSeleccion(plugin, streamer, "CONSIGUE") { game.lanzarRetoConsigue(); gui.close(streamer) }
+        })
+
+        // --- FILA 5: MINIJUEGOS ---
         gui.setItem(38, crearBoton(plugin, Material.RED_BED, "<#FF3131><b>🛏️ ROMPECAMA</b>", "<gray>Carrera de puentes competitiva.") {
             streamer.sendMessage(mm.parse("<red>Minijuego en desarrollo...</red>")); gui.close(streamer)
         })
         gui.setItem(39, crearBoton(plugin, Material.POISONOUS_POTATO, "<#FF3131><b>🥔 PAPA CALIENTE</b>", "<gray>¡Golpea para pasar la papa!") {
-            plugin.papaCalienteGame.iniciar(game, 30); gui.close(streamer)
+            game.startChallenge(listOf("PAPACALIENTE"), "🥔 <gold>LA PAPA CALIENTE</gold>", 1); gui.close(streamer)
         })
         gui.setItem(40, crearBoton(plugin, Material.ICE, "<#00FFFF><b>❄️ CONGELADOS</b>", "<gray>Rojos vs Azules con rescate.") {
             plugin.congeladosGame.iniciar(game, 60); gui.close(streamer)
@@ -93,8 +97,7 @@ object SimonMenu {
                 return@crearBoton
             }
             gui.close(streamer)
-            // Aquí iría la lógica de iniciar tu "Combo" en la clase RetosManager (Aún no la migramos, así que por ahora mandamos un mensaje)
-            streamer.sendMessage(mm.parse("<green>Lanzando combo: ${combo.joinToString(", ")}</green>"))
+            game.startChallenge(combo, "🔥 <#BF00FF>¡COMBO: ${combo.joinToString(" y ")}!</#BF00FF>", 15)
 
             modoComboActivo.remove(uuid)
             seleccionCombo.remove(uuid)
@@ -103,7 +106,7 @@ object SimonMenu {
 
         // --- SÓTANO: UTILIDADES ---
         gui.setItem(49, crearBoton(plugin, Material.MILK_BUCKET, "<white><b>✨ LIMPIAR ITEMS</b>", "<gray>Borra inventarios de participantes.") {
-            game.players.forEach { it.inventory.clear() }
+            game.players.forEach { if(it != streamer) it.inventory.clear() }
             streamer.sendMessage(mm.parse("<#00FFFF>✨ <b>LIMPIEZA:</b> <white>Inventarios vaciados.</white>"))
             streamer.playSound(streamer.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1f)
         })

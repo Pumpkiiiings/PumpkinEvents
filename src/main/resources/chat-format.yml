@@ -1,12 +1,12 @@
 ranks:
   default:
-    format: "<prefix><player><suffix> <white>» <message>"
+    format: "<prefix> <player> <dark_gray>➠ <white><message>"
     click: "/msg <player> "
     hover:
       - "<yellow>Información de <white><player>"
       - "<gray>¡Haz clic para enviarle un mensaje!"
   admin:
-    format: "<red>[ADMIN] <white><player> <red>» <message>"
+    format: "<prefix><suffix> <player> <gray>» <message>"
     click: "/msg <player> "
     hover:
       - "<red>Administrador del Core"

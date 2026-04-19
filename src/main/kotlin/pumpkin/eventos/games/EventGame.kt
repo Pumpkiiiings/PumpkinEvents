@@ -62,14 +62,19 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
         spectators.clear()
     }
 
-    open fun eliminate(player: Player) {
+    fun eliminate(player: Player) {
         if (!players.contains(player)) return
         players.remove(player)
         spectators.add(player)
 
-        player.gameMode = GameMode.SPECTATOR
+        player.gameMode = org.bukkit.GameMode.SPECTATOR
         player.inventory.clear()
-        player.playSound(player.location, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1f, 2f)
+        player.playSound(player.location, org.bukkit.Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1f, 2f)
+
+        val instruction = plugin.languageManager.get("commands.espectear.instruction")
+        if (instruction.isNotEmpty()) {
+            player.sendMessage(plugin.messageManager.parse(instruction))
+        }
 
         if (players.size <= 1 && isRunning) {
             checkWinner()

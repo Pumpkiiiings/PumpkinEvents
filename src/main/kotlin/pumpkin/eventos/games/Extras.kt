@@ -1,4 +1,4 @@
-package pumpkin.eventos.games.tntgames
+package pumpkin.eventos.games
 
 import net.kyori.adventure.title.Title
 import org.bukkit.Color
@@ -9,9 +9,7 @@ import org.bukkit.Sound
 import org.bukkit.entity.FallingBlock
 import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
-import pumpkin.eventos.games.EventGame
 import pumpkin.eventos.games.tntgames.entities.GeoffreyEXE
-import java.util.concurrent.TimeUnit
 import kotlin.math.cos
 import kotlin.math.sin
 

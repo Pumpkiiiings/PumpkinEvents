@@ -3,62 +3,182 @@ package pumpkin.eventos.games.simondice
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
+import org.bukkit.Sound
+import org.bukkit.block.BlockFace
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.player.PlayerMoveEvent
+import org.bukkit.event.player.PlayerToggleSneakEvent
+import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 
 class SimonListener(private val plugin: PumpkinEventos) : Listener {
 
-    // --- NUEVO: DETECTAR GOLPES PARA EL RETO "GOLPEAR" ---
+    private val lastValidAction = mutableMapOf<Player, Long>()
+
+    init {
+        // Watchdog: Penalizar a los que dejen de moverse en SALTAR o CAMINAR
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
+            val game = plugin.eventManager.currentGame as? SimonDice
+            if (game == null || !game.isRunning) {
+                lastValidAction.clear()
+                return@runAtFixedRate
+            }
+
+            if (game.activeChallenges.contains("SALTAR") || game.activeChallenges.contains("CAMINAR")) {
+                val now = System.currentTimeMillis()
+
+                game.savedPlayers.toList().forEach { uuid ->
+                    val p = plugin.server.getPlayer(uuid)
+                    if (p != null && game.players.contains(p)) {
+                        val lastAction = lastValidAction[p] ?: 0L
+
+                        // 1.2 segundos sin salto o paso = Pierde la salvación
+                        if (now - lastAction > 1200) {
+                            game.removeSaved(p)
+                        }
+                    }
+                }
+            }
+        }, 10L, 10L)
+    }
+
     @EventHandler
-    fun onHit(e: EntityDamageByEntityEvent) {
-        // Obtenemos al atacante
-        val p = e.damager as? Player ?: return
+    fun onMove(e: PlayerMoveEvent) {
+        val p = e.player
         val game = plugin.eventManager.currentGame as? SimonDice ?: return
+        if (!game.isRunning || !game.players.contains(p)) return
 
-        // Validaciones: El juego corre, el jugador sigue vivo participando y NO se ha salvado aún.
-        if (!game.isRunning || !game.players.contains(p) || game.savedPlayers.contains(p.uniqueId)) return
+        val from = e.from
+        val to = e.to
 
-        // Si el reto activo es golpear, lo salvamos
-        if (game.activeChallenge == "GOLPEAR") {
-            e.isCancelled = true // Evitamos que maten a alguien accidentalmente
+        // RETO: SALTAR
+        if (game.activeChallenges.contains("SALTAR")) {
+            if (to.y > from.y && !p.isOnGround && !p.location.block.getRelative(BlockFace.DOWN).type.isAir) {
+                lastValidAction[p] = System.currentTimeMillis()
+                if (!game.savedPlayers.contains(p.uniqueId)) {
+                    plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
+                }
+            }
+        }
 
-            // Folia/Paper: Aseguramos que los cambios se hagan sincronizados globalmente
-            plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                game.markSaved(p)
+        // RETO: CAMINAR
+        if (game.activeChallenges.contains("CAMINAR")) {
+            val diffX = Math.abs(to.x - from.x)
+            val diffZ = Math.abs(to.z - from.z)
+            if (diffX > 0.05 || diffZ > 0.05) {
+                lastValidAction[p] = System.currentTimeMillis()
+                if (!game.savedPlayers.contains(p.uniqueId)) {
+                    plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
+                }
+            }
+        }
+
+        // RETO: QUIETO
+        if (game.activeChallenges.contains("QUIETO")) {
+            val diffX = Math.abs(to.x - from.x)
+            val diffZ = Math.abs(to.z - from.z)
+            if (diffX > 0.05 || diffZ > 0.05) {
+                if (game.savedPlayers.contains(p.uniqueId)) {
+                    game.removeSaved(p)
+                }
             }
         }
     }
 
-    // --- DETECTAR CLIC EN LA ESTRELLA DEL STREAMER ---
+    @EventHandler
+    fun onSneak(e: PlayerToggleSneakEvent) {
+        val p = e.player
+        val game = plugin.eventManager.currentGame as? SimonDice ?: return
+        if (!game.isRunning || !game.players.contains(p)) return
+
+        if (game.activeChallenges.contains("AGACHARSE")) {
+            if (e.isSneaking) {
+                plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
+            } else {
+                game.removeSaved(p)
+            }
+        }
+    }
+
+    @EventHandler
+    fun onHit(e: EntityDamageByEntityEvent) {
+        val attacker = e.damager as? Player ?: return
+        val victim = e.entity as? Player ?: return
+        val game = plugin.eventManager.currentGame as? SimonDice ?: return
+
+        if (!game.isRunning || !game.players.contains(attacker)) return
+
+        // RETO: GOLPEAR
+        if (game.activeChallenges.contains("GOLPEAR")) {
+            e.isCancelled = true // Evitamos daño real
+            if (!game.savedPlayers.contains(attacker.uniqueId)) {
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                    game.markSaved(attacker)
+                }
+            }
+            return
+        }
+
+        // RETO: CONSIGUE (Robo de ítem)
+        if (game.activeChallenges.contains("CONSIGUE")) {
+            e.damage = 0.001
+
+            if (victim.inventory.contains(game.targetMaterial!!)) {
+                val hits = (game.hitCounter[victim.uniqueId] ?: 0) + 1
+                game.hitCounter[victim.uniqueId] = hits
+
+                if (hits >= 3) {
+                    victim.inventory.remove(game.targetMaterial!!)
+                    game.savedPlayers.remove(victim.uniqueId)
+                    victim.isGlowing = false
+
+                    val dropLoc = victim.location.clone().add(0.0, 1.0, 0.0)
+                    val drop = victim.world.dropItem(dropLoc, ItemStack(game.targetMaterial!!))
+                    drop.velocity = attacker.location.direction.multiply(0.5)
+                    drop.setGlowing(true)
+
+                    victim.sendMessage(plugin.messageManager.parse("<red>¡Te han robado el ítem a base de golpes!</red>"))
+                    victim.playSound(victim.location, Sound.ITEM_SHIELD_BREAK, 1f, 1f)
+                    game.hitCounter[victim.uniqueId] = 0
+                } else {
+                    victim.playSound(victim.location, Sound.ENTITY_PLAYER_HURT, 1f, 1f)
+                }
+            }
+            return
+        }
+
+        // Si no hay ningún reto de PVP activo, bloqueamos los golpes entre jugadores
+        e.isCancelled = true
+    }
+
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         val p = e.player
         val game = plugin.eventManager.currentGame as? SimonDice ?: return
 
-        // Verifica si es el streamer asignado
-        if (game.mode != SimonMode.MANUAL || game.streamer?.uniqueId != p.uniqueId) return
-
-        if (e.action == Action.RIGHT_CLICK_AIR || e.action == Action.RIGHT_CLICK_BLOCK) {
-            if (e.item?.type == Material.NETHER_STAR) {
-                e.isCancelled = true
-                SimonMenu.abrirPanelPrincipal(plugin, p, game)
+        // Abrir Menú Manual
+        if (game.mode == SimonMode.MANUAL && game.streamer?.uniqueId == p.uniqueId) {
+            if (e.action == Action.RIGHT_CLICK_AIR || e.action == Action.RIGHT_CLICK_BLOCK) {
+                if (e.item?.type == Material.NETHER_STAR) {
+                    e.isCancelled = true
+                    SimonMenu.abrirPanelPrincipal(plugin, p, game)
+                }
             }
         }
     }
 
-    // --- DETECTAR CHAT Y RESPUESTAS ---
     @EventHandler
     fun onChat(e: AsyncChatEvent) {
         val p = e.player
         val game = plugin.eventManager.currentGame as? SimonDice ?: return
         val mensaje = PlainTextComponentSerializer.plainText().serialize(e.message())
 
-        // 1. INTERCEPTAR INPUT DEL MENÚ DEL STREAMER
+        // 1. INPUT DEL MENÚ DEL STREAMER
         if (SimonMenu.esperandoInput.containsKey(p.uniqueId)) {
             e.isCancelled = true
             val tipo = SimonMenu.esperandoInput.remove(p.uniqueId) ?: return
@@ -70,44 +190,23 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
                     "FRASE" -> {
                         game.targetPhrase = mensaje
                         p.sendMessage(plugin.messageManager.parse("<#00FFFF>✎ <b>FRASE LISTA:</b> <white>$mensaje"))
-                        game.startChallenge("FRASE", "✎ DIGAN: <white>$mensaje", 15)
+                        game.startChallenge(listOf("FRASE"), "✎ DIGAN: <white>$mensaje", 15)
                     }
                     "MATES" -> {
-                        // Nota: Asumo que tienes MotorMatematico importado / en tu código
-                        val resultado = MotorMatematico.evaluar(mensaje)
-                        if (resultado == -999999.0) {
-                            p.sendMessage(plugin.messageManager.parse("<red>❌ <b>ERROR:</b> ¡Cuenta inválida!</red>"))
-                        } else {
-                            game.targetPhrase = mensaje
-                            game.targetMathResult = resultado
-                            p.sendMessage(plugin.messageManager.parse("<#CCFF00>⌗ <b>MATES LISTAS:</b> <white>$mensaje = $resultado"))
-                            game.startChallenge("MATES", "⌗ CUÁNTO ES: <white>$mensaje", 15)
-                        }
+                        // En el futuro puedes añadir un evaluador, aquí harcodeo para el menú manual
+                        p.sendMessage(plugin.messageManager.parse("<red>Operación matemática desde el menú no soportada en esta versión.</red>"))
                     }
                 }
             }
             return
         }
 
-        // 2. JUGADORES CUMPLIENDO EL RETO
         if (!game.isRunning || !game.players.contains(p) || game.savedPlayers.contains(p.uniqueId)) return
 
-        when (game.activeChallenge) {
-            "FRASE" -> {
-                if (mensaje.trim().equals(game.targetPhrase.trim(), ignoreCase = true)) {
-                    plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
-                }
-            }
-            "MATES" -> {
-                try {
-                    val numeroLimpio = mensaje.replace(Regex("[^0-9.-]"), "")
-                    if (numeroLimpio.isNotEmpty()) {
-                        val numJugador = numeroLimpio.toDouble()
-                        if (Math.abs(numJugador - game.targetMathResult) <= 0.01) {
-                            plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
-                        }
-                    }
-                } catch (ignored: NumberFormatException) {}
+        // 2. RETO FRASE
+        if (game.activeChallenges.contains("FRASE")) {
+            if (mensaje.trim().equals(game.targetPhrase.trim(), ignoreCase = true)) {
+                plugin.server.globalRegionScheduler.run(plugin) { _ -> game.markSaved(p) }
             }
         }
     }

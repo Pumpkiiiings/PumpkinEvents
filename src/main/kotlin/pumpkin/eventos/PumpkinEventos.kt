@@ -8,6 +8,7 @@ import pumpkin.eventos.commands.EventoCommand
 import pumpkin.eventos.commands.GamemodeCommand
 import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
+import pumpkin.eventos.commands.SpectateCommand
 import pumpkin.eventos.games.cristales.Cristales
 import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.lava.SueloLava
@@ -37,6 +38,7 @@ import pumpkin.eventos.manager.EventManager
 import pumpkin.eventos.manager.MapManager
 import pumpkin.eventos.manager.PuntajeManager
 import pumpkin.eventos.manager.VoteManager
+import pumpkin.eventos.manager.PuntajeHoloManager
 import pumpkin.eventos.utils.LanguageManager
 import pumpkin.eventos.utils.MessageManager
 import pumpkin.eventos.utils.WorldUtils
@@ -51,7 +53,8 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var voteManager: VoteManager
     lateinit var eventManager: EventManager
     lateinit var boardManager: BoardManager
-    lateinit var puntajeManager: PuntajeManager // <-- SISTEMA DE PUNTOS
+    lateinit var puntajeManager: PuntajeManager
+    lateinit var puntajeHoloManager: PuntajeHoloManager
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
@@ -62,15 +65,7 @@ class PumpkinEventos : JavaPlugin() {
 
         // --- 1. MENSAJE DE INICIO ÉPICO ---
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
-        componentLogger.info(mm.deserialize("<#FF9900>    ____                  __    _       </#FF9900>"))
-        componentLogger.info(mm.deserialize("<#FF9900>   / __ \\__  ______ ___  / /_  (_)___   </#FF9900>"))
-        componentLogger.info(mm.deserialize("<#FF9900>  / /_/ / / / / __ `__ \\/ __ \\/ / __ \\  </#FF9900>"))
-        componentLogger.info(mm.deserialize("<#FF9900> / ____/ /_/ / / / / / / /_/ / / / / /  </#FF9900>"))
-        componentLogger.info(mm.deserialize("<#FF9900>/_/    \\__,_/_/ /_/ /_/_.___/_/_/ /_/   </#FF9900>"))
-        componentLogger.info(mm.deserialize(""))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v2.5 - CARGADO CON ÉXITO ⚡</#CCFF00>"))
-        componentLogger.info(mm.deserialize("<#39FF14>✔ AdvancedSlimePaper Detectado (0 Lag Enabled)</#39FF14>"))
-        componentLogger.info(mm.deserialize("<#39FF14>✔ Compatibilidad Folia Activa</#39FF14>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.0.5 - CARGANDO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
@@ -78,9 +73,7 @@ class PumpkinEventos : JavaPlugin() {
             saveDefaultConfig()
             saveResource("chat-format.yml", false)
             saveResource("messages.yml", false)
-        } catch (e: Exception) {
-            componentLogger.warn(mm.deserialize("<yellow>Archivos de configuración ya existen o no se pudieron copiar.</yellow>"))
-        }
+        } catch (e: Exception) {}
 
         // --- 3. INICIALIZACIÓN DE MANAGERS ---
         messageManager = MessageManager()
@@ -93,7 +86,10 @@ class PumpkinEventos : JavaPlugin() {
         mapManager = MapManager(this)
         voteManager = VoteManager()
         eventManager = EventManager(this)
+
+        // INICIALIZACIÓN DE PUNTAJES (IMPORTANTE EL ORDEN)
         puntajeManager = PuntajeManager(this)
+        puntajeHoloManager = PuntajeHoloManager(this) // <--- ESTA LÍNEA FALTABA Y CAUSABA EL CRASH
 
         papaCalienteGame = PapaCaliente(this)
         congeladosGame = Congelados(this)
@@ -111,8 +107,8 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(LuzRojaLuzVerde(this))
         eventManager.registerGame(SillasMusicales(this))
         eventManager.registerGame(RuletaRusa(this))
-        eventManager.registerGame(Cristales(this)) // NUEVO
-        eventManager.registerGame(JalarCuerda(this)) // NUEVO
+        eventManager.registerGame(Cristales(this))
+        eventManager.registerGame(JalarCuerda(this))
 
         // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
@@ -120,6 +116,7 @@ class PumpkinEventos : JavaPlugin() {
 
         // --- 6. EVENTOS (LISTENERS) ---
         val pm = server.pluginManager
+        pm.registerEvents(puntajeHoloManager, this) // Ahora sí está inicializado
         pm.registerEvents(ChatListener(this), this)
         pm.registerEvents(GameListener(this), this)
         pm.registerEvents(DeathListener(this), this)
@@ -129,39 +126,32 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(LobbyProtectionListener(this), this)
         pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
 
-        // Listeners de sub-juegos de Simón
         pm.registerEvents(papaCalienteGame, this)
         pm.registerEvents(congeladosGame, this)
         pm.registerEvents(dueloFinalGame, this)
 
         // --- 7. COMANDOS ---
-        // Comando nativo de Bukkit para Puntaje
         val puntajeCmd = PuntajeCommand(this)
         getCommand("puntaje")?.setExecutor(puntajeCmd)
         getCommand("puntaje")?.tabCompleter = puntajeCmd
 
-        // Comandos de Brigadier (Paper 1.21+)
         this.lifecycleManager.registerEventHandler(LifecycleEvents.COMMANDS) { event ->
             val commands = event.registrar()
             EventoCommand.register(commands, this)
             VotarCommand.register(commands, this)
             GamemodeCommand.register(commands, this)
+            SpectateCommand(this)
         }
     }
 
     override fun onDisable() {
-        val mm = MiniMessage.miniMessage()
-
         if (::eventManager.isInitialized) {
             val currentGame = eventManager.currentGame
             if (currentGame != null && currentGame.isRunning) {
                 currentGame.stop()
             }
         }
-
         if (::arenaManager.isInitialized) arenaManager.shutdown()
         if (::mapManager.isInitialized) mapManager.shutdown()
-
-        componentLogger.info(mm.deserialize("<#FF3131>🛑 Pumpkin Eventos Core apagado de forma segura.</#FF3131>"))
     }
 }

@@ -4,6 +4,7 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.title.Title
 import org.bukkit.Color
+import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.Sound
@@ -19,8 +20,6 @@ import pumpkin.eventos.games.EventGame
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.math.cos
-import kotlin.math.sin
 
 enum class SimonMode { AUTOMATICO, MANUAL }
 
@@ -30,14 +29,14 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     var streamer: Player? = null
 
     val savedPlayers = mutableSetOf<UUID>()
-    val failedMathPlayers = mutableSetOf<UUID>() // NUEVO: Jugadores que respondieron mal
+    val failedMathPlayers = mutableSetOf<UUID>()
 
     var activeChallenge: String = "NINGUNO"
     var actionText = "Esperando orden..."
 
     var targetPhrase = ""
     var targetMathResult = 0.0
-    var targetMaterial: Material? = null // Para el reto CONSIGUE
+    var targetMaterial: Material? = null
 
     private var bossBar: BossBar? = null
     private var autoTask: ScheduledTask? = null
@@ -50,10 +49,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     private var displayTime = 10
     private var displayOrden = "Preparando..."
 
-    // AÑADIDO: PAPACALIENTE A LA RULETA AUTOMÁTICA
     private val retosDisponibles = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR", "CONSIGUE", "PAPACALIENTE")
 
-    // Rastreador de golpes para el reto de Conseguir
     val hitCounter = mutableMapOf<UUID, Int>()
 
     override fun getExtraPlaceholders(): Map<String, String> {
@@ -156,7 +153,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                             "QUIETO" -> startChallenge("QUIETO", "⏹ <red>¡QUIETOS!</red>", 10)
                             "GOLPEAR" -> startChallenge("GOLPEAR", "⚔ <gold>¡GOLPEEN A ALGUIEN!</gold>", 10)
                             "MATES" -> {
-                                failedMathPlayers.clear() // Limpiamos los que fallaron mates la vez anterior
+                                failedMathPlayers.clear()
                                 val num1 = (1..20).random(); val num2 = (1..20).random()
                                 targetPhrase = "$num1+$num2"; targetMathResult = (num1 + num2).toDouble()
                                 startChallenge("MATES", "⌗ CUÁNTO ES: <white>$targetPhrase</white>", 15)
@@ -170,30 +167,69 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         }, 1, 1, TimeUnit.SECONDS)
     }
 
+    // --- NUEVO SISTEMA DE BÚSQUEDA SEGURA (Estilo Booster) ---
     fun lanzarRetoConsigue() {
-        hitCounter.clear() // Reiniciamos el contador de golpes
+        hitCounter.clear()
         val itemsPosibles = listOf(Material.APPLE, Material.DIAMOND, Material.BONE, Material.EMERALD, Material.FEATHER)
         targetMaterial = itemsPosibles.random()
 
+        // Cantidad de ítems = Jugadores vivos menos 1 (Mínimo 1)
         val cantidad = maxOf(1, players.size - 1)
         val arena = currentArena ?: return
-        val center = arena.centerLocation ?: return
-        val world = center.world
+        val world = arena.centerLocation?.world ?: players.firstOrNull()?.world ?: return
 
-        plugin.server.regionScheduler.run(plugin, center) { _ ->
-            for (i in 1..cantidad) {
-                val angle = Math.random() * Math.PI * 2
-                val radius = Math.random() * 10.0
-                val loc = center.clone().add(cos(angle) * radius, 10.0, sin(angle) * radius)
+        var spawneados = 0
 
-                val drop = world.dropItem(loc, ItemStack(targetMaterial!!))
-                drop.velocity = Vector(0.0, -0.2, 0.0)
-                drop.setGlowing(true)
+        // Función recursiva para intentar encontrar suelo sólido para cada ítem
+        fun intentarSpawnear() {
+            if (spawneados >= cantidad || !isRunning) return
+
+            // Tomamos la ubicación de un jugador al azar como base
+            val targetPlayer = players.randomOrNull() ?: return
+            val centerLoc = targetPlayer.location
+
+            // Offset aleatorio alrededor del jugador (hasta 12 bloques lejos)
+            val offsetX = (Math.random() * 24 - 12)
+            val offsetZ = (Math.random() * 24 - 12)
+            val searchLoc = centerLoc.clone().add(offsetX, 0.0, offsetZ)
+
+            plugin.server.regionScheduler.run(plugin, searchLoc) { _ ->
+                var highestY = searchLoc.blockY
+                var foundSolid = false
+
+                // Raytracing vertical hacia abajo buscando suelo sólido
+                for (y in (searchLoc.blockY + 15) downTo (searchLoc.blockY - 20)) {
+                    val b = world.getBlockAt(searchLoc.blockX, y, searchLoc.blockZ)
+                    if (b.type.isSolid) {
+                        highestY = y
+                        foundSolid = true
+                        break
+                    }
+                }
+
+                // Si encontramos suelo, lo tiramos 1 bloque por encima
+                if (foundSolid) {
+                    val finalLoc = Location(world, searchLoc.x, highestY + 1.2, searchLoc.z)
+                    val drop = world.dropItem(finalLoc, ItemStack(targetMaterial!!))
+                    drop.velocity = Vector(0.0, -0.1, 0.0) // Pequeña caída
+                    drop.setGlowing(true) // Brilla para que lo vean a través de paredes
+
+                    world.spawnParticle(Particle.HAPPY_VILLAGER, finalLoc, 15, 0.5, 0.5, 0.5)
+                    world.playSound(finalLoc, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1.5f)
+
+                    spawneados++
+                }
+
+                // Llamamos recursivamente hasta completar la cantidad
+                intentarSpawnear()
             }
         }
 
+        // Iniciamos el ciclo de spawneo
+        intentarSpawnear()
+
         val nombreTraducido = targetMaterial!!.name.replace("_", " ").lowercase()
-        startChallenge("CONSIGUE", "🎁 <aqua>¡CONSIGUE Y SOSTÉN: $nombreTraducido!</aqua>", 15)
+        startChallenge("CONSIGUE", "🎁 <aqua>¡CONSIGUE Y SOSTÉN: $nombreTraducido!</aqua>", 30)
     }
 
     fun startChallenge(id: String, msg: String, tiempo: Int) {
@@ -206,8 +242,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
         if (id == "PAPACALIENTE") {
             plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF4500><b>¡MINIJUEGO DE SIMÓN: LA PAPA CALIENTE!</b></#FF4500><newline>"))
-            plugin.papaCalienteGame.iniciar(this,120)
-            activeChallenge = "MINIJUEGO" // Ponemos al bot en pausa
+            plugin.papaCalienteGame.iniciar(this, 30)
+            activeChallenge = "MINIJUEGO"
             return
         }
 
@@ -268,7 +304,6 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             p.playSound(p.location, Sound.BLOCK_BELL_USE, 1f, 0.5f)
         }
 
-        // Determinar perdedores: Los que no se salvaron, o los que fallaron las matemáticas
         val perdedores = players.filter { !savedPlayers.contains(it.uniqueId) || failedMathPlayers.contains(it.uniqueId) }
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
@@ -276,7 +311,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
             if (activeChallenge == "CONSIGUE") {
                 val center = currentArena?.centerLocation
-                center?.world?.getNearbyEntities(center, 30.0, 30.0, 30.0)?.filterIsInstance<Item>()?.forEach { it.remove() }
+                center?.world?.getNearbyEntities(center, 40.0, 40.0, 40.0)?.filterIsInstance<Item>()?.forEach { it.remove() }
                 players.forEach { it.inventory.clear() }
             }
 

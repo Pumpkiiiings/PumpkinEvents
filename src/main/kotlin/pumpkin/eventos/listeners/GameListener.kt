@@ -328,36 +328,27 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         if (e.hand != EquipmentSlot.HAND) return
-
         val player = e.player
-        val currentGame = plugin.eventManager.currentGame ?: return
+        val game = plugin.eventManager.currentGame ?: return
 
-        if (currentGame is RuletaRusa && currentGame.isRunning) {
-            if (e.action.isRightClick && e.item?.type == Material.IRON_HORSE_ARMOR) {
-                e.isCancelled = true
-                currentGame.procesarEleccion(player, true)
-                return
-            }
-        }
-
-        if (currentGame is SillasMusicales && currentGame.isRunning) {
+        // --- SILLAS MUSICALES ---
+        if (game is SillasMusicales && game.isRunning) {
             val clickedBlock = e.clickedBlock
             if (clickedBlock != null && e.action.isRightClick) {
                 e.isCancelled = true
-                currentGame.intentarSentarse(player, clickedBlock.location)
+                game.intentarSentarse(player, clickedBlock.location)
                 return
             }
         }
 
         val item = e.item ?: return
-        if (currentGame is SimonDice && currentGame.mode == pumpkin.eventos.games.simondice.SimonMode.MANUAL && item.type == Material.NETHER_STAR) return
-        if (!currentGame.isRunning) return
+        if (game is SimonDice && game.mode == pumpkin.eventos.games.simondice.SimonMode.MANUAL && item.type == Material.NETHER_STAR) return
+        if (!game.isRunning) return
 
         val key = NamespacedKey(plugin, "tnt_item")
         val type = item.itemMeta?.persistentDataContainer?.get(key, PersistentDataType.STRING) ?: return
 
         e.isCancelled = true
-
         when (type) {
             "dash" -> {
                 if (player.hasCooldown(Material.SUGAR)) return
@@ -385,21 +376,11 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
     @EventHandler
     fun onDrop(e: PlayerDropItemEvent) {
-        val game = plugin.eventManager.currentGame
-        val player = e.player
+        val game = plugin.eventManager.currentGame ?: return
 
-        if (game != null && game.isRunning) {
-            if (game is RuletaRusa) {
-                e.isCancelled = true
-                if (e.itemDrop.itemStack.type == Material.IRON_HORSE_ARMOR) {
-                    game.procesarEleccion(player, false)
-                }
-                return
-            }
-
-            if (game !is PillarsOfFortune) {
-                e.isCancelled = true
-            }
+        // Bloqueamos tirar ítems en todos los juegos, excepto en Pillars (donde sí pueden dropear cosas a otros)
+        if (game.isRunning && game !is PillarsOfFortune) {
+            e.isCancelled = true
         }
     }
 

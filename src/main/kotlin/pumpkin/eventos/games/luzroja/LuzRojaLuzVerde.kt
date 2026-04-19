@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.luzroja
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
 import org.bukkit.Location
@@ -18,7 +19,7 @@ class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<c
     var estado = LuzEstado.PREPARACION
     private var timerGlobal = 300 // 5 minutos máximo
     private var metaZ = 0.0
-    private var estadoTimer = 10
+    private var estadoTimer = 5 // ¡REDUCIDO A 5 SEGUNDOS DE PREPARACIÓN!
 
     private val ganadores = mutableSetOf<UUID>()
     private var displayEstado = "<gray>Preparando...</gray>"
@@ -37,70 +38,87 @@ class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<c
         ganadores.clear()
         muroBlocks.clear()
         timerGlobal = 300
-        estadoTimer = 10
+        estadoTimer = 5 // ¡REDUCIDO A 5 SEGUNDOS!
         displayEstado = "<gray>Esperando...</gray>"
 
         val arena = currentArena ?: return
+        val targetWorld = gameWorld ?: return // Tomamos el mundo clonado
 
         val metaLoc = arena.dueloA ?: arena.centerLocation ?: return
         metaZ = metaLoc.z
 
-        players.forEach { p ->
-            p.gameMode = GameMode.ADVENTURE
-            p.inventory.clear()
-        }
+        // --- RETRASO PARA RE-POSICIONARLOS EN LOS SPAWNS ---
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            val spawns = arena.spawnPoints
+            var spawnIndex = 0
 
-        crearMuro(arena)
+            players.forEach { p ->
+                p.gameMode = GameMode.ADVENTURE
+                p.inventory.clear()
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+                // Los llevamos uno por uno a los puntos de spawn (línea de salida)
+                if (spawns.isNotEmpty()) {
+                    val salidaLoc = spawns[spawnIndex % spawns.size].clone()
+                    salidaLoc.world = targetWorld
+                    spawnIndex++
+                    p.teleportAsync(salidaLoc)
+                }
+            }
 
-            // --- FASE DE PREPARACIÓN ---
-            if (estado == LuzEstado.PREPARACION) {
+            // Una vez que todos están en la línea de salida, creamos el muro
+            crearMuro(arena)
+
+            // --- LOOP PRINCIPAL ---
+            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                if (!isRunning) { task.cancel(); return@runAtFixedRate }
+
+                // --- FASE DE PREPARACIÓN ---
+                if (estado == LuzEstado.PREPARACION) {
+                    estadoTimer--
+                    displayEstado = "<yellow>Preparación ($estadoTimer)</yellow>"
+
+                    players.forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1f) }
+
+                    if (estadoTimer <= 0) {
+                        quitarMuro()
+                        cambiarALuzVerde()
+                    }
+                    return@runAtFixedRate
+                }
+
+                // --- CHECK DE TIEMPO GLOBAL ---
+                timerGlobal--
+                if (timerGlobal <= 0) {
+                    val perdedores = players.filter { !ganadores.contains(it.uniqueId) }
+                    plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                        perdedores.forEach { killPlayer(it) }
+
+                        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+                            plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>¡TIEMPO AGOTADO!</b></#FF3131> <white>El juego ha terminado.</white><newline>"))
+                            checkWinner()
+                        }, 40L)
+                    }
+                    task.cancel()
+                    return@runAtFixedRate
+                }
+
+                // --- CICLO DE LUZ ---
                 estadoTimer--
-                displayEstado = "<yellow>Preparación ($estadoTimer)</yellow>"
-
-                players.forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.5f, 1f) }
-
                 if (estadoTimer <= 0) {
-                    quitarMuro()
-                    cambiarALuzVerde()
+                    if (estado == LuzEstado.VERDE) {
+                        cambiarALuzRoja()
+                    } else {
+                        cambiarALuzVerde()
+                    }
+                } else if (estado == LuzEstado.VERDE && estadoTimer <= 3) {
+                    players.filter { !ganadores.contains(it.uniqueId) }.forEach {
+                        it.playSound(it.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f)
+                    }
                 }
-                return@runAtFixedRate
-            }
 
-            // --- CHECK DE TIEMPO GLOBAL ---
-            timerGlobal--
-            if (timerGlobal <= 0) {
-                val perdedores = players.filter { !ganadores.contains(it.uniqueId) }
-                plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                    perdedores.forEach { killPlayer(it) }
+            }, 1, 1, TimeUnit.SECONDS)
 
-                    plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                        plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>¡TIEMPO AGOTADO!</b></#FF3131> <white>El juego ha terminado.</white><newline>"))
-                        checkWinner()
-                    }, 40L)
-                }
-                task.cancel()
-                return@runAtFixedRate
-            }
-
-            // --- CICLO DE LUZ (Cambios de estado automáticos) ---
-            estadoTimer--
-            if (estadoTimer <= 0) {
-                if (estado == LuzEstado.VERDE) {
-                    cambiarALuzRoja()
-                } else {
-                    cambiarALuzVerde()
-                }
-            } else if (estado == LuzEstado.VERDE && estadoTimer <= 3) {
-                // Suenan orbes de experiencia para avisar en lugar de Título
-                players.filter { !ganadores.contains(it.uniqueId) }.forEach {
-                    it.playSound(it.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f)
-                }
-            }
-
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 10L) // Retraso de medio segundo para esperar el TP del EventManager
     }
 
     private fun crearMuro(arena: pumpkin.eventos.arena.Arena) {
@@ -112,7 +130,7 @@ class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<c
         val startZ = spawns.first().blockZ + if (metaZ > spawns.first().blockZ) 1 else -1
         val startY = spawns.minOf { it.blockY }
 
-        val targetWorld = players.firstOrNull()?.world ?: spawns.first().world ?: return
+        val targetWorld = gameWorld ?: return
 
         plugin.server.regionScheduler.run(plugin, targetWorld, minX shr 4, startZ shr 4) { _ ->
             for (x in minX..maxX) {
@@ -200,24 +218,20 @@ class LuzRojaLuzVerde(plugin: PumpkinEventos) : EventGame(plugin, "luzroja", "<c
         val winnersStr = if (ganadores.isEmpty()) "Nadie" else "${ganadores.size} jugadores"
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>LUZ ROJA, LUZ VERDE</b></#FF3131> <white>» ¡$winnersStr lograron cruzar la meta!<newline>"))
 
-        // --- SISTEMA DE PUNTOS MULTI-GANADOR ---
         ganadores.forEach { uuid ->
             val winner = plugin.server.getPlayer(uuid)
             if (winner != null) {
-                // AHORA SE DAN 2 PUNTOS EN VEZ DE 10
                 plugin.puntajeManager.addPoints(winner, 2, "¡Victoria conseguida!")
                 winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
                 winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
             }
         }
-        // ---------------------------------------
 
         stop()
     }
 
     override fun onStop() {
         quitarMuro()
-
         plugin.eventManager.currentGame = null
 
         var lobby = plugin.arenaManager.mainLobby

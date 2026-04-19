@@ -8,7 +8,6 @@ import pumpkin.eventos.commands.EventoCommand
 import pumpkin.eventos.commands.GamemodeCommand
 import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
-import pumpkin.eventos.games.blockparty.BlockParty
 import pumpkin.eventos.games.cristales.Cristales
 import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.lava.SueloLava
@@ -109,7 +108,6 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(SueloLava(this))
         eventManager.registerGame(PillarsOfFortune(this))
         eventManager.registerGame(Sumo(this))
-        eventManager.registerGame(BlockParty(this))
         eventManager.registerGame(LuzRojaLuzVerde(this))
         eventManager.registerGame(SillasMusicales(this))
         eventManager.registerGame(RuletaRusa(this))

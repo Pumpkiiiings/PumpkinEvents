@@ -8,9 +8,10 @@ import org.bukkit.Location
 import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
-import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.entity.EntityDamageByEntityEvent
+import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.player.PlayerAnimationEvent
 import org.bukkit.event.player.PlayerAnimationType
 import org.bukkit.event.player.PlayerInteractEvent
@@ -44,6 +45,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
     private val playerTeam = mutableMapOf<Player, EquipoCuerda>()
 
     init {
+        // Registramos el evento SOLO UNA VEZ al prender el server
         plugin.server.pluginManager.registerEvents(this, plugin)
     }
 
@@ -54,7 +56,9 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         return mapOf(
             "%time_left%" to gameTimer.toString(),
             "%pts_rojo%" to ptsRojo.toString(),
-            "%pts_azul%" to ptsAzul.toString()
+            "%pts_azul%" to ptsAzul.toString(),
+            "%vivos%" to players.size.toString(),
+            "%alive%" to players.size.toString()
         )
     }
 
@@ -75,12 +79,9 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
 
         val arena = currentArena ?: return
 
-        // --- RETRASO PARA RE-UBICAR A LOS EQUIPOS ---
-        // Esperamos 10 ticks para que el EventManager los termine de llevar al centro
+        // Esperamos 10 ticks para el TP
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-
-            // Tomamos el mundo actual donde ya fueron teletransportados
-            val targetWorld = players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
+            val targetWorld = gameWorld ?: players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
 
             val posRojo = arena.dueloA ?: arena.spawnPoints.getOrNull(0) ?: return@runDelayed
             val posAzul = arena.dueloB ?: arena.spawnPoints.getOrNull(1) ?: return@runDelayed
@@ -88,12 +89,10 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
             posRojo.world = targetWorld
             posAzul.world = targetWorld
 
-            // --- DIVISIÓN EQUITATIVA DE EQUIPOS ---
             val shuffledPlayers = players.shuffled()
             for (i in shuffledPlayers.indices) {
                 val p = shuffledPlayers[i]
 
-                // MODO SURVIVAL OBLIGATORIO: Permite interactuar con los bloques (Golpear al aire)
                 p.gameMode = GameMode.SURVIVAL
                 p.inventory.clear()
                 playerData[p] = PlayerRhythmData()
@@ -109,14 +108,18 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                 }
             }
 
-            // --- RELOJ PRINCIPAL (1 SEGUNDO) ---
+            // RELOJ PRINCIPAL
             plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
                 if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
                 if (isPreparation) {
                     if (prepTimer > 0) {
-                        val rawMsg = plugin.languageManager.get("jalarcuerda.actionbar.preparation")
-                        val bar = plugin.messageManager.parse(rawMsg ?: "<yellow>El duelo inicia en: <bold>$prepTimer</bold>s</yellow>")
+                        var rawMsg = plugin.languageManager.get("jalarcuerda.actionbar.preparation")
+                        if (rawMsg.isEmpty() || rawMsg == "jalarcuerda.actionbar.preparation") {
+                            rawMsg = "<yellow>El duelo inicia en: <bold><aqua><time></aqua></bold>s</yellow>"
+                        }
+
+                        val bar = plugin.messageManager.parse(rawMsg, Placeholder.parsed("time", prepTimer.toString()))
                         players.forEach {
                             it.sendActionBar(bar)
                             it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f)
@@ -129,7 +132,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                             it.sendActionBar(startMsg)
                             it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
                         }
-                        iniciarMotorRitmo() // Inicia el motor visual rápido
+                        iniciarMotorRitmo()
                     }
                     return@runAtFixedRate
                 }
@@ -145,7 +148,6 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         }, 10L)
     }
 
-    // --- MOTOR DE RITMO (CADA 50ms = 1 TICK APROX) ---
     private fun iniciarMotorRitmo() {
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning || isPreparation) { task.cancel(); return@runAtFixedRate }
@@ -155,7 +157,6 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
 
                 data.ticksSinceLastMove++
                 if (data.ticksSinceLastMove >= data.speedDelay) {
-                    // Mover Cursor de un lado a otro
                     if (data.movingRight) {
                         data.cursorPos++
                         if (data.cursorPos >= 4) data.movingRight = false
@@ -165,8 +166,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                     }
 
                     data.ticksSinceLastMove = 0
-                    data.canClick = true // Recargamos la capacidad de clickear para este cuadro
-
+                    data.canClick = true
                     enviarTituloRitmo(p, data.cursorPos)
                 }
             }
@@ -181,16 +181,13 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                 if (i < 4) append("  ")
             }
         }
-        // Diseño de la barra: ROJO - AMARILLO - VERDE - AMARILLO - ROJO
         val barRaw = "<red>█</red>  <yellow>█</yellow>  <green>█</green>  <yellow>█</yellow>  <red>█</red>"
 
-        // Tiempos en 0 para que la animación sea fluida y no parpadee
         val times = Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)
         val title = Title.title(plugin.messageManager.parse(cursorRaw), plugin.messageManager.parse(barRaw), times)
         p.showTitle(title)
     }
 
-    // --- DETECTAR CLICS EN LA CUERDA ---
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
         val p = e.player
@@ -199,7 +196,6 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         if (e.action == Action.LEFT_CLICK_BLOCK || e.action == Action.RIGHT_CLICK_BLOCK ||
             e.action == Action.LEFT_CLICK_AIR || e.action == Action.RIGHT_CLICK_AIR) {
 
-            // Verificamos el bloque que el jugador está mirando (hasta a 6 bloques de distancia)
             val block = p.getTargetBlockExact(6) ?: return
             val blockName = block.type.name
 
@@ -209,7 +205,6 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         }
     }
 
-    // Backup de seguridad para jugadores de Bedrock (Geyser) que a veces fallan el Interact Event
     @EventHandler
     fun onSwing(e: PlayerAnimationEvent) {
         val p = e.player
@@ -227,28 +222,40 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
 
     private fun registrarJalon(p: Player) {
         val data = playerData[p] ?: return
-
-        if (!data.canClick) return // Evita Auto-Clickers: 1 clic válido por cada movimiento del cursor
+        if (!data.canClick) return
         data.canClick = false
 
         when (data.cursorPos) {
-            2 -> { // VERDE (Centro - Perfecto)
+            2 -> { // VERDE
                 data.score += 3
-                data.speedDelay = maxOf(2, data.speedDelay - 1) // Más rápido (Sube la dificultad)
+                data.speedDelay = maxOf(2, data.speedDelay - 1)
                 p.playSound(p.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 2f)
                 p.sendActionBar(plugin.messageManager.parse("<green><b>¡PERFECTO! +3</b></green> <gray>|</gray> <white>Puntos: ${data.score}</white>"))
             }
-            1, 3 -> { // AMARILLO (Casi - Bien)
+            1, 3 -> { // AMARILLO
                 data.score += 1
                 p.playSound(p.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1f)
                 p.sendActionBar(plugin.messageManager.parse("<yellow><b>¡BIEN! +1</b></yellow> <gray>|</gray> <white>Puntos: ${data.score}</white>"))
             }
-            0, 4 -> { // ROJO (Fallo)
-                data.speedDelay = minOf(10, data.speedDelay + 2) // Penalización (Más lento)
+            0, 4 -> { // ROJO
+                data.speedDelay = minOf(10, data.speedDelay + 2)
                 p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f)
                 p.sendActionBar(plugin.messageManager.parse("<red><b>¡FALLO!</b></red> <gray>|</gray> <white>Puntos: ${data.score}</white>"))
             }
         }
+    }
+
+    // --- BLOQUEO DE DAÑO TOTAL Y PVP DIRECTO EN LA CLASE ---
+    @EventHandler
+    fun onDamage(e: EntityDamageEvent) {
+        if (!isRunning || plugin.eventManager.currentGame != this) return
+        e.isCancelled = true // Cero daño de caída, vacío, asfixia, etc.
+    }
+
+    @EventHandler
+    fun onPVP(e: EntityDamageByEntityEvent) {
+        if (!isRunning || plugin.eventManager.currentGame != this) return
+        e.isCancelled = true // Bloqueo de PVP garantizado
     }
 
     override fun checkWinner() {
@@ -267,13 +274,18 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
         players.filter { playerTeam[it] == winnerTeam }.forEach { p ->
             p.world.spawnParticle(org.bukkit.Particle.FIREWORK, p.location, 100)
             p.playSound(p.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
+
+            // Sumamos puntos al equipo ganador
+            plugin.puntajeManager.addPoints(p, 5, "¡Equipo Ganador!")
         }
 
         stop()
     }
 
     override fun onStop() {
-        HandlerList.unregisterAll(this)
+        // AQUÍ ESTABA EL ERROR. ELIMINAMOS "HandlerList.unregisterAll(this)"
+        // Así los eventos siguen vivos para la próxima partida.
+
         plugin.eventManager.currentGame = null
         var lobby = plugin.arenaManager.mainLobby
         if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation

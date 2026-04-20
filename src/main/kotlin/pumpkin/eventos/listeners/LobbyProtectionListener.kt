@@ -11,47 +11,45 @@ import pumpkin.eventos.PumpkinEventos
 
 class LobbyProtectionListener(private val plugin: PumpkinEventos) : Listener {
 
-    /**
-     * Verifica si un jugador está en el mundo del Lobby Principal.
-     */
     private fun isInLobby(player: Player): Boolean {
+        // Si el juego está activo, el Lobby no cuenta
+        if (plugin.eventManager.currentGame != null && plugin.eventManager.currentGame!!.isRunning) {
+            return false
+        }
         val lobbyLoc = plugin.arenaManager.mainLobby ?: return false
         return player.world == lobbyLoc.world
     }
 
-    // --- CANCELAR EL PVP POR COMPLETO ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onLobbyPvP(e: EntityDamageByEntityEvent) {
         val damager = e.damager as? Player ?: return
-
-        if (isInLobby(damager)) {
-            // Si no es admin, no puede pegar
-            if (!damager.hasPermission("pumpkin.admin")) {
-                e.isCancelled = true
-            }
+        if (isInLobby(damager) && !damager.hasPermission("pumpkin.admin")) {
+            e.isCancelled = true
+            val msg = plugin.languageManager.get("lobby.pvp_disabled").replace("<prefix>", plugin.languageManager.get("prefix"))
+            damager.sendMessage(plugin.messageManager.parse(msg))
         }
     }
 
-    // --- REGENERACIÓN INFINITA (Cura instantánea de cualquier daño) ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onLobbyDamage(e: EntityDamageEvent) {
         val player = e.entity as? Player ?: return
-
         if (isInLobby(player)) {
-            // Cancelamos el daño (caída, fuego, etc)
             e.isCancelled = true
-
-            // Forzamos salud al máximo por si acaso
             player.health = player.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: 20.0
-            player.fireTicks = 0 // Apagar si se quema
+            player.fireTicks = 0
         }
     }
 
-    // --- HAMBRE INFINITA (Saturación) ---
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     fun onLobbyHunger(e: FoodLevelChangeEvent) {
         val player = e.entity as? Player ?: return
 
+        // Si el jugador está en un minijuego, DEJAMOS que le baje el hambre.
+        if (plugin.eventManager.currentGame != null && plugin.eventManager.currentGame!!.isRunning) {
+            return
+        }
+
+        // Si está en el lobby, no le baja
         if (isInLobby(player)) {
             e.isCancelled = true
             player.foodLevel = 20

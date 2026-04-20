@@ -28,7 +28,9 @@ import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.persistence.PersistentDataType
 import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.corona.RobaLaCorona
 import pumpkin.eventos.games.cristales.Cristales
+import pumpkin.eventos.games.iceboat.IceBoatRacing
 import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.luzroja.LuzEstado
@@ -36,6 +38,9 @@ import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
 import pumpkin.eventos.games.pillars.PillarsOfFortune
 import pumpkin.eventos.games.ruletarusa.RuletaRusa
 import pumpkin.eventos.games.sillas.SillasMusicales
+import pumpkin.eventos.games.simondice.SimonDice
+import pumpkin.eventos.games.skywars.Skywars
+import pumpkin.eventos.games.skywars.SwPhase
 import pumpkin.eventos.games.spleef.Spleef
 import pumpkin.eventos.games.sumo.Sumo
 import pumpkin.eventos.games.tntgames.TntSpleef
@@ -48,8 +53,13 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val game = plugin.eventManager.currentGame
         if (e.player.hasPermission("pumpkin.admin")) return
         if (game == null || !game.isRunning) { e.isCancelled = true; return }
+
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune || game is SueloLava) return
+
+        // CORRECCIÓN SKYWARS: Eliminado .DEATHMATCH que no existe en SwPhase
+        if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
+
+        if (game is PillarsOfFortune || game is SueloLava || game is Skywars) return
         e.isCancelled = true
     }
 
@@ -65,8 +75,13 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 return
             }
         }
+
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune) return
+
+        // CORRECCIÓN SKYWARS: Eliminado .DEATHMATCH
+        if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
+
+        if (game is PillarsOfFortune || game is Skywars) return
         e.isCancelled = true
     }
 
@@ -177,11 +192,26 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val victim = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
+        // --- EXCEPCIÓN: DAÑO REAL EN COMBATE ---
+        if (game is PillarsOfFortune) {
+            if (game.isPreparation) e.isCancelled = true
+            return
+        }
+        if (game is Skywars) {
+            if (game.phase == SwPhase.TEAM_SELECT || game.phase == SwPhase.VOTING) e.isCancelled = true
+            // Bloqueo de Friendly Fire en Duos
+            if (game.isDuos && game.playerTeam[attacker] == game.playerTeam[victim]) e.isCancelled = true
+            return
+        }
+
+        // --- BLOQUEOS TOTALES ---
         if (game is RuletaRusa || game is JalarCuerda) {
             e.isCancelled = true
             return
         }
+        if (game is RobaLaCorona) return // RobaLaCorona maneja su propio PVP interno en su clase
 
+        // --- GOLPES DE EMPUJE (Daño 0.001) ---
         if (game is SillasMusicales || game is Cristales) {
             e.damage = 0.001
             return
@@ -201,11 +231,6 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
             }
             return
         }
-
-        if (game is PillarsOfFortune && game.isRunning && !game.isPreparation) {
-            e.isCancelled = false
-            return
-        }
     }
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -213,19 +238,23 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
         val player = e.entity as? Player ?: return
         val game = plugin.eventManager.currentGame ?: return
 
-        if (game is JalarCuerda) {
+        // Excepciones para Daño Real Completo
+        if (game is PillarsOfFortune) {
+            if (game.isPreparation) e.isCancelled = true
+            return
+        }
+        if (game is Skywars) {
+            if (game.phase == SwPhase.TEAM_SELECT || game.phase == SwPhase.VOTING) e.isCancelled = true
+            return
+        }
+
+        if (game is JalarCuerda || game is IceBoatRacing) {
             e.isCancelled = true
             return
         }
 
         if (e.cause == EntityDamageEvent.DamageCause.SUFFOCATION || e.cause == EntityDamageEvent.DamageCause.FALLING_BLOCK) {
             e.isCancelled = true
-            return
-        }
-
-        if (game is PillarsOfFortune) {
-            if (game.isPreparation) e.isCancelled = true
-            else e.isCancelled = false
             return
         }
 
@@ -251,29 +280,41 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
-        if (e.hand != EquipmentSlot.HAND) return
         val player = e.player
-        val currentGame = plugin.eventManager.currentGame ?: return
+        val game = plugin.eventManager.currentGame ?: return
+        if (!game.isRunning) return
 
-        if (currentGame is RuletaRusa && currentGame.isRunning) {
+        // --- EXCEPCIÓN PRIORITARIA PARA COMER Y COFRES ---
+        if (game is PillarsOfFortune) {
+            if (game.isPreparation) e.isCancelled = true
+            return
+        }
+        if (game is Skywars) {
+            if (game.phase == SwPhase.TEAM_SELECT || game.phase == SwPhase.VOTING) e.isCancelled = true
+            return
+        }
+
+        if (e.hand != EquipmentSlot.HAND) return
+
+        if (game is RuletaRusa) {
             if (e.action.isRightClick && e.item?.type == Material.IRON_HORSE_ARMOR) {
                 e.isCancelled = true
-                currentGame.procesarEleccion(player, true)
+                game.procesarEleccion(player, true)
                 return
             }
         }
 
-        if (currentGame is SillasMusicales && currentGame.isRunning) {
+        if (game is SillasMusicales) {
             val clickedBlock = e.clickedBlock
-            if (clickedBlock != null && e.action.isRightClick) {
+            if (clickedBlock != null && e.action == Action.RIGHT_CLICK_BLOCK) {
                 e.isCancelled = true
-                currentGame.intentarSentarse(player, clickedBlock.location)
+                game.intentarSentarse(player, clickedBlock.location)
                 return
             }
         }
 
         val item = e.item ?: return
-        if (!currentGame.isRunning) return
+        if (game is SimonDice && game.mode == pumpkin.eventos.games.simondice.SimonMode.MANUAL && item.type == Material.NETHER_STAR) return
 
         val key = NamespacedKey(plugin, "tnt_item")
         val type = item.itemMeta?.persistentDataContainer?.get(key, PersistentDataType.STRING) ?: return
@@ -307,21 +348,21 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
 
     @EventHandler
     fun onDrop(e: PlayerDropItemEvent) {
-        val game = plugin.eventManager.currentGame
+        val game = plugin.eventManager.currentGame ?: return
+        if (!game.isRunning) return
         val player = e.player
 
-        if (game != null && game.isRunning) {
-            if (game is RuletaRusa) {
-                e.isCancelled = true
-                if (e.itemDrop.itemStack.type == Material.IRON_HORSE_ARMOR) {
-                    game.procesarEleccion(player, false)
-                }
-                return
+        if (game is RuletaRusa) {
+            e.isCancelled = true
+            if (e.itemDrop.itemStack.type == Material.IRON_HORSE_ARMOR) {
+                game.procesarEleccion(player, false)
             }
+            return
+        }
 
-            if (game !is PillarsOfFortune) {
-                e.isCancelled = true
-            }
+        // Permitimos drop en juegos de supervivencia
+        if (game !is PillarsOfFortune && game !is Skywars) {
+            e.isCancelled = true
         }
     }
 
@@ -364,6 +405,10 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                 e.isCancelled = true
             }
         }
+
+        if (game is IceBoatRacing && game.isRunning) {
+            e.isCancelled = true // Imposible bajarse del bote en carreras
+        }
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -400,7 +445,8 @@ class GameListener(private val plugin: PumpkinEventos) : Listener {
                     killer.playSound(killer.location, Sound.ENTITY_ARROW_HIT_PLAYER, 1f, 1.5f)
                 }
 
-                if (game is PillarsOfFortune) {
+                // Soltar todo el inventario si es juego de supervivencia (Pillars o Skywars)
+                if (game is PillarsOfFortune || game is Skywars) {
                     val loc = player.location
                     player.inventory.contents.forEach { item ->
                         if (item != null && item.type != Material.AIR) {

@@ -21,10 +21,12 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
 
     var estado = SillasEstado.PREPARACION
 
-    // Lista de TODAS las sillas válidas en el juego
+    // Todas las sillas posibles que el staff guardó con /addchair
+    private val todasLasPosiblesSillas = mutableListOf<Location>()
+
+    // Las sillas que fueron elegidas para aparecer en la ronda actual
     val sillasActivas = mutableListOf<Location>()
 
-    // Mapas para control de asientos (100% seguros contra lag)
     val jugadoresSentados = ConcurrentHashMap.newKeySet<Player>()
     val sillasReclamadas = ConcurrentHashMap.newKeySet<Location>()
 
@@ -48,19 +50,19 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
     }
 
     override fun getCustomGameRules(): Map<GameRule<*>, Any> {
-        return mapOf(GameRule.FALL_DAMAGE to false) // Nadie muere por daño
+        return mapOf(GameRule.FALL_DAMAGE to false)
     }
 
     override fun onStart() {
         estado = SillasEstado.PREPARACION
         sillasActivas.clear()
+        todasLasPosiblesSillas.clear()
         jugadoresSentados.clear()
         sillasReclamadas.clear()
         displayEstado = "<gray>Preparando...</gray>"
 
         val arena = currentArena ?: return
 
-        // Retraso por seguridad para el TP del Manager
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             val targetWorld = gameWorld ?: players.firstOrNull()?.world ?: arena.centerLocation?.world ?: return@runDelayed
 
@@ -69,24 +71,15 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
                 p.inventory.clear()
             }
 
-            // --- LÓGICA DE DESTRUCCIÓN INICIAL DE SILLAS ---
-            val sillasClonadas = arena.chairs.map { it.clone().apply { world = targetWorld } }.shuffled()
-            val sillasNecesarias = (players.size - 1).coerceAtLeast(1)
+            // Guardamos todos los puntos válidos y vaciamos el mapa físicamente para empezar limpios
+            arena.chairs.forEach { locOriginal ->
+                val loc = locOriginal.clone()
+                loc.world = targetWorld
+                todasLasPosiblesSillas.add(loc)
 
-            // Dividimos las sillas en dos grupos: las que se quedan y las que se borran
-            val sillasParaQuedarse = sillasClonadas.take(sillasNecesarias)
-            val sillasParaBorrar = sillasClonadas.drop(sillasNecesarias)
-
-            sillasActivas.addAll(sillasParaQuedarse)
-
-            // Borramos físicamente las sobrantes del mapa
-            sillasParaBorrar.forEach { loc ->
+                // Limpiar físicamente la silla del mapa clonado
                 plugin.server.regionScheduler.run(plugin, loc) { _ ->
-                    val block = loc.block
-                    if (!block.type.isAir) {
-                        block.setType(Material.AIR, false)
-                        loc.world.spawnParticle(Particle.BLOCK, loc.clone().add(0.5, 0.5, 0.5), 15, 0.2, 0.2, 0.2, Material.OAK_PLANKS.createBlockData())
-                    }
+                    loc.block.setType(Material.AIR, false)
                 }
             }
 
@@ -98,7 +91,6 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
     private fun iniciarRondaMusica() {
         if (players.size <= 1) { checkWinner(); return }
 
-        // Limpiar el estado de la ronda anterior
         val toStand = jugadoresSentados.toList()
         jugadoresSentados.clear()
         sillasReclamadas.clear()
@@ -108,6 +100,15 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
             p.leaveVehicle()
             p.teleportAsync(p.location.clone().add(0.0, 1.0, 0.0))
         }
+
+        // --- ANTI-CAMPER: OCULTAR LAS SILLAS DE LA RONDA ANTERIOR ---
+        sillasActivas.forEach { silla ->
+            plugin.server.regionScheduler.run(plugin, silla) { _ ->
+                silla.block.setType(Material.AIR, false)
+                silla.world.spawnParticle(Particle.CLOUD, silla.clone().add(0.5, 0.5, 0.5), 10, 0.2, 0.2, 0.2, 0.05)
+            }
+        }
+        sillasActivas.clear()
 
         estado = SillasEstado.MUSICA
         displayEstado = "<#39FF14>¡MÚSICA! 🎵</#39FF14>"
@@ -125,12 +126,35 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
                 val rawActionBar = plugin.languageManager.get("sillas.actionbar.music")
                 players.forEach { it.sendActionBar(plugin.messageManager.parse(rawActionBar)) }
 
+                // --- APARECER SILLAS 1 SEGUNDO ANTES DE QUE ACABE LA MÚSICA ---
+                if (roundTimer == 1) {
+                    aparecerSillasAleatorias()
+                }
+
                 if (roundTimer <= 0) {
                     task.cancel()
                     detenerMusica()
                 }
             }
         }, 1, 1, TimeUnit.SECONDS)
+    }
+
+    private fun aparecerSillasAleatorias() {
+        // ¿Cuántas sillas necesitamos esta ronda? (Jugadores Vivos - 1)
+        val sillasNecesarias = (players.size - 1).coerceAtLeast(1)
+
+        // Elegimos lugares aleatorios de nuestra lista de posiciones maestras
+        val sillasElegidas = todasLasPosiblesSillas.shuffled().take(sillasNecesarias)
+        sillasActivas.addAll(sillasElegidas)
+
+        // Las construimos en el mapa de forma física para que puedan verlas y sentarse
+        sillasElegidas.forEach { loc ->
+            plugin.server.regionScheduler.run(plugin, loc) { _ ->
+                loc.block.setType(Material.OAK_STAIRS, false) // Puedes cambiar el Material si tus sillas eran otra cosa
+                loc.world.spawnParticle(Particle.END_ROD, loc.clone().add(0.5, 0.5, 0.5), 20, 0.5, 0.5, 0.5, 0.05)
+                loc.world.playSound(loc, Sound.BLOCK_WOOD_PLACE, 1f, 1f)
+            }
+        }
     }
 
     private fun detenerMusica() {
@@ -157,28 +181,23 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
     }
 
     fun intentarSentarse(p: Player, blockLoc: Location) {
-        if (!players.contains(p)) return // Espectadores no juegan
+        if (!players.contains(p)) return
         if (estado != SillasEstado.SENTARSE) {
             p.sendMessage(plugin.messageManager.parse("<red>¡La música sigue sonando! No puedes sentarte aún.</red>"))
             return
         }
 
-        // ¿Ya se sentó?
         if (jugadoresSentados.contains(p)) return
 
-        // 1. Validar que la silla existe en la lista oficial
-        // Comparamos bloque a bloque usando enteros para evitar fallos de ubicación
         val sillaValida = sillasActivas.firstOrNull { it.blockX == blockLoc.blockX && it.blockY == blockLoc.blockY && it.blockZ == blockLoc.blockZ }
         if (sillaValida == null) return
 
-        // 2. Control Lógico Absoluto
         if (sillasReclamadas.contains(sillaValida)) {
             p.sendMessage(plugin.messageManager.parse("<red>¡Esta silla ya está ocupada!</red>"))
             return
         }
 
         plugin.server.regionScheduler.run(plugin, blockLoc) { _ ->
-            // Doble check por si dos hicieron click en el mismo milisegundo
             if (sillasReclamadas.contains(sillaValida)) {
                 p.sendMessage(plugin.messageManager.parse("<red>¡Esta silla ya está ocupada!</red>"))
                 return@run
@@ -207,23 +226,14 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
             val perdedores = players.filter { !jugadoresSentados.contains(it) }
 
-            // LÓGICA DE REDUCCIÓN DE SILLAS DINÁMICA
-            val sobrevivientes = players.size - perdedores.size
-            val sillasParaSiguienteRonda = (sobrevivientes - 1).coerceAtLeast(1)
-            val sillasARemover = sillasActivas.size - sillasParaSiguienteRonda
-
-            if (sillasARemover > 0) {
-                // Romper al azar las sillas sobrantes
-                val sillasAleatorias = sillasActivas.shuffled().take(sillasARemover)
-
-                sillasAleatorias.forEach { silla ->
-                    sillasActivas.remove(silla)
-                    plugin.server.regionScheduler.runDelayed(plugin, silla, { _ ->
-                        silla.block.setType(Material.AIR, false)
-                        silla.world.spawnParticle(Particle.EXPLOSION, silla.clone().add(0.5, 0.5, 0.5), 2)
-                        silla.world.playSound(silla, Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1f, 1f)
-                    }, 40L)
-                }
+            // Las sillas que sobraron por culpa de AFK's se rompen con explosión
+            val sillasVacias = sillasActivas.filter { !sillasReclamadas.contains(it) }
+            sillasVacias.forEach { silla ->
+                plugin.server.regionScheduler.runDelayed(plugin, silla, { _ ->
+                    silla.block.setType(Material.AIR, false)
+                    silla.world.spawnParticle(Particle.EXPLOSION, silla.clone().add(0.5, 0.5, 0.5), 2)
+                    silla.world.playSound(silla, Sound.ENTITY_ZOMBIE_BREAK_WOODEN_DOOR, 1f, 1f)
+                }, 40L)
             }
 
             // Eliminar a los perdedores
@@ -236,7 +246,6 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
                 plugin.server.broadcast(plugin.messageManager.parse("<red>☠</red> <yellow>${p.name}</yellow> <white>fue eliminado.</white>"))
             }
 
-            // Siguiente ronda (Esperamos 4 segundos)
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 iniciarRondaMusica()
             }, 80L)
@@ -259,7 +268,6 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
         jugadoresSentados.clear()
         sillasReclamadas.clear()
 
-        // Romper todas las sillas activas para limpiar el mapa antes de irse
         sillasActivas.forEach { silla ->
             plugin.server.regionScheduler.run(plugin, silla) { _ ->
                 silla.block.setType(Material.AIR, false)
@@ -273,8 +281,8 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
         if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
 
         (players + spectators).forEach { p ->
-            musicDiscs.forEach { p.stopSound(it) } // Cortar música
-            p.leaveVehicle() // Levantar de GSit si seguían sentados
+            musicDiscs.forEach { p.stopSound(it) }
+            p.leaveVehicle()
             p.inventory.clear()
             p.gameMode = GameMode.ADVENTURE
             p.teleportAsync(lobby)

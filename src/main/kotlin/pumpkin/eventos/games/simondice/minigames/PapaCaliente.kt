@@ -22,16 +22,20 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
     private var gameInstance: SimonDice? = null
 
     fun iniciar(game: SimonDice, tiempoSegundos: Int) {
-        if (game.players.size < 2) {
-            plugin.server.broadcast(plugin.messageManager.parse("<red>❌ <bold>ERROR:</bold> <white>Se necesitan al menos 2 jugadores."))
+        // Filtrar jugadores válidos (Sin el streamer)
+        val jugadoresValidos = game.players.filter { it != game.streamer }
+
+        if (jugadoresValidos.size < 2) {
+            plugin.server.broadcast(plugin.messageManager.parse("<red>❌ <bold>ERROR:</bold> <white>No hay suficientes jugadores para la Papa Caliente."))
+            game.activeChallenges.clear() // Desbloquear Simón Dice
             return
         }
 
         this.gameInstance = game
         activo = true
 
-        // 1. Elegir primera víctima
-        val primero = game.players.random()
+        // 1. Elegir primera víctima al azar
+        val primero = jugadoresValidos.random()
         darPapa(primero)
 
         val title = Title.title(
@@ -40,7 +44,6 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         )
         game.players.forEach { it.showTitle(title) }
 
-        // 2. Temporizador Maestro (Con Scheduler de Paper 1.21)
         var restante = tiempoSegundos
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!activo || !game.isRunning) {
@@ -50,14 +53,15 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
 
             if (restante <= 0) {
                 task.cancel()
-                finalizarJuego(game)
+                plugin.server.globalRegionScheduler.run(plugin) { _ -> finalizarJuego(game) }
                 return@runAtFixedRate
             }
 
             val portador = plugin.server.getPlayer(victimaActual ?: UUID.randomUUID())
             val nombrePortador = portador?.name ?: "Nadie"
 
-            game.actionText = "🥔 <#FF5F1F>$nombrePortador <gray>|</gray> <white>⏳ ${restante}s"
+            // Actualizar visuales en Simón Dice (Scoreboard y BossBar)
+            game.displayOrden = "🥔 <#FF5F1F>$nombrePortador <gray>|</gray> <white>⏳ ${restante}s"
 
             if (restante <= 5) {
                 val titleAviso = Title.title(plugin.messageManager.parse("<red><bold>⏳ $restante"), plugin.messageManager.parse("<white>¡La papa va a explotar!"))
@@ -104,8 +108,9 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         val victima = e.entity as? Player ?: return
         val game = gameInstance ?: return
 
-        if (atacante.uniqueId == victimaActual && game.players.contains(victima)) {
-            e.damage = 0.001 // Sin daño pero con knockback
+        // Solo el portador puede pasar la papa, y no puede dársela al streamer
+        if (atacante.uniqueId == victimaActual && victima != game.streamer && game.players.contains(victima)) {
+            e.damage = 0.001
             quitarPapa(atacante)
             darPapa(victima)
 
@@ -135,16 +140,15 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
             val titleBoom = Title.title(plugin.messageManager.parse("<red>💣 <b>¡BOOM!</b> 💣"), plugin.messageManager.parse("<white>${perdedor.name} explotó con la papa."))
             game.players.forEach { it.showTitle(titleBoom) }
 
-            game.actionText = "<red>¡TIEMPO AGOTADO!</red>"
-
-            // Usamos la misma animación de muerte de SimonDice
-            plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                game.aplicarCuello(perdedor)
-            }, 20L)
+            // Usamos la animación de muerte oficial
+            game.aplicarCuello(perdedor)
         }
 
+        // --- FIX DE REINICIO ---
+        // Limpiamos la lista de retos para que el modo automático de Simón Dice siga pensando
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-            game.actionText = "Esperando orden..."
-        }, 80L)
+            game.activeChallenges.clear()
+            game.displayOrden = "Esperando orden..."
+        }, 60L) // 3 segundos de pausa dramática
     }
 }

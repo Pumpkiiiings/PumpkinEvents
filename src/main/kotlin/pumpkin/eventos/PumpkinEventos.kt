@@ -26,6 +26,12 @@ import pumpkin.eventos.games.sumo.Sumo
 import pumpkin.eventos.games.tntgames.TntRun
 import pumpkin.eventos.games.tntgames.TntSpleef
 import pumpkin.eventos.games.tntgames.TntTag
+import pumpkin.eventos.games.skywars.Skywars
+import pumpkin.eventos.games.skywars.SkywarsListener
+import pumpkin.eventos.games.iceboat.IceBoatRacing
+import pumpkin.eventos.games.iceboat.IceBoatListener
+import pumpkin.eventos.games.miniwalls.MiniWalls
+import pumpkin.eventos.games.miniwalls.MiniWallsListener
 import pumpkin.eventos.hud.BoardManager
 import pumpkin.eventos.hud.ChatFormatManager
 import pumpkin.eventos.listeners.ChatListener
@@ -65,7 +71,7 @@ class PumpkinEventos : JavaPlugin() {
 
         // --- 1. MENSAJE DE INICIO ÉPICO ---
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.0.5 - CARGANDO ⚡</#CCFF00>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.1.0 - CARGANDO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
@@ -87,9 +93,8 @@ class PumpkinEventos : JavaPlugin() {
         voteManager = VoteManager()
         eventManager = EventManager(this)
 
-        // INICIALIZACIÓN DE PUNTAJES (IMPORTANTE EL ORDEN)
         puntajeManager = PuntajeManager(this)
-        puntajeHoloManager = PuntajeHoloManager(this) // <--- ESTA LÍNEA FALTABA Y CAUSABA EL CRASH
+        puntajeHoloManager = PuntajeHoloManager(this)
 
         papaCalienteGame = PapaCaliente(this)
         congeladosGame = Congelados(this)
@@ -109,6 +114,16 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(RuletaRusa(this))
         eventManager.registerGame(Cristales(this))
         eventManager.registerGame(JalarCuerda(this))
+        eventManager.registerGame(pumpkin.eventos.games.corona.RobaLaCorona(this))
+        eventManager.registerGame(Skywars(this, false)) // Skywars Solos
+        eventManager.registerGame(Skywars(this, true))  // Skywars Duos
+
+        // Instanciar y registrar Mini Walls para el listener
+        val miniWallsGame = MiniWalls(this)
+        eventManager.registerGame(miniWallsGame)
+
+        // Registrar Ice Boat
+        eventManager.registerGame(IceBoatRacing(this))
 
         // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
@@ -116,7 +131,7 @@ class PumpkinEventos : JavaPlugin() {
 
         // --- 6. EVENTOS (LISTENERS) ---
         val pm = server.pluginManager
-        pm.registerEvents(puntajeHoloManager, this) // Ahora sí está inicializado
+        pm.registerEvents(puntajeHoloManager, this)
         pm.registerEvents(ChatListener(this), this)
         pm.registerEvents(GameListener(this), this)
         pm.registerEvents(DeathListener(this), this)
@@ -126,6 +141,12 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(LobbyProtectionListener(this), this)
         pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
 
+        // Listeners específicos de juegos
+        pm.registerEvents(SkywarsListener(this), this)
+        pm.registerEvents(IceBoatListener(this), this)
+        pm.registerEvents(MiniWallsListener(this, miniWallsGame), this)
+
+        // Listeners de sub-juegos de Simón
         pm.registerEvents(papaCalienteGame, this)
         pm.registerEvents(congeladosGame, this)
         pm.registerEvents(dueloFinalGame, this)

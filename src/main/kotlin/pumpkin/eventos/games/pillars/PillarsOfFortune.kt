@@ -47,8 +47,8 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
     override fun getCustomGameRules(): Map<GameRule<*>, Any> {
         return mapOf(
             GameRule.FALL_DAMAGE to true,
-            GameRule.NATURAL_REGENERATION to false,
-            GameRule.DO_MOB_SPAWNING to false
+            GameRule.NATURAL_REGENERATION to true,
+            GameRule.DO_MOB_SPAWNING to true
         )
     }
 

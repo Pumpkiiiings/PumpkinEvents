@@ -6,6 +6,9 @@ import org.bukkit.Bukkit
 import org.bukkit.Sound
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.pillars.PillarsOfFortune
+import pumpkin.eventos.games.jalarcuerda.JalarCuerda
+import pumpkin.eventos.games.iceboat.IceBoatRacing // NUEVO
 import java.util.concurrent.TimeUnit
 
 class EventManager(private val plugin: PumpkinEventos) {
@@ -89,14 +92,16 @@ class EventManager(private val plugin: PumpkinEventos) {
                 actualSpawn.world = world
 
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // --- REGLA DE ORO: Teletransportar a TODOS ---
-                    p.teleportAsync(actualSpawn)
+                    // --- ACTUALIZADO: IceBoatRacing también espera en el Lobby ---
+                    if (game !is PillarsOfFortune && game !is JalarCuerda && game !is IceBoatRacing) {
+                        p.teleportAsync(actualSpawn)
+                    }
                     p.inventory.clear()
                     game.players.add(p)
                 }
 
                 currentGame = game
-                game.start(arenaTemplate, plugin, world) // Pasamos el mundo clonado al juego
+                game.start(arenaTemplate, plugin, world)
                 Bukkit.broadcast(mm.parse(lang.get("event_manager.event_started")))
             }, 20L)
         }

@@ -82,8 +82,14 @@ object EventoCommand {
                 .then(Commands.argument("name", StringArgumentType.word())
                     .then(Commands.argument("type", StringArgumentType.word())
                         .suggests { _, builder ->
-                            // ¡AÑADIDOS CRISTALES Y JALARCUERDA!
-                            listOf("tnttag", "tntrun", "simondice", "suelolava", "pillars", "sumo", "blockparty", "spleef", "tntspleef", "luzroja", "sillas", "ruletarusa", "cristales", "jalarcuerda").forEach { builder.suggest(it) }
+                            // --- LISTA ACTUALIZADA CON TODOS LOS MODOS ---
+                            listOf(
+                                "tnttag", "tntrun", "simondice", "suelolava",
+                                "pillars", "sumo", "blockparty", "spleef",
+                                "tntspleef", "luzroja", "sillas", "ruletarusa",
+                                "cristales", "jalarcuerda", "skywars_solos",
+                                "skywars_duos", "iceboat", "miniwalls", "corona"
+                            ).forEach { builder.suggest(it) }
                             builder.buildFuture()
                         }
                         .executes { ctx ->

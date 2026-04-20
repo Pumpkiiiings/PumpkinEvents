@@ -21,3 +21,10 @@ holograma:
   shadow: true
   background_color: "#00000000" # Formato ARGB (#TransparenciaRojoVerdeAzul)
   scale: 1.5
+
+miniwalls:
+  wall_blocks:
+    - "BEDROCK"
+    - "BARRIER"
+    - "BLACK_STAINED_GLASS"
+    - "OBSIDIAN"

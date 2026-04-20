@@ -51,8 +51,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     private var phaseWaitTimer = 10
     private var isWaitingPhase = true
 
-    private var displayTime = 10
-    private var displayOrden = "Preparando..."
+    var displayTime = 10
+    var displayOrden = "Preparando..."
 
     private val retosSimples = listOf("SALTAR", "AGACHARSE", "QUIETO", "MATES", "CAMINAR", "GOLPEAR", "CONSIGUE", "PAPACALIENTE")
 
@@ -166,14 +166,17 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 if (phaseWaitTimer <= 0) {
                     isWaitingPhase = false
 
-                    val esCombo = Math.random() <= 0.20
+                    // --- LÓGICA DE COMBOS AUTOMÁTICOS ---
+                    // 30% de probabilidad de que salga un combo de 2 acciones
+                    val esCombo = Math.random() < 0.30
 
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         if (esCombo) {
-                            val comboElegido = combosPermitidos.random()
-                            val textoCombo = comboElegido.joinToString(" y ") { it }
-                            startChallenge(comboElegido, "🔥 <#BF00FF>¡COMBO: $textoCombo!</#BF00FF>", 15)
+                            val combo = combosPermitidos.random()
+                            val texto = "${combo[0]} y ${combo[1]}"
+                            startChallenge(combo, "🔥 <#BF00FF>COMBO: $texto</#BF00FF>", 15)
                         } else {
+                            // Reto Simple
                             var elegido = retosSimples.random()
                             while (elegido == ultimoReto) { elegido = retosSimples.random() }
                             ultimoReto = elegido
@@ -377,9 +380,13 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
 
     private fun isPlayerCompletingOtherCombos(p: Player): Boolean {
         if (activeChallenges.contains("AGACHARSE") && !p.isSneaking) return false
+
+        if (activeChallenges.contains("SALTAR") && p.isOnGround) {
+            return false
+        }
+
         return true
     }
-
     fun removeSaved(p: Player) {
         if (p == streamer) return
         if (savedPlayers.contains(p.uniqueId)) {

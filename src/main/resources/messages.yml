@@ -175,6 +175,39 @@ tutorials:
     - "<gray>»</gray> <white><#FF3131>Fallar en el ROJO te penaliza con lentitud.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
+  corona:
+    - "<newline><#FFD700><bold>━━━━━━━ ROBA LA CORONA ━━━━━━━</bold></#FFD700>"
+    - ""
+    - "<gray>»</gray> <white>Un jugador al azar empezará con la corona.</white>"
+    - "<gray>»</gray> <white>El Rey suma <#39FF14>puntos</#39FF14> cada segundo que la mantenga.</white>"
+    - "<gray>»</gray> <white>Para robarla, simplemente <#FFCC00>golpea al Rey</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Gana quien tenga más puntos al final del tiempo.</white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  skywars_solos:
+    - "<newline><#39FF14><bold>━━━━━━━━━━ SKYWARS SOLOS ━━━━━━━━━━</bold></#39FF14>"
+    - ""
+    - "<gray>»</gray> <white>Usa el menú para <#FFCC00>votar por cofres y eventos</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Los cofres se rellenarán automáticamente al minuto 5.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Cuidado con el evento final al minuto 10!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  skywars_duos:
+    - "<newline><#00FFFF><bold>━━━━━━━━━━ SKYWARS DUOS ━━━━━━━━━━</bold></#00FFFF>"
+    - ""
+    - "<gray>»</gray> <white>Tienes 15s para <#FFCC00>hacer equipo</#FFCC00> con un amigo.</white>"
+    - "<gray>»</gray> <white>Los cofres se rellenarán automáticamente al minuto 5.</white>"
+    - "<gray>»</gray> <white><#FF3131>No puedes golpear a tu compañero, ¡protéjanse!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  iceboat:
+    - "<newline><#00FFFF><bold>━━━━━━ ICE BOAT RACING ━━━━━━</bold></#00FFFF>"
+    - ""
+    - "<gray>»</gray> <white>Carreras extremas sobre hielo.</white>"
+    - "<gray>»</gray> <white>No te puedes bajar de tu bote.</white>"
+    - "<gray>»</gray> <white>Sigue la pista y cruza los <#FFCC00>Checkpoints</#FFCC00>.</white>"
+    - "<gray>»</gray> <white><#39FF14>¡El primero en completar las vueltas gana!</#39FF14></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 tntrun:
   actionbar:
     preparation: "<white>El suelo caerá en: <aqua><bold><time></bold>s"
@@ -247,6 +280,18 @@ jalarcuerda:
     preparation: "<white>El duelo inicia en: <aqua><bold><time></bold>s"
   broadcast:
     winner: "<newline><#FF9900><b>JALAR LA CUERDA</b></#FF9900> <white>» <color:#67FF00><player></color> ganó con <b><score></b> puntos!<newline>"
+
+skywars_solos:
+  broadcast:
+    winner: "<newline><#39FF14><b>SKYWARS SOLOS</b></#39FF14> <white>» <color:#67FF00><player></color> ha ganado la partida!<newline>"
+
+skywars_duos:
+  broadcast:
+    winner: "<newline><#00FFFF><b>SKYWARS DUOS</b></#00FFFF> <white>» <color:#67FF00><player></color> han ganado la partida!<newline>"
+
+iceboat:
+  broadcast:
+    winner: "<newline><#00FFFF><b>ICE BOAT RACING</b></#00FFFF> <white>» ¡<#39FF14><player></#39FF14> ha ganado la carrera!<newline>"
 
 scoreboard:
   title: "<#FFD700><b>⚡ EVENTOS ⚡</b></#FFD700>"
@@ -346,6 +391,64 @@ scoreboard:
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
+  ingame_corona:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>👑</#FFD700> <white>Rey:</white> <yellow>%holder%</yellow>"
+    - " <dark_gray>|</dark_gray> <#39FF14>⭐</#39FF14> <white>Puntos:</white> <white>%puntos%</white>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  ingame_skywars_solos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>☁</#39FF14> <white>Modo:</white> <#FFCC00>Solos</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+  ingame_skywars_duos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>☁</#00FFFF> <white>Modo:</white> <#FFCC00>Dúos</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  ingame_iceboat:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>🚤</#00FFFF> <white>Evento:</white> <#FFCC00>Ice Boat</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Vueltas:</white> <#00FFFF>%vueltas_totales%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  ingame_miniwalls:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500>🧱</#FF5500> <white>Evento:</white> <#FFD700>Mini Walls</#FFD700>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Rojo:</white> %w_red%"
+    - " <dark_gray>|</dark_gray> <#00FFFF>💙</#00FFFF> <white>Azul:</white> %w_blue%"
+    - " <dark_gray>|</dark_gray> <#FFD700>💛</#FFD700> <white>Amarillo:</white> %w_yellow%"
+    - " <dark_gray>|</dark_gray> <#39FF14>💚</#39FF14> <white>Verde:</white> %w_green%"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>%phase%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
 bossbar:
   waiting: "<bold>EVENTO:</bold> <gray>Ninguno</gray>"
   ingame_default: "<bold>EVENTO:</bold> %mode%"
@@ -358,6 +461,10 @@ bossbar:
   ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
   ingame_cristales: "<bold>CRISTALES:</bold> <aqua>Salvados: %salvados%</aqua> <gray>|</gray> <white>⏳ %time_left%</white>"
   ingame_jalarcuerda: "<bold>CUERDA:</bold> <#FF9900>¡Atina al verde para ganar puntos!</#FF9900> <gray>|</gray> <white>⏳ %time_left%s</white>"
+  ingame_skywars_solos: "<bold>SKYWARS SOLOS:</bold> <#39FF14>%proximo_evento% en %time%</#39FF14>"
+  ingame_skywars_duos: "<bold>SKYWARS DUOS:</bold> <#00FFFF>%proximo_evento% en %time%</#00FFFF>"
+  ingame_iceboat: "<bold>CARRERA:</bold> <#00FFFF>¡Corre a la meta!</#00FFFF> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_miniwalls: "<bold>MINI WALLS:</bold> <#FF5500>Fase: %phase%</#FF5500> <gray>|</gray> <white>⏳ %time%</white>"
 
 gamemode:
   invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></#FF3131>"

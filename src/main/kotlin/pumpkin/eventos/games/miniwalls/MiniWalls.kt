@@ -114,7 +114,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         placedBlocks.clear(); arrowTicks.clear(); mapBlocks.clear()
 
         val arena = currentArena ?: return
-        val targetWorld = activeWorld ?: return
+        val targetWorld = gameWorld ?: return
 
         // El Duelo A es el Lobby de Espera del mapa
         val lobbyWait = arena.dueloA?.clone()?.apply { world = targetWorld } ?: targetWorld.spawnLocation
@@ -146,7 +146,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
 
     private fun iniciarRelojMaestro() {
         val arena = currentArena ?: return
-        val targetWorld = activeWorld ?: return
+        val targetWorld = gameWorld ?: return
 
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }

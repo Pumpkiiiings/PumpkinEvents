@@ -92,10 +92,10 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
             if (isPreparation) {
                 if (startTimer > 0) {
                     val rawMsg = plugin.languageManager.get("pillars.actionbar.starting")
-                    val bar = plugin.messageManager.parse(rawMsg, Placeholder.parsed("time", startTimer.toString()))
+                    val bar = plugin.messageManager.parse(rawMsg, net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.parsed("time", startTimer.toString()))
                     players.forEach {
                         it.sendActionBar(bar)
-                        it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f)
+                        it.playSound(it.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f)
                     }
                     startTimer--
                 } else {
@@ -104,38 +104,38 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                     val startMsg = plugin.messageManager.parse(plugin.languageManager.get("pillars.actionbar.started"))
                     players.forEach {
                         it.sendActionBar(startMsg)
-                        it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+                        it.playSound(it.location, org.bukkit.Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
                     }
                 }
                 return@runAtFixedRate
             }
 
             // -- FASE DE JUEGO (DETECCIÓN DE CAÍDA Y TÓTEMS) --
-            val toEliminate = players.filter { it.world == gameWorld && it.location.y <= it.world.minHeight + 5 }
+                val toEliminate = players.filter { it.world == gameWorld && it.location.y <= it.world.minHeight + 5 }
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
                 toEliminate.forEach { p ->
                     val mainHand = p.inventory.itemInMainHand
                     val offHand = p.inventory.itemInOffHand
 
-                    // Si el jugador tiene un tótem, ¡SE SALVA DE LA CAÍDA!
-                    if (mainHand.type == Material.TOTEM_OF_UNDYING || offHand.type == Material.TOTEM_OF_UNDYING) {
-
-                        // Restar el tótem
-                        if (mainHand.type == Material.TOTEM_OF_UNDYING) mainHand.amount -= 1
+                    if (mainHand.type == org.bukkit.Material.TOTEM_OF_UNDYING || offHand.type == org.bukkit.Material.TOTEM_OF_UNDYING) {
+                        if (mainHand.type == org.bukkit.Material.TOTEM_OF_UNDYING) mainHand.amount -= 1
                         else offHand.amount -= 1
 
                         p.playEffect(org.bukkit.EntityEffect.valueOf("TOTEM_RESURRECT"))
                         p.health = 20.0
-                        p.addPotionEffect(PotionEffect(PotionEffectType.REGENERATION, 900, 1))
-                        p.addPotionEffect(PotionEffect(PotionEffectType.FIRE_RESISTANCE, 800, 0))
-                        p.addPotionEffect(PotionEffect(PotionEffectType.ABSORPTION, 100, 1))
-
-                        // Lo disparamos hacia arriba para que caiga de nuevo en la arena
+                        p.addPotionEffect(org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.REGENERATION, 900, 1))
+                        p.addPotionEffect(org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.FIRE_RESISTANCE, 800, 0))
+                        p.addPotionEffect(org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.ABSORPTION, 100, 1))
                         p.velocity = org.bukkit.util.Vector(0.0, 3.5, 0.0)
-                        p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.5f)
-                        plugin.server.broadcast(plugin.messageManager.parse("<yellow>¡<b>${p.name}</b> usó un Tótem de Inmortalidad para salvarse del vacío!</yellow>"))
+                        p.playSound(p.location, org.bukkit.Sound.ENTITY_ENDER_DRAGON_FLAP, 1.5f, 0.5f)
+                        plugin.server.broadcast(plugin.messageManager.parse(
+                            plugin.languageManager.get("pillars.totem_save").replace("<player>", p.name)
+                        ))
                     } else {
-                        eliminate(p) // Sin tótem, muere
+                        // Kill message void
+                        val rawMsg = plugin.languageManager.get("pillars.kill_unknown").replace("<victim>", p.name)
+                        plugin.server.broadcast(plugin.messageManager.parse(rawMsg))
+                        eliminate(p)
                     }
                 }
             }
@@ -148,7 +148,8 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
 
             itemTimer--
             if (itemTimer > 0) {
-                val actionMsg = plugin.messageManager.parse("<white>Próximo ítem en: <aqua><bold>${itemTimer}</bold>s</aqua></white>")
+                val rawNext = plugin.languageManager.get("pillars.actionbar.next_item")
+                val actionMsg = plugin.messageManager.parse(rawNext.replace("<time>", itemTimer.toString()))
                 players.forEach { it.sendActionBar(actionMsg) }
             } else {
                 itemTimer = 10
@@ -202,8 +203,8 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         players.forEach { p ->
             val randomItems = getRandomItems()
             randomItems.forEach { p.inventory.addItem(it) }
-            p.playSound(p.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1.5f)
-            p.sendMessage(receiveMsg)
+            p.playSound(p.location, org.bukkit.Sound.ENTITY_ITEM_PICKUP, 1f, 1.5f)
+            p.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("pillars.supplies_received").replace("<prefix>", plugin.languageManager.get("prefix"))))
         }
     }
 
@@ -263,7 +264,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
             }
 
             else -> {
-                val bat = ItemStack(Material.STICK).apply {
+                val bat = ItemStack(org.bukkit.Material.STICK).apply {
                     itemMeta = itemMeta?.apply {
                         displayName(plugin.messageManager.parse("<#FF3131><b>Mega Bate Knockback</b></#FF3131>"))
                         addEnchant(Enchantment.KNOCKBACK, 3, true)
@@ -271,15 +272,15 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 }
                 val setGod = listOf(
                     listOf(bat),
-                    listOf(ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 1)),
-                    listOf(ItemStack(Material.NETHERITE_CHESTPLATE)),
-                    listOf(ItemStack(Material.ENDER_PEARL, 8)),
-                    listOf(ItemStack(Material.TOTEM_OF_UNDYING)),
-                    listOf(ItemStack(Material.WIND_CHARGE, 16)),
-                    listOf(ItemStack(Material.MACE))
+                    listOf(ItemStack(org.bukkit.Material.ENCHANTED_GOLDEN_APPLE, 1)),
+                    listOf(ItemStack(org.bukkit.Material.NETHERITE_CHESTPLATE)),
+                    listOf(ItemStack(org.bukkit.Material.ENDER_PEARL, 8)),
+                    listOf(ItemStack(org.bukkit.Material.TOTEM_OF_UNDYING)),
+                    listOf(ItemStack(org.bukkit.Material.WIND_CHARGE, 16)),
+                    listOf(ItemStack(org.bukkit.Material.MACE))
                 ).random()
                 items.addAll(setGod)
-                plugin.server.broadcast(plugin.messageManager.parse("<gold>¡Alguien ha recibido un objeto <b>LEGENDARIO</b>!</gold>"))
+                plugin.server.broadcast(plugin.messageManager.parse(plugin.languageManager.get("pillars.legendary_item")))
             }
         }
         return items

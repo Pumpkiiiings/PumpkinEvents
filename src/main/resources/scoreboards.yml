@@ -1,0 +1,222 @@
+# ==========================================
+# SCOREBOARDS Y BOSSBARS - PumpkinEvents
+# ==========================================
+# Todos los textos del sidebar y bossbar son editables aquí.
+# Soporta MiniMessage: <color>, <bold>, <gradient>, etc.
+# Placeholders disponibles: %players%, %mode%, %alive%, y placeholders específicos de cada juego.
+
+scoreboard:
+  title: "<#FFD700><b>⚡ EVENTOS ⚡</b></#FFD700>"
+
+  # --- LOBBY (sin juego activo) ---
+  waiting:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>👤</#39FF14> <white>Jugadores:</white> <#00FFFF>%players%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Estado:</white> <#FFCC00>Esperando...</#FFCC00>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- DEFAULT (cualquier juego sin scoreboard específico) ---
+  ingame_default:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>%mode%</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SUMO ---
+  ingame_sumo:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>Sumo 1v1</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>🗡 %luchador1%</#FF3131>"
+    - " <dark_gray>|</dark_gray>      <#FFCC00>vs</#FFCC00> "
+    - " <dark_gray>|</dark_gray> <#00FFFF>🗡 %luchador2%</#00FFFF>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- PILLARS OF FORTUNE ---
+  ingame_pillars:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>Pillars</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>🗺</#00FFFF> <white>Mapa:</white> <#FFCC00>%mapa%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#BF00FF>🏹</#BF00FF> <white>Sig. Ítem:</white> <#39FF14>%item_timer%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SUELO ES LAVA ---
+  ingame_suelolava:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF4500>🌋</#FF4500> <white>Evento:</white> <#FFCC00>Suelo es Lava</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF4500>🔥</#FF4500> <white>Altura Y:</white> <#00FFFF>%lava_y%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- BLOCK PARTY ---
+  ingame_blockparty:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF1493>🎨</#FF1493> <white>Evento:</white> <#39FF14>Block Party</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>🌈</#00FFFF> <white>Color:</white> %color%"
+    - " <dark_gray>|</dark_gray> <#FFCC00>⌛</#FFCC00> <white>Tiempo:</white> <#39FF14>%time%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SIMÓN DICE ---
+  ingame_simondice:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>📢</#39FF14> <white>Simón:</white> <#00FFFF>Dice...</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>⚡</#FFD700> <white>Orden:</white> <#FFCC00>%orden%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- LUZ ROJA LUZ VERDE ---
+  ingame_luzroja:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>🛑</#FF3131> <white>Evento:</white> <#39FF14>Luz Roja</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>❓</#FFD700> <white>Estado:</white> %estado%"
+    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Meta:</white> <#FFCC00>%meta%</#FFCC00>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SILLAS MUSICALES ---
+  ingame_sillas:
+    - ""
+    - " <dark_gray>|</dark_gray> <#BF00FF>🪑</#BF00FF> <white>Evento:</white> <#39FF14>Sillas</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#BF00FF>🎵</#BF00FF> <white>Estado:</white> %estado%"
+    - " <dark_gray>|</dark_gray> <#FFCC00>🪑</#FFCC00> <white>Sillas:</white> <#39FF14>%sillas%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- CRISTALES ---
+  ingame_cristales:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>🪟</#00FFFF> <white>Evento:</white> <#FFCC00>Cristales</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>✔</#39FF14> <white>Salvados:</white> <#00FFFF>%salvados%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- JALAR CUERDA ---
+  ingame_jalarcuerda:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF9900>⛓</#FF9900> <white>Evento:</white> <#FFCC00>Jalar Cuerda</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>Pts Rojo:</#FF3131> <white>%pts_rojo%</white>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>Pts Azul:</#00FFFF> <white>%pts_azul%</white>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- ROBA LA CORONA ---
+  ingame_corona:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FFD700>👑</#FFD700> <white>Rey:</white> <yellow>%holder%</yellow>"
+    - " <dark_gray>|</dark_gray> <#39FF14>⭐</#39FF14> <white>Puntos:</white> <white>%puntos%</white>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SKYWARS SOLOS ---
+  ingame_skywars_solos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>☁</#39FF14> <white>Modo:</white> <#FFCC00>Solos</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- SKYWARS DUOS ---
+  ingame_skywars_duos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>☁</#00FFFF> <white>Modo:</white> <#FFCC00>Dúos</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- ICE BOAT RACING ---
+  ingame_iceboat:
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>🚤</#00FFFF> <white>Evento:</white> <#FFCC00>Ice Boat</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Vueltas:</white> <#00FFFF>%vueltas_totales%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- MINI WALLS ---
+  ingame_miniwalls:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500>🧱</#FF5500> <white>Evento:</white> <#FFD700>Mini Walls</#FFD700>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Rojo:</white> %w_red%"
+    - " <dark_gray>|</dark_gray> <#00FFFF>💙</#00FFFF> <white>Azul:</white> %w_blue%"
+    - " <dark_gray>|</dark_gray> <#FFD700>💛</#FFD700> <white>Amarillo:</white> %w_yellow%"
+    - " <dark_gray>|</dark_gray> <#39FF14>💚</#39FF14> <white>Verde:</white> %w_green%"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>%phase%:</white> <#39FF14>%time%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- HIDE AND SEEK ---
+  ingame_hideandseek:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF8C00>👀</#FF8C00> <white>Evento:</white> <#FF8C00>Hide & Seek</#FF8C00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Escondites:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF0000>🕵</#FF0000> <white>Cazador:</white> <#FF0000>%cazador%</#FF0000>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+# ==========================================
+# BOSSBARS
+# ==========================================
+bossbar:
+  waiting: "<bold>EVENTO:</bold> <gray>Ninguno</gray>"
+  ingame_default: "<bold>EVENTO:</bold> %mode%"
+  ingame_sumo: "⚔ <red>%luchador1%</red> <white>vs</white> <aqua>%luchador2%</aqua> ⚔"
+  ingame_pillars: "<bold>PILLARS:</bold> <aqua>Próximo ítem en %item_timer%s</aqua>"
+  ingame_suelolava: "<bold>LAVA:</bold> <#FF4500>Altura: %lava_y%</#FF4500> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_blockparty: "<bold>BUSCA EL COLOR:</bold> %color% <gray>|</gray> <white>⏳ %time%s</white>"
+  ingame_simondice: "⚡ <yellow>Simón Dice</yellow> <gray>|</gray> <white>%orden% <gray>|</gray> ⏳ %time%s</white>"
+  ingame_luzroja: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Llegaron: %meta%</white>"
+  ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
+  ingame_cristales: "<bold>CRISTALES:</bold> <aqua>Salvados: %salvados%</aqua> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_jalarcuerda: "<bold>CUERDA:</bold> <#FF9900>¡Atina al verde para ganar puntos!</#FF9900> <gray>|</gray> <white>⏳ %time_left%s</white>"
+  ingame_skywars_solos: "<bold>SKYWARS SOLOS:</bold> <#39FF14>%proximo_evento% en %time%</#39FF14>"
+  ingame_skywars_duos: "<bold>SKYWARS DUOS:</bold> <#00FFFF>%proximo_evento% en %time%</#00FFFF>"
+  ingame_iceboat: "<bold>CARRERA:</bold> <#00FFFF>¡Corre a la meta!</#00FFFF> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_miniwalls: "<bold>MINI WALLS:</bold> <#FF5500>Fase: %phase%</#FF5500> <gray>|</gray> <white>⏳ %time%</white>"
+  ingame_hideandseek: "<bold>HIDE & SEEK:</bold> <#FF8C00>¡Que no te vean!</#FF8C00> <gray>|</gray> <white>⏳ %time_left%</white>"

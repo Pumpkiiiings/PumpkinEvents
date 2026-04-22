@@ -28,7 +28,7 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD700>Roba la Corona</#FFD700>"), Listener {
+class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD700>Roba la Corona</#FFD700>") {
 
     var currentHolder: Player? = null
     private val scores = mutableMapOf<UUID, Int>()
@@ -38,10 +38,6 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
     private var teamPlebeyos: Team? = null
 
     private val boosterManager = BoosterManager(plugin, this)
-
-    init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
-    }
 
     override fun getExtraPlaceholders(): Map<String, String> {
         val min = gameTimer / 60
@@ -156,7 +152,6 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
         }, 1, 1, TimeUnit.SECONDS)
     }
 
-    @EventHandler
     fun alGolpear(e: EntityDamageByEntityEvent) {
         if (!isRunning) return
         val atacante = e.damager as? Player ?: return
@@ -170,7 +165,6 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
         }
     }
 
-    @EventHandler
     fun alMoverInventario(e: InventoryClickEvent) {
         if (!isRunning) return
 
@@ -183,7 +177,6 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
             e.isCancelled = true
         }
     }
-    @EventHandler
     fun alTirarCorona(e: PlayerDropItemEvent) {
         if (isRunning && e.itemDrop.itemStack.type == Material.GOLDEN_HELMET) {
             e.isCancelled = true

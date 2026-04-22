@@ -33,7 +33,7 @@ import kotlin.math.atan2
 
 enum class EventoRuleta { NORMAL, RECARGA_MANUAL, ESCOPETA }
 
-class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF3131>Ruleta Rusa</#FF3131>"), Listener {
+class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF3131>Ruleta Rusa</#FF3131>") {
 
     var isPreparation = true
     var forzarAsientos = true
@@ -53,10 +53,6 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     private var balaCargadaManualmente = false
 
     private var eventoActual = EventoRuleta.NORMAL
-
-    init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
-    }
 
     override fun getExtraPlaceholders(): Map<String, String> {
         return mapOf(
@@ -301,43 +297,16 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         }, 0, 1, TimeUnit.SECONDS)
     }
 
-    @EventHandler
-    fun onInteract(e: PlayerInteractEvent) {
-        val p = e.player
-        if (!isRunning || plugin.eventManager.currentGame != this || !esperandoDecision) return
-        if (p != ultimaVictima) return
-
-        if (e.action == Action.LEFT_CLICK_AIR || e.action == Action.LEFT_CLICK_BLOCK) {
-            if (eventoActual == EventoRuleta.RECARGA_MANUAL && !balaCargadaManualmente) {
-                balaCargadaManualmente = true
-                p.inventory.remove(Material.GUNPOWDER)
-                p.playSound(p.location, Sound.BLOCK_IRON_DOOR_OPEN, 1f, 2f)
-                p.sendMessage(plugin.messageManager.parse("<green>Has cargado la bala... ¡Ahora dispara (Click Derecho)!</green>"))
-                val arma = p.inventory.getItem(4)
-                val meta = arma?.itemMeta
-                meta?.displayName(plugin.messageManager.parse("<#FF3131><b>Revólver Cargado</b></#FF3131>"))
-                arma?.itemMeta = meta
-            }
-        }
-
-        if (e.action == Action.RIGHT_CLICK_AIR || e.action == Action.RIGHT_CLICK_BLOCK) {
-            if (e.item?.type == Material.IRON_HORSE_ARMOR) {
-                e.isCancelled = true
-                procesarEleccion(p, true)
-            }
-        }
-    }
-
-    @EventHandler
-    fun onDrop(e: PlayerDropItemEvent) {
-        val p = e.player
-        if (!isRunning || plugin.eventManager.currentGame != this) return
-
-        if (p == ultimaVictima && esperandoDecision) {
-            e.isCancelled = true
-            if (e.itemDrop.itemStack.type == Material.IRON_HORSE_ARMOR) {
-                procesarEleccion(p, false)
-            }
+    /** Llamado desde RuletaRusaListener cuando el jugador hace clic izquierdo con la bala */
+    fun recargarManual(jugador: Player) {
+        if (!esperandoDecision || eventoActual != EventoRuleta.RECARGA_MANUAL || balaCargadaManualmente) return
+        balaCargadaManualmente = true
+        jugador.inventory.remove(org.bukkit.Material.GUNPOWDER)
+        jugador.playSound(jugador.location, org.bukkit.Sound.BLOCK_IRON_DOOR_OPEN, 1f, 2f)
+        jugador.sendMessage(plugin.messageManager.parse("<green>Has cargado la bala... ¡Ahora dispara (Click Derecho)!</green>"))
+        val arma = jugador.inventory.getItem(4)
+        arma?.itemMeta = arma?.itemMeta?.apply {
+            displayName(plugin.messageManager.parse("<#FF3131><b>Revólver Cargado</b></#FF3131>"))
         }
     }
 

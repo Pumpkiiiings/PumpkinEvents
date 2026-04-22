@@ -1,0 +1,100 @@
+# ==========================================
+# MENÚ DE VOTACIÓN SKYWARS — voteskywars.yml
+# ==========================================
+# Este menú es la GUI de votación de cofres/eventos para Skywars.
+# Es completamente editable: título, filas, items, decoraciones, etc.
+
+# Título del inventario (soporta MiniMessage)
+title: "<gold><b>⚡ Votación Skywars</b></gold>"
+
+# Número de filas (1-6)
+rows: 3
+
+# Relleno decorativo de fondo (slots vacíos)
+fill:
+  enabled: true
+  material: GRAY_STAINED_GLASS_PANE
+  name: " "
+
+# ==========================================
+# ITEMS DEL MENÚ
+# ==========================================
+# Cada item tiene:
+#   slot: número de slot (0-53)
+#   material: tipo de bloque/item de Minecraft
+#   name: nombre con MiniMessage
+#   lore: lista de líneas del lore
+#   action: acción a ejecutar al hacer clic
+#     - "vote:<opción>" para registrar voto
+#     - "close" para cerrar el menú
+#     - "command:<cmd>" para ejecutar un comando
+#   enchanted: true/false (brillo)
+
+items:
+  cofres_normales:
+    slot: 11
+    material: CHEST
+    name: "<white><b>Cofres Normales</b></white>"
+    lore:
+      - ""
+      - "<gray>Cofres con loot básico y balanceado.</gray>"
+      - "<gray>Ideal para partidas largas.</gray>"
+      - ""
+      - "<yellow>► Clic para votar</yellow>"
+    action: "vote:normal"
+    enchanted: false
+
+  cofres_op:
+    slot: 13
+    material: ENDER_CHEST
+    name: "<#FF5500><b>Cofres OP</b></#FF5500>"
+    lore:
+      - ""
+      - "<gray>Cofres con loot premium y poderoso.</gray>"
+      - "<gray>Partidas rápidas y violentas.</gray>"
+      - ""
+      - "<yellow>► Clic para votar</yellow>"
+    action: "vote:op"
+    enchanted: true
+
+  cofres_dobles:
+    slot: 15
+    material: BARREL
+    name: "<aqua><b>Cofres Dobles</b></aqua>"
+    lore:
+      - ""
+      - "<gray>El doble de loot por cofre.</gray>"
+      - "<gray>Para los que aman el caos.</gray>"
+      - ""
+      - "<yellow>► Clic para votar</yellow>"
+    action: "vote:double"
+    enchanted: false
+
+  # Separador decorativo
+  separator_1:
+    slot: 0
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    lore: []
+    action: "none"
+
+  separator_2:
+    slot: 8
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    lore: []
+    action: "none"
+
+  separator_3:
+    slot: 18
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    lore: []
+    action: "none"
+
+  separator_4:
+    slot: 26
+    material: BLACK_STAINED_GLASS_PANE
+    name: " "
+    lore: []
+    action: "none"

@@ -74,16 +74,45 @@ class SkywarsListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
-    // --- REGISTRO DE KILLS ---
+    // --- REGISTRO DE KILLS Y MENSAJES DE MUERTE ---
     @EventHandler
     fun onDeath(e: PlayerDeathEvent) {
         val victim = e.entity
         val killer = victim.killer
         val game = plugin.eventManager.currentGame as? Skywars ?: return
 
-        if (game.isRunning && game.players.contains(victim) && killer != null && game.players.contains(killer)) {
-            val currentKills = game.kills[killer] ?: 0
-            game.kills[killer] = currentKills + 1
+        if (game.isRunning && game.players.contains(victim)) {
+            // Cancelar mensaje de muerte predeterminado
+            e.deathMessage(null)
+            
+            if (killer != null && game.players.contains(killer)) {
+                val currentKills = game.kills[killer] ?: 0
+                game.kills[killer] = currentKills + 1
+                
+                // Mensaje de muerte personalizado
+                val isVoid = victim.location.y <= (game.gameWorld?.minHeight ?: -64) + 10
+                if (victim.lastDamageCause?.cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.VOID || isVoid) {
+                    plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>☠ <yellow>${killer.name}</yellow> <gray>mandó al eterno vacío a</gray> <red>${victim.name}</red></#FF3131>"))
+                } else {
+                    plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>⚔ <yellow>${killer.name}</yellow> <gray>mató a</gray> <red>${victim.name}</red></#FF3131>"))
+                }
+            } else {
+                plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>☠ <red>${victim.name}</red> <gray>murió.</gray></#FF3131>"))
+            }
+        }
+    }
+
+    @EventHandler
+    fun onDamage(e: org.bukkit.event.entity.EntityDamageEvent) {
+        val p = e.entity as? Player ?: return
+        val game = plugin.eventManager.currentGame as? Skywars ?: return
+        if (!game.isRunning || !game.players.contains(p)) return
+
+        // Inmunidad al daño de caída durante los primeros 5 segundos (timer de 600 a 595)
+        if (e.cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.FALL) {
+            if (game.phase == SwPhase.PLAYING && game.mainTimer >= 595) {
+                e.isCancelled = true
+            }
         }
     }
 

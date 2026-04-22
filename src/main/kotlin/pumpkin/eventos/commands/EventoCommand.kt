@@ -9,11 +9,13 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.title.Title
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
-import pumpkin.eventos.arena.ArenaSetupSession
 import pumpkin.eventos.games.simondice.SimonDice
 import pumpkin.eventos.games.simondice.SimonMode
 import java.time.Duration
+import java.util.concurrent.TimeUnit
 
 object EventoCommand {
 
@@ -48,13 +50,10 @@ object EventoCommand {
 
         // --- RELOAD ---
         val reload = Commands.literal("reload").executes { ctx ->
-            val sender = ctx.source.sender
-
             plugin.reloadConfig()
             plugin.languageManager.reload()
-
-            val prefix = plugin.languageManager.get("prefix")
-            sender.sendMessage(plugin.messageManager.parse("$prefix<#39FF14>Archivos de configuración recargados correctamente.</#39FF14>"))
+            plugin.menuManager.reload()
+            sendMsg(ctx.source.sender, plugin, "commands.reload.success")
             1
         }
 
@@ -77,117 +76,8 @@ object EventoCommand {
                 1
             })
 
-        val arena = Commands.literal("arena")
-            .then(Commands.literal("create")
-                .then(Commands.argument("name", StringArgumentType.word())
-                    .then(Commands.argument("type", StringArgumentType.word())
-                        .suggests { _, builder ->
-                            // --- LISTA ACTUALIZADA CON TODOS LOS MODOS ---
-                            listOf(
-                                "tnttag", "tntrun", "simondice", "suelolava",
-                                "pillars", "sumo", "blockparty", "spleef",
-                                "tntspleef", "luzroja", "sillas", "ruletarusa",
-                                "cristales", "jalarcuerda", "skywars_solos",
-                                "skywars_duos", "iceboat", "miniwalls", "corona"
-                            ).forEach { builder.suggest(it) }
-                            builder.buildFuture()
-                        }
-                        .executes { ctx ->
-                            val sender = ctx.source.sender as? Player ?: return@executes 0
-                            val name = StringArgumentType.getString(ctx, "name")
-                            val type = StringArgumentType.getString(ctx, "type")
-
-                            if (plugin.arenaManager.getArena(name) != null) {
-                                sendMsg(sender, plugin, "commands.arena.already_exists", Placeholder.parsed("map", name))
-                                return@executes 0
-                            }
-
-                            plugin.arenaManager.activeSetups[sender.uniqueId] = ArenaSetupSession(name, type)
-                            val lines = plugin.languageManager.getList("commands.arena.creation_started")
-                            val prefix = plugin.languageManager.get("prefix")
-                            lines.forEach { line ->
-                                sender.sendMessage(plugin.messageManager.parse(line.replace("<prefix>", prefix), Placeholder.parsed("map", name), Placeholder.parsed("type", type)))
-                            }
-                            1
-                        }
-                    )
-                )
-            )
-            .then(Commands.literal("setcenter").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                session.center = sender.location
-                sendMsg(sender, plugin, "commands.arena.center_set", Placeholder.parsed("map", session.name))
-                1
-            })
-            .then(Commands.literal("setgradas").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                session.gradas = sender.location
-                sendMsg(sender, plugin, "commands.arena.gradas_set", Placeholder.parsed("map", session.name))
-                1
-            })
-            .then(Commands.literal("setdueloa").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                session.dueloA = sender.location
-                sendMsg(sender, plugin, "commands.arena.dueloa_set", Placeholder.parsed("map", session.name))
-                1
-            })
-            .then(Commands.literal("setduelob").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                session.dueloB = sender.location
-                sendMsg(sender, plugin, "commands.arena.duelob_set", Placeholder.parsed("map", session.name))
-                1
-            })
-            .then(Commands.literal("addspawn").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                session.spawns.add(sender.location)
-                sendMsg(sender, plugin, "commands.arena.spawn_added", Placeholder.parsed("map", session.name), Placeholder.parsed("count", session.spawns.size.toString()))
-                1
-            })
-            .then(Commands.literal("addchair").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-
-                val block = sender.getTargetBlockExact(5)
-                if (block == null || block.type.isAir) {
-                    sender.sendMessage(plugin.messageManager.parse("<red>Debes mirar directamente a un bloque (Slab/Escalera) para añadirlo como silla.</red>"))
-                    return@executes 0
-                }
-
-                session.chairs.add(block.location)
-                val prefix = plugin.languageManager.get("prefix")
-                sender.sendMessage(plugin.messageManager.parse("$prefix<green>🪑 <white>Silla #${session.chairs.size} añadida a <yellow>${session.name}</yellow>"))
-                1
-            })
-            .then(Commands.literal("save").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { sendMsg(sender, plugin, "commands.arena.no_creation_pending"); return@executes 0 }
-                if (session.spawns.isEmpty()) { sendMsg(sender, plugin, "commands.arena.no_spawns"); return@executes 0 }
-                plugin.arenaManager.saveSetupSession(session)
-                plugin.arenaManager.activeSetups.remove(sender.uniqueId)
-                sendMsg(sender, plugin, "commands.arena.saved", Placeholder.parsed("map", session.name))
-                1
-            })
-            .then(Commands.literal("cancel").executes { ctx ->
-                val sender = ctx.source.sender as? Player ?: return@executes 0
-                if (plugin.arenaManager.activeSetups.remove(sender.uniqueId) != null) {
-                    sendMsg(sender, plugin, "commands.arena.cancelled")
-                } else {
-                    sendMsg(sender, plugin, "commands.arena.not_creating")
-                }
-                1
-            })
+        // --- ARENA → delegado a ArenaCommands ---
+        val arena = ArenaCommands.build(plugin)
 
         val iniciar = Commands.literal("iniciar")
             .then(Commands.argument("game", StringArgumentType.word())
@@ -196,7 +86,10 @@ object EventoCommand {
                     .suggests { _, builder -> listOf("automatico", "manual").forEach { builder.suggest(it) }; builder.buildFuture() }
                     .then(Commands.argument("streamer", ArgumentTypes.player())
                         .executes { ctx ->
-                            procesarInicio(ctx.source.sender, plugin, StringArgumentType.getString(ctx, "game"), StringArgumentType.getString(ctx, "modo"), ctx.getArgument("streamer", PlayerSelectorArgumentResolver::class.java).resolve(ctx.source).firstOrNull())
+                            procesarInicio(ctx.source.sender, plugin,
+                                StringArgumentType.getString(ctx, "game"),
+                                StringArgumentType.getString(ctx, "modo"),
+                                ctx.getArgument("streamer", PlayerSelectorArgumentResolver::class.java).resolve(ctx.source).firstOrNull())
                             1
                         })
                     .executes { ctx -> procesarInicio(ctx.source.sender, plugin, StringArgumentType.getString(ctx, "game"), StringArgumentType.getString(ctx, "modo"), null); 1 }
@@ -233,38 +126,83 @@ object EventoCommand {
 
         val ruleta = Commands.literal("ruleta").executes { ctx ->
             val sender = ctx.source.sender as? Player ?: return@executes 0
-
             if (plugin.eventManager.currentGame != null || plugin.eventManager.isVoting) {
-                sender.sendMessage(plugin.messageManager.parse("<red>¡Ya hay un evento en curso o una votación activa!</red>"))
+                sendMsg(sender, plugin, "commands.ruleta.already_active")
                 return@executes 0
             }
-
             iniciarRuleta(plugin, sender)
             1
         }
 
-        val commandNode = root.then(ayuda).then(reload).then(votacion).then(setup).then(arena).then(iniciar).then(detener).then(revivir).then(ruleta).build()
+        // --- /pvote <efecto> ---
+        val pvote = Commands.literal("pvote")
+            .then(Commands.argument("efecto", StringArgumentType.word())
+                .suggests { _, builder ->
+                    listOf("speed", "jump", "regen", "strength", "haste").forEach { builder.suggest(it) }
+                    builder.buildFuture()
+                }
+                .executes { ctx ->
+                    val sender = ctx.source.sender as? Player ?: return@executes 0
+                    val game = plugin.eventManager.currentGame
+                    if (game == null) { sendMsg(sender, plugin, "potion_vote.no_game"); return@executes 0 }
+                    val efecto = StringArgumentType.getString(ctx, "efecto")
+                    plugin.potionVoteManager.registerVote(sender, efecto)
+                    1
+                }
+            )
+
+        // --- /pvpvote si|no ---
+        val pvpvote = Commands.literal("pvpvote")
+            .then(Commands.argument("opcion", StringArgumentType.word())
+                .suggests { _, builder -> listOf("si", "no").forEach { builder.suggest(it) }; builder.buildFuture() }
+                .executes { ctx ->
+                    val sender = ctx.source.sender as? Player ?: return@executes 0
+                    val game = plugin.eventManager.currentGame
+                    if (game == null) { sendMsg(sender, plugin, "pvp_vote.no_game"); return@executes 0 }
+                    val opcion = StringArgumentType.getString(ctx, "opcion")
+                    plugin.pvpVoteManager.registerVote(sender, opcion.equals("si", ignoreCase = true))
+                    1
+                }
+            )
+
+        root.then(ayuda)
+        root.then(reload)
+        root.then(votacion)
+        root.then(setup)
+        root.then(arena)
+        root.then(iniciar)
+        root.then(detener)
+        root.then(revivir)
+        root.then(ruleta)
+        root.then(pvote)
+        root.then(pvpvote)
+
+        val commandNode = root.build()
         commands.register(commandNode, "Core de Eventos Pumpkin", listOf("eventos", "ev"))
+        
+        // Registrar también como comandos principales (root)
+        commands.register(pvote.build(), "Votar por efecto de poción", emptyList())
+        commands.register(pvpvote.build(), "Votar por PvP", emptyList())
+        commands.register(arena, "Comandos de Arena", emptyList())
     }
 
     private fun procesarInicio(sender: CommandSender, plugin: PumpkinEventos, gameId: String, modo: String, streamerTarget: Player?) {
         val game = plugin.eventManager.games[gameId]
-        if (game == null) {
-            sendMsg(sender, plugin, "commands.start.not_found")
-            return
-        }
+        if (game == null) { sendMsg(sender, plugin, "commands.start.not_found"); return }
         if (game is SimonDice) {
             game.mode = if (modo.lowercase() == "manual") SimonMode.MANUAL else SimonMode.AUTOMATICO
             if (game.mode == SimonMode.MANUAL) game.streamer = streamerTarget ?: (sender as? Player)
         }
         plugin.eventManager.startCountdown(game)
-        sendMsg(sender, plugin, "commands.start.starting", Placeholder.parsed("game", game.displayName), Placeholder.parsed("mode", modo))
+        sendMsg(sender, plugin, "commands.start.starting",
+            Placeholder.parsed("game", game.displayName),
+            Placeholder.parsed("mode", modo))
     }
 
     private fun iniciarRuleta(plugin: PumpkinEventos, sender: CommandSender) {
         val games = plugin.eventManager.games.values.toList()
         if (games.isEmpty()) {
-            sender.sendMessage(plugin.messageManager.parse("<red>No hay juegos registrados en el core.</red>"))
+            sender.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("commands.ruleta.no_games")))
             return
         }
 
@@ -274,19 +212,16 @@ object EventoCommand {
         fun spin(delay: Long) {
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 val game = games.random()
-
                 val titleStr = "<yellow>▶</yellow> <aqua><bold>${game.displayName}</bold></aqua> <yellow>◀</yellow>"
                 val title = Title.title(
                     plugin.messageManager.parse(titleStr),
                     net.kyori.adventure.text.Component.empty(),
                     Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)
                 )
-
                 plugin.server.onlinePlayers.forEach { p ->
                     p.showTitle(title)
                     p.playSound(p.location, org.bukkit.Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f)
                 }
-
                 spins++
                 if (spins < maxSpins) {
                     val nextDelay = when {
@@ -300,22 +235,17 @@ object EventoCommand {
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                         val winnerTitle = Title.title(
                             plugin.messageManager.parse("<green>▶</green> <gold><bold>${game.displayName}</bold></gold> <green>◀</green>"),
-                            plugin.messageManager.parse("<white>¡EL SIGUIENTE JUEGO HA SIDO ELEGIDO!</white>"),
+                            plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_subtitle").replace("<game>", game.displayName)),
                             Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(4), Duration.ofSeconds(1))
                         )
-
                         plugin.server.onlinePlayers.forEach { p ->
                             p.showTitle(winnerTitle)
                             p.playSound(p.location, org.bukkit.Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
                         }
-
                         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                            if (game is SimonDice) {
-                                game.mode = SimonMode.AUTOMATICO
-                            }
+                            if (game is SimonDice) game.mode = SimonMode.AUTOMATICO
                             plugin.eventManager.startCountdown(game)
                         }, 60L)
-
                     }, 10L)
                 }
             }, delay)

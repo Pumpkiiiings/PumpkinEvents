@@ -14,6 +14,8 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
     var gameWorld: World? = null
     val players = mutableListOf<Player>()
     val spectators = mutableListOf<Player>()
+    /** Resultado de la votación de PvP al inicio del juego */
+    var pvpEnabled = true
 
     abstract fun onStart()
     abstract fun onStop()
@@ -34,23 +36,33 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
         val lines = plugin.languageManager.getList("tutorials.$id")
         if (lines.isNotEmpty()) {
             players.forEach { p ->
-                lines.forEach { line ->
-                    p.sendMessage(plugin.messageManager.parse(line))
-                }
+                lines.forEach { line -> p.sendMessage(plugin.messageManager.parse(line)) }
                 p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 0.5f, 0.5f)
             }
         }
 
-        // --- SISTEMA DE PUNTOS: PREMIO POR SOBREVIVIR 2 MINUTOS (2400 Ticks) ---
+        // Puntos por sobrevivir 2 minutos
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-            if (isRunning) {
-                players.forEach { p ->
-                    plugin.puntajeManager.addPoints(p, 5, "Sobrevivir 2 minutos")
-                }
-            }
+            if (isRunning) players.forEach { p -> plugin.puntajeManager.addPoints(p, 5, "Sobrevivir 2 minutos") }
         }, 2400L)
 
-        onStart()
+        // Votación de PvP al inicio si el modo lo requiere
+        if (plugin.pvpVoteManager.shouldLaunchVote(id)) {
+            plugin.pvpVoteManager.startVoting(this) { pvpEnabled ->
+                this.pvpEnabled = pvpEnabled
+                onStart()
+            }
+        } else {
+            onStart()
+        }
+
+        // Timer de votación de pociones cada 2 minutos
+        if (plugin.config.getBoolean("potion_vote.enabled", true)) {
+            val intervalSec = plugin.config.getInt("potion_vote.interval_seconds", 120).toLong()
+            plugin.server.asyncScheduler.runAtFixedRate(plugin, { _ ->
+                if (isRunning) plugin.potionVoteManager.startVoting()
+            }, intervalSec, intervalSec, java.util.concurrent.TimeUnit.SECONDS)
+        }
     }
 
     fun stop() {

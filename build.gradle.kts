@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "liric.mistaken"
-version = "3.0.6"
+version = "3.2.2"
 
 java {
     toolchain {

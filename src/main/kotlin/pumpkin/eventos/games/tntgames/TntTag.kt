@@ -20,11 +20,23 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
     val itPlayers = mutableSetOf<Player>()
     var timer = 30
     var isPreparation = true
+    private var glowActivated = false
 
     override fun onStart() {
         timer = 10
         isPreparation = true
         itPlayers.clear()
+        glowActivated = false
+
+        // Dar items especiales a todos
+        val listener = plugin.tntTagListener
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            players.forEach { p ->
+                p.gameMode = org.bukkit.GameMode.ADVENTURE
+                p.inventory.clear()
+                listener.giveSpecialItems(p)
+            }
+        }, 10L)
 
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
@@ -102,7 +114,33 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
 
         attacker.playSound(attacker.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
         victim.playSound(victim.location, Sound.ENTITY_CREEPER_PRIMED, 1f, 1.2f)
+
+        // Broadcast del pase de TNT
+        val rawPass = plugin.languageManager.get("tnttag.tnt_passed")
+        plugin.server.broadcast(plugin.messageManager.parse(
+            rawPass,
+            Placeholder.parsed("attacker", attacker.name),
+            Placeholder.parsed("victim", victim.name)
+        ))
+
+        // Glow si hay pocos jugadores
+        checkGlowThreshold()
     }
+
+    private fun checkGlowThreshold() {
+        val threshold = plugin.config.getInt("tnttag.glow_threshold", 6)
+        if (!glowActivated && players.size <= threshold) {
+            glowActivated = true
+            val rawGlow = plugin.languageManager.get("tnttag.glow_activated")
+            plugin.server.broadcast(plugin.messageManager.parse(
+                rawGlow, Placeholder.parsed("count", threshold.toString())
+            ))
+            players.forEach { p ->
+                p.isGlowing = true
+            }
+        }
+    }
+
 
     private fun selectNewIts() {
         itPlayers.clear()
@@ -128,14 +166,13 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
     }
 
     override fun onStop() {
-        // 1. Limpiar Scoreboard y BossBar notificando al Core
         plugin.eventManager.currentGame = null
 
-        // 2. Teletransportar a todos al Lobby
         val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
         val todos = players + spectators
 
         todos.forEach { p ->
+            p.isGlowing = false
             p.inventory.clear()
             p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
             p.gameMode = org.bukkit.GameMode.ADVENTURE

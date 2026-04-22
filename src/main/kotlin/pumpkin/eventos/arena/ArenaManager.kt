@@ -176,4 +176,56 @@ class ArenaManager(private val plugin: PumpkinEventos) {
     fun getArena(name: String): Arena? = arenas[name]
     fun getAvailableArenas(): List<Arena> = arenas.values.toList()
     fun shutdown() = ioScope.cancel()
+
+    /**
+     * Duplica una arena existente con nuevo nombre y tipo.
+     * Copia: center, spawns, gradas, dueloA, dueloB, chairs.
+     */
+    fun duplicateArena(sourceName: String, newName: String, newType: String): Boolean {
+        val source = arenas[sourceName] ?: return false
+
+        val newArena = Arena(newName, newType)
+        newArena.slimeWorldName = newName // El mundo nuevo llevará el nuevo nombre
+        newArena.centerLocation = source.centerLocation?.clone()
+        newArena.gradas = source.gradas?.clone()
+        newArena.dueloA = source.dueloA?.clone()
+        newArena.dueloB = source.dueloB?.clone()
+        source.spawnPoints.forEach { newArena.addSpawnPoint(it.clone()) }
+        source.chairs.forEach { newArena.addChair(it.clone()) }
+
+        arenas[newName] = newArena
+
+        synchronized(fileLock) {
+            config.set("arenas.$newName.type", newType)
+            config.set("arenas.$newName.slimeWorld", newName)
+        }
+
+        if (newArena.centerLocation != null) saveSafeLocation("arenas.$newName.centerLocation", newArena.centerLocation!!)
+        if (newArena.gradas != null) saveSafeLocation("arenas.$newName.gradas", newArena.gradas!!)
+        if (newArena.dueloA != null) saveSafeLocation("arenas.$newName.dueloA", newArena.dueloA!!)
+        if (newArena.dueloB != null) saveSafeLocation("arenas.$newName.dueloB", newArena.dueloB!!)
+        newArena.spawnPoints.forEach { saveSafeLocation("arenas.$newName.spawnPoints.${java.util.UUID.randomUUID()}", it) }
+        newArena.chairs.forEach { saveSafeLocation("arenas.$newName.chairs.${java.util.UUID.randomUUID()}", it) }
+
+        saveAsync()
+        return true
+    }
+
+    /**
+     * Carga los datos de una arena existente en una ArenaSetupSession para edición.
+     * El admin puede modificar los valores y volver a guardar con /evento arena save.
+     */
+    fun loadSetupFromArena(name: String): ArenaSetupSession? {
+        val arena = arenas[name] ?: return null
+        val session = ArenaSetupSession(name, arena.type)
+        session.center = arena.centerLocation?.clone()
+        session.gradas = arena.gradas?.clone()
+        session.dueloA = arena.dueloA?.clone()
+        session.dueloB = arena.dueloB?.clone()
+        arena.spawnPoints.forEach { session.spawns.add(it.clone()) }
+        arena.chairs.forEach { session.chairs.add(it.clone()) }
+        // Eliminar la arena vieja para que save() la sobreescriba limpiamente
+        arenas.remove(name)
+        return session
+    }
 }

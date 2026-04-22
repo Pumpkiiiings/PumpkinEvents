@@ -9,27 +9,46 @@ import pumpkin.eventos.commands.GamemodeCommand
 import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
 import pumpkin.eventos.commands.SpectateCommand
+import pumpkin.eventos.games.corona.RobaLaCorona
+import pumpkin.eventos.games.corona.RobaLaCoronaListener
 import pumpkin.eventos.games.cristales.Cristales
+import pumpkin.eventos.games.cristales.CristalesListener
 import pumpkin.eventos.games.jalarcuerda.JalarCuerda
+import pumpkin.eventos.games.jalarcuerda.JalarCuerdaListener
 import pumpkin.eventos.games.lava.SueloLava
+import pumpkin.eventos.games.lava.SueloLavaListener
 import pumpkin.eventos.games.luzroja.LuzRojaLuzVerde
+import pumpkin.eventos.games.luzroja.LuzRojaListener
 import pumpkin.eventos.games.pillars.PillarsOfFortune
+import pumpkin.eventos.games.pillars.PillarsListener
 import pumpkin.eventos.games.ruletarusa.RuletaRusa
+import pumpkin.eventos.games.ruletarusa.RuletaRusaListener
 import pumpkin.eventos.games.sillas.SillasMusicales
+import pumpkin.eventos.games.sillas.SillasMusicalesListener
+import pumpkin.eventos.games.sillas.SillasListener
 import pumpkin.eventos.games.simondice.SimonDice
+import pumpkin.eventos.games.simondice.SimonDiceGameListener
 import pumpkin.eventos.games.simondice.SimonListener
 import pumpkin.eventos.games.simondice.minigames.Congelados
 import pumpkin.eventos.games.simondice.minigames.DueloFinal
 import pumpkin.eventos.games.simondice.minigames.PapaCaliente
 import pumpkin.eventos.games.spleef.Spleef
+import pumpkin.eventos.games.spleef.SpleefListener
 import pumpkin.eventos.games.sumo.Sumo
+import pumpkin.eventos.games.sumo.SumoListener
 import pumpkin.eventos.games.tntgames.TntRun
+import pumpkin.eventos.games.tntgames.TntRunListener
 import pumpkin.eventos.games.tntgames.TntSpleef
+import pumpkin.eventos.games.tntgames.TntSpleefListener
 import pumpkin.eventos.games.tntgames.TntTag
+import pumpkin.eventos.games.tntgames.TntTagListener
 import pumpkin.eventos.games.skywars.Skywars
 import pumpkin.eventos.games.skywars.SkywarsListener
 import pumpkin.eventos.games.iceboat.IceBoatRacing
+import pumpkin.eventos.games.hideandseek.HideAndSeek
+import pumpkin.eventos.games.hideandseek.HideAndSeekListener
 import pumpkin.eventos.games.iceboat.IceBoatListener
+
 import pumpkin.eventos.games.miniwalls.MiniWalls
 import pumpkin.eventos.games.miniwalls.MiniWallsListener
 import pumpkin.eventos.hud.BoardManager
@@ -37,17 +56,22 @@ import pumpkin.eventos.hud.ChatFormatManager
 import pumpkin.eventos.listeners.ChatListener
 import pumpkin.eventos.listeners.ConnectionListener
 import pumpkin.eventos.listeners.DeathListener
-import pumpkin.eventos.listeners.GameListener
+import pumpkin.eventos.listeners.GlobalDamageListener
 import pumpkin.eventos.listeners.LobbyProtectionListener
 import pumpkin.eventos.listeners.WorldListener
 import pumpkin.eventos.manager.EventManager
 import pumpkin.eventos.manager.MapManager
+import pumpkin.eventos.manager.MenuManager
+import pumpkin.eventos.manager.PotionVoteManager
 import pumpkin.eventos.manager.PuntajeManager
+import pumpkin.eventos.manager.PvpVoteManager
 import pumpkin.eventos.manager.VoteManager
 import pumpkin.eventos.manager.PuntajeHoloManager
 import pumpkin.eventos.utils.LanguageManager
 import pumpkin.eventos.utils.MessageManager
 import pumpkin.eventos.utils.WorldUtils
+import com.github.retrooper.packetevents.PacketEvents
+import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 
 class PumpkinEventos : JavaPlugin() {
 
@@ -61,17 +85,26 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var boardManager: BoardManager
     lateinit var puntajeManager: PuntajeManager
     lateinit var puntajeHoloManager: PuntajeHoloManager
+    lateinit var menuManager: MenuManager
+    lateinit var potionVoteManager: PotionVoteManager
+    lateinit var pvpVoteManager: PvpVoteManager
+    lateinit var tntTagListener: TntTagListener
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
     lateinit var dueloFinalGame: DueloFinal
 
+    override fun onLoad() {
+        PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
+        PacketEvents.getAPI().load()
+    }
+
     override fun onEnable() {
+        PacketEvents.getAPI().init()
         val mm = MiniMessage.miniMessage()
 
-        // --- 1. MENSAJE DE INICIO ÉPICO ---
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.1.0 - CARGANDO ⚡</#CCFF00>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.2.0 - CARGANDO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
@@ -79,6 +112,7 @@ class PumpkinEventos : JavaPlugin() {
             saveDefaultConfig()
             saveResource("chat-format.yml", false)
             saveResource("messages.yml", false)
+            saveResource("scoreboards.yml", false)
         } catch (e: Exception) {}
 
         // --- 3. INICIALIZACIÓN DE MANAGERS ---
@@ -95,6 +129,12 @@ class PumpkinEventos : JavaPlugin() {
 
         puntajeManager = PuntajeManager(this)
         puntajeHoloManager = PuntajeHoloManager(this)
+
+        menuManager = MenuManager(this)
+        potionVoteManager = PotionVoteManager(this)
+        pvpVoteManager = PvpVoteManager(this)
+
+        tntTagListener = TntTagListener(this)
 
         papaCalienteGame = PapaCaliente(this)
         congeladosGame = Congelados(this)
@@ -114,26 +154,23 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(RuletaRusa(this))
         eventManager.registerGame(Cristales(this))
         eventManager.registerGame(JalarCuerda(this))
-        eventManager.registerGame(pumpkin.eventos.games.corona.RobaLaCorona(this))
-        eventManager.registerGame(Skywars(this, false)) // Skywars Solos
-        eventManager.registerGame(Skywars(this, true))  // Skywars Duos
+        eventManager.registerGame(HideAndSeek(this))
+        eventManager.registerGame(RobaLaCorona(this))
+        eventManager.registerGame(Skywars(this, false))
+        eventManager.registerGame(Skywars(this, true))
 
-        // Instanciar y registrar Mini Walls para el listener
         val miniWallsGame = MiniWalls(this)
         eventManager.registerGame(miniWallsGame)
-
-        // Registrar Ice Boat
         eventManager.registerGame(IceBoatRacing(this))
 
         // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
         boardManager.startTasks()
 
-        // --- 6. EVENTOS (LISTENERS) ---
+        // --- 6. LISTENERS ---
         val pm = server.pluginManager
         pm.registerEvents(puntajeHoloManager, this)
         pm.registerEvents(ChatListener(this), this)
-        pm.registerEvents(GameListener(this), this)
         pm.registerEvents(DeathListener(this), this)
         pm.registerEvents(SimonListener(this), this)
         pm.registerEvents(ConnectionListener(this), this)
@@ -141,12 +178,34 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(LobbyProtectionListener(this), this)
         pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
 
-        // Listeners específicos de juegos
-        pm.registerEvents(SkywarsListener(this), this)
-        pm.registerEvents(IceBoatListener(this), this)
-        pm.registerEvents(MiniWallsListener(this, miniWallsGame), this)
+        // GlobalDamageListener — lógica de muerte letal, bloqueo global de bloques, drop
+        pm.registerEvents(GlobalDamageListener(this), this)
 
-        // Listeners de sub-juegos de Simón
+        // ─── Listeners individuales por juego ───────────────────────────────
+        pm.registerEvents(tntTagListener, this)               // TntTag
+        pm.registerEvents(TntRunListener(this), this)         // TntRun
+        pm.registerEvents(TntSpleefListener(this), this)      // TntSpleef
+        pm.registerEvents(SpleefListener(this), this)         // Spleef
+        pm.registerEvents(SueloLavaListener(this), this)      // SueloLava
+        pm.registerEvents(PillarsListener(this), this)        // PillarsOfFortune
+        pm.registerEvents(SumoListener(this), this)           // Sumo
+        pm.registerEvents(LuzRojaListener(this), this)        // LuzRoja
+        pm.registerEvents(SillasListener(this), this)         // Sillas (interact)
+        pm.registerEvents(SillasMusicalesListener(this), this)// Sillas (GSit/sneak/dmg)
+        pm.registerEvents(RuletaRusaListener(this), this)     // RuletaRusa
+        pm.registerEvents(CristalesListener(this), this)      // Cristales
+        pm.registerEvents(JalarCuerdaListener(this), this)    // JalarCuerda
+        pm.registerEvents(HideAndSeekListener(this), this)    // HideAndSeek
+        pm.registerEvents(RobaLaCoronaListener(this), this)   // RobaLaCorona
+        pm.registerEvents(SimonDiceGameListener(this), this)  // SimonDice (damage/drop)
+        pm.registerEvents(SkywarsListener(this), this)        // Skywars
+        pm.registerEvents(IceBoatListener(this), this)        // IceBoat
+        pm.registerEvents(MiniWallsListener(this, miniWallsGame), this) // MiniWalls
+
+        // MenuManager como listener (clicks en inventarios)
+        pm.registerEvents(menuManager, this)
+
+        // Sub-juegos de Simón Dice
         pm.registerEvents(papaCalienteGame, this)
         pm.registerEvents(congeladosGame, this)
         pm.registerEvents(dueloFinalGame, this)
@@ -163,16 +222,18 @@ class PumpkinEventos : JavaPlugin() {
             GamemodeCommand.register(commands, this)
             SpectateCommand(this)
         }
+
+        componentLogger.info(mm.deserialize("<#39FF14>✔ PumpkinEventos v3.2.0 cargado correctamente.</#39FF14>"))
     }
 
     override fun onDisable() {
         if (::eventManager.isInitialized) {
             val currentGame = eventManager.currentGame
-            if (currentGame != null && currentGame.isRunning) {
-                currentGame.stop()
-            }
+            if (currentGame != null && currentGame.isRunning) currentGame.stop()
         }
         if (::arenaManager.isInitialized) arenaManager.shutdown()
         if (::mapManager.isInitialized) mapManager.shutdown()
+        
+        PacketEvents.getAPI().terminate()
     }
 }

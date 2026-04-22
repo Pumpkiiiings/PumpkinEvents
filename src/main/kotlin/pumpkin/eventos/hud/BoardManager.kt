@@ -80,11 +80,11 @@ class BoardManager(private val plugin: PumpkinEventos) {
                 // --- 4. SCOREBOARD (Lee de messages.yml) ---
                 val lang = plugin.languageManager
                 val lines = if (currentGame == null) {
-                    lang.getList("scoreboard.waiting")
+                    lang.getScoreboardList("scoreboard.waiting")
                 } else {
                     // Busca un score específico (ej: ingame_sumo), si no existe usa ingame_default
-                    var scoreList = lang.getList("scoreboard.ingame_${currentGame.id}")
-                    if (scoreList.isEmpty()) scoreList = lang.getList("scoreboard.ingame_default")
+                    var scoreList = lang.getScoreboardList("scoreboard.ingame_${currentGame.id}")
+                    if (scoreList.isEmpty()) scoreList = lang.getScoreboardList("scoreboard.ingame_default")
                     scoreList
                 }
 
@@ -145,8 +145,8 @@ class BoardManager(private val plugin: PumpkinEventos) {
     }
 
     fun reload() {
-        currentTitle = plugin.languageManager.get("scoreboard.title")
-        if (currentTitle.contains("Error")) currentTitle = "<gradient:gold:yellow><b>PUMPKIN EVENTOS</b></gradient>"
+        currentTitle = plugin.languageManager.getScoreboard("scoreboard.title")
+        if (currentTitle.isEmpty()) currentTitle = "<gradient:gold:yellow><b>PUMPKIN EVENTOS</b></gradient>"
 
         tabFormat = plugin.config.getString("tab.player-format") ?: "<prefix><player>"
 
@@ -160,11 +160,11 @@ class BoardManager(private val plugin: PumpkinEventos) {
 
         // Lee la bossbar desde messages.yml
         var configText = if (isGameRunning) {
-            var text = lang.get("bossbar.ingame_${currentGame?.id}")
-            if (text.contains("Error")) text = lang.get("bossbar.ingame_default")
+            var text = lang.getScoreboard("bossbar.ingame_${currentGame?.id}")
+            if (text.isEmpty()) text = lang.getScoreboard("bossbar.ingame_default")
             text
         } else {
-            lang.get("bossbar.waiting")
+            lang.getScoreboard("bossbar.waiting")
         }
 
         if (configText.contains("Error")) configText = "%mode%" // Fallback seguro

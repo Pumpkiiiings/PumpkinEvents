@@ -15,6 +15,8 @@ commands:
     - "<#FF3131>🛑 /evento detener</#FF3131> <gray>» Detener Evento Activo</gray>"
     - "<#BF00FF>🍖 /evento revivir <jugador></#BF00FF> <gray>» Revivir Espectador</gray>"
     - ""
+  start:
+    starting: "<prefix><#39FF14>Iniciando evento <#00FFFF><game></#00FFFF> en arena <#CCFF00><arena></#CCFF00>...</#39FF14>"
   setup:
     lobby_set: "<prefix><#39FF14>✔</#39FF14> <white>Lobby principal establecido.</white>"
     waiting_set: "<prefix><#00FFFF>⏳</#00FFFF> <white>Spawn de espera configurado.</white>"
@@ -293,178 +295,113 @@ iceboat:
   broadcast:
     winner: "<newline><#00FFFF><b>ICE BOAT RACING</b></#00FFFF> <white>» ¡<#39FF14><player></#39FF14> ha ganado la carrera!<newline>"
 
-scoreboard:
-  title: "<#FFD700><b>⚡ EVENTOS ⚡</b></#FFD700>"
-  waiting:
-    - ""
-    - " <dark_gray>|</dark_gray> <#39FF14>👤</#39FF14> <white>Jugadores:</white> <#00FFFF>%players%</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Estado:</white> <#FFCC00>Esperando...</#FFCC00>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_default:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>%mode%</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_sumo:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>Sumo 1v1</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF3131>🗡 %luchador1%</#FF3131>"
-    - " <dark_gray>|</dark_gray>      <#FFCC00>vs</#FFCC00> "
-    - " <dark_gray>|</dark_gray> <#00FFFF>🗡 %luchador2%</#00FFFF>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_pillars:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>🏆</#FFD700> <white>Evento:</white> <#39FF14>Pillars</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>🗺</#00FFFF> <white>Mapa:</white> <#FFCC00>%mapa%</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#BF00FF>🏹</#BF00FF> <white>Sig. Ítem:</white> <#39FF14>%item_timer%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_suelolava:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF4500>🌋</#FF4500> <white>Evento:</white> <#FFCC00>Suelo es Lava</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF4500>🔥</#FF4500> <white>Altura Y:</white> <#00FFFF>%lava_y%</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_blockparty:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF1493>🎨</#FF1493> <white>Evento:</white> <#39FF14>Block Party</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>🌈</#00FFFF> <white>Color:</white> %color%"
-    - " <dark_gray>|</dark_gray> <#FFCC00>⌛</#FFCC00> <white>Tiempo:</white> <#39FF14>%time%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_simondice:
-    - ""
-    - " <dark_gray>|</dark_gray> <#39FF14>📢</#39FF14> <white>Simón:</white> <#00FFFF>Dice...</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>⚡</#FFD700> <white>Orden:</white> <#FFCC00>%orden%</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_luzroja:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF3131>🛑</#FF3131> <white>Evento:</white> <#39FF14>Luz Roja</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>❓</#FFD700> <white>Estado:</white> %estado%"
-    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Meta:</white> <#FFCC00>%meta%</#FFCC00>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_sillas:
-    - ""
-    - " <dark_gray>|</dark_gray> <#BF00FF>🪑</#BF00FF> <white>Evento:</white> <#39FF14>Sillas</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#BF00FF>🎵</#BF00FF> <white>Estado:</white> %estado%"
-    - " <dark_gray>|</dark_gray> <#FFCC00>🪑</#FFCC00> <white>Sillas:</white> <#39FF14>%sillas%</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_cristales:
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>🪟</#00FFFF> <white>Evento:</white> <#FFCC00>Cristales</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#39FF14>✔</#39FF14> <white>Salvados:</white> <#00FFFF>%salvados%</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_jalarcuerda:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF9900>⛓</#FF9900> <white>Evento:</white> <#FFCC00>Jalar Cuerda</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF3131>Pts Rojo:</#FF3131> <white>%pts_rojo%</white>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>Pts Azul:</#00FFFF> <white>%pts_azul%</white>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+# ==========================================
+# VOTACIÓN DE EFECTOS DE POCIÓN (cada 2 min)
+# ==========================================
+potion_vote:
+  header: "<newline><gold><b>⚗ ¡VOTACIÓN DE EFECTOS!</b></gold><newline><gray>Haz clic en el efecto que quieres recibir:</gray><newline>"
+  item: "<click:run_command:'/pvote <id>'><hover:show_text:'<gray>Votar por <white><name></white>'><yellow>•</yellow> <name> <dark_gray>(Clic para votar)</dark_gray></hover></click>"
+  footer: "<newline><gray>La votación termina en <white><time> segundos</white>.</gray><newline>"
+  result: "<gold><b>✔ Efecto elegido: <effect></b> — ¡Aplicado a todos los jugadores!</gold>"
+  no_game: "<red>No hay ningún juego activo para votar.</red>"
+  already_voted: "<yellow>⚠ Ya has votado en esta ronda.</yellow>"
+  options:
+    speed: "<#39FF14>Velocidad II</#39FF14>"
+    jump: "<#00FFFF>Salto III</#00FFFF>"
+    regen: "<#FF69B4>Regeneración</#FF69B4>"
+    strength: "<#FF5500>Fuerza I</#FF5500>"
+    haste: "<#FFD700>Celeridad II</#FFD700>"
 
-  ingame_corona:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FFD700>👑</#FFD700> <white>Rey:</white> <yellow>%holder%</yellow>"
-    - " <dark_gray>|</dark_gray> <#39FF14>⭐</#39FF14> <white>Puntos:</white> <white>%puntos%</white>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+# ==========================================
+# VOTACIÓN DE PVP AL INICIO
+# ==========================================
+pvp_vote:
+  header: "<newline><yellow><b>⚔ ¿Habrá PvP en este modo?</b></yellow><newline><gray>Haz clic para votar:</gray>"
+  yes_option: "  <click:run_command:'/pvpvote si'><hover:show_text:'<green>Votar SÍ'><green><b>[✔ SÍ]</b></green></hover></click>"
+  no_option: "  <click:run_command:'/pvpvote no'><hover:show_text:'<red>Votar NO'><red><b>[✘ NO]</b></red></hover></click>"
+  footer: "<gray>La votación termina en <white>10 segundos</white>.</gray><newline>"
+  result_yes: "<green><b>✔ El PvP ha sido ACTIVADO por votación. ¡Cuidado!</b></green>"
+  result_no: "<red><b>✘ El PvP ha sido DESACTIVADO por votación. ¡Modo pacífico!</b></red>"
+  already_voted: "<yellow>⚠ Ya has votado en esta ronda de PvP.</yellow>"
+  no_game: "<red>No hay ningún juego activo para votar.</red>"
 
-  ingame_skywars_solos:
-    - ""
-    - " <dark_gray>|</dark_gray> <#39FF14>☁</#39FF14> <white>Modo:</white> <#FFCC00>Solos</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
-    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
-    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
-    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-  ingame_skywars_duos:
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>☁</#00FFFF> <white>Modo:</white> <#FFCC00>Dúos</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>⚡</#00FFFF> <white>%proximo_evento%:</white> <#39FF14>%time%</#39FF14>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Asesinatos:</b></#FF5500>"
-    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%k1%</white>"
-    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%k2%</white>"
-    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%k3%</white>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+# ==========================================
+# TNT TAG — MENSAJES ESPECIALES
+# ==========================================
+tnttag:
+  tnt_passed: "<red><b>¡<attacker> le pasó la TNT a <victim>!</b></red>"
+  glow_activated: "<yellow>⚠ ¡Quedan <count> jugadores o menos — todos brillan!</yellow>"
+  actionbar:
+    preparation: "<white>La TNT se repartirá en: <aqua><bold><time></bold>s"
+    explosion: "<white>Explosión en: <red><bold><time></bold>s"
+  title:
+    has_tnt_main: "<red><b>¡TIENES LA TNT!</b></red>"
+    has_tnt_sub: "<white>¡Golpea a alguien!"
+  broadcast:
+    winner: "<newline><yellow><b>TNT TAG</b></yellow> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
-  ingame_iceboat:
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>🚤</#00FFFF> <white>Evento:</white> <#FFCC00>Ice Boat</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Vueltas:</white> <#00FFFF>%vueltas_totales%</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+# ==========================================
+# PILLARS — KILL MESSAGES
+# ==========================================
+pillars:
+  kill_combat: "<aqua><b><killer></b></aqua> <white>mató a</white> <red><b><victim></b></red>"
+  kill_void: "<aqua><b><killer></b></aqua> <gray>mandó al vacío eterno a</gray> <red><b><victim></b></red>"
+  kill_unknown: "<yellow><b><victim></b> ha sido devorado por el vacío.</yellow>"
+  supplies_received: "<prefix> <green>¡Has recibido suministros aleatorios!</green>"
+  legendary_item: "<gold>¡Alguien ha recibido un objeto <b>LEGENDARIO</b>!</gold>"
+  totem_save: "<yellow>¡<b><player></b> usó un Tótem de Inmortalidad para salvarse del vacío!</yellow>"
+  time_out: "<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"
+  actionbar:
+    starting: "<white>El juego inicia en: <aqua><bold><time></bold>s"
+    started: "<red><b>¡QUE EMPIECE LA BATALLA!</b></red>"
+    next_item: "<white>Próximo ítem en: <aqua><bold><time></bold>s</aqua></white>"
+  broadcast:
+    winner: "<newline><aqua><b>PILLARS OF FORTUNE</b></aqua> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
-  ingame_miniwalls:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF5500>🧱</#FF5500> <white>Evento:</white> <#FFD700>Mini Walls</#FFD700>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Rojo:</white> %w_red%"
-    - " <dark_gray>|</dark_gray> <#00FFFF>💙</#00FFFF> <white>Azul:</white> %w_blue%"
-    - " <dark_gray>|</dark_gray> <#FFD700>💛</#FFD700> <white>Amarillo:</white> %w_yellow%"
-    - " <dark_gray>|</dark_gray> <#39FF14>💚</#39FF14> <white>Verde:</white> %w_green%"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>%phase%:</white> <#39FF14>%time%</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+# ==========================================
+# SUELO LAVA — MODO CAOS
+# ==========================================
+suelolava:
+  chaos:
+    title_main: "<red><b>¡MATENSE!</b></red>"
+    title_sub: "<white>¡Se ha dado un arco a todos!</white>"
+    broadcast: "<red><b>💀 ¡MODO CAOS ACTIVADO!</b></red> <white>Se han repartido arcos y flechas.</white>"
+  time_out: "<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"
+  title:
+    preparation_main: "<#FF4500><bold>¡Sube rápido!</bold>"
+    preparation_sub: "<white>La lava comenzará a subir en 15s"
+  actionbar:
+    preparation: "<white>La lava sube en: <#FF4500><bold><time></bold>s"
+    rising: "<#FF4500>▲ La lava está en la altura: <b><y></b> ▲"
+  broadcast:
+    started: "<newline><#FF4500><b>¡LA LAVA ESTÁ SUBIENDO!</b></#FF4500> <white>¡Busca la altura máxima!<newline>"
+    winner: "<newline><#FF4500><b>EL SUELO ES LAVA</b></#FF4500> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
 
-bossbar:
-  waiting: "<bold>EVENTO:</bold> <gray>Ninguno</gray>"
-  ingame_default: "<bold>EVENTO:</bold> %mode%"
-  ingame_sumo: "⚔ <red>%luchador1%</red> <white>vs</white> <aqua>%luchador2%</aqua> ⚔"
-  ingame_pillars: "<bold>PILLARS:</bold> <aqua>Próximo ítem en %item_timer%s</aqua>"
-  ingame_suelolava: "<bold>LAVA:</bold> <#FF4500>Altura: %lava_y%</#FF4500> <gray>|</gray> <white>⏳ %time_left%</white>"
-  ingame_blockparty: "<bold>BUSCA EL COLOR:</bold> %color% <gray>|</gray> <white>⏳ %time%s</white>"
-  ingame_simondice: "⚡ <yellow>Simón Dice</yellow> <gray>|</gray> <white>%orden% <gray>|</gray> ⏳ %time%s</white>"
-  ingame_luzroja: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Llegaron: %meta%</white>"
-  ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
-  ingame_cristales: "<bold>CRISTALES:</bold> <aqua>Salvados: %salvados%</aqua> <gray>|</gray> <white>⏳ %time_left%</white>"
-  ingame_jalarcuerda: "<bold>CUERDA:</bold> <#FF9900>¡Atina al verde para ganar puntos!</#FF9900> <gray>|</gray> <white>⏳ %time_left%s</white>"
-  ingame_skywars_solos: "<bold>SKYWARS SOLOS:</bold> <#39FF14>%proximo_evento% en %time%</#39FF14>"
-  ingame_skywars_duos: "<bold>SKYWARS DUOS:</bold> <#00FFFF>%proximo_evento% en %time%</#00FFFF>"
-  ingame_iceboat: "<bold>CARRERA:</bold> <#00FFFF>¡Corre a la meta!</#00FFFF> <gray>|</gray> <white>⏳ %time_left%</white>"
-  ingame_miniwalls: "<bold>MINI WALLS:</bold> <#FF5500>Fase: %phase%</#FF5500> <gray>|</gray> <white>⏳ %time%</white>"
+# ==========================================
+# ARENA COMMANDS — MENSAJES
+# ==========================================
+commands:
+  arena:
+    duplicate_success: "<prefix><#39FF14>✔</  #39FF14> <white>Arena <#CCFF00><source></  #CCFF00> duplicada como <#CCFF00><target></#CCFF00> (tipo: <#00FFFF><type></#00FFFF>).</white>"
+    duplicate_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    duplicate_already_exists: "<prefix><#FF3131>Ya existe una arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    edit_started: "<prefix><#00FFFF>✏</  #00FFFF> <white>Editando arena <#CCFF00><map></#CCFF00>. Usa los comandos de setup y luego <#39FF14>/evento arena save</#39FF14>.</white>"
+    edit_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    chair_added: "<prefix><#39FF14>🪑</  #39FF14> <white>Silla #<count> añadida a <#CCFF00><map></#CCFF00></white>"
+    no_block_aimed: "<prefix><#FF3131>Debes mirar directamente a un bloque (Slab/Escalera) para añadirlo como silla.</#FF3131>"
+
+# ==========================================
+# RELOAD — MENSAJES
+# ==========================================
+  reload:
+    success: "<prefix><#39FF14>Archivos de configuración recargados correctamente.</#39FF14>"
+
+# ==========================================
+# RULETA — MENSAJES
+# ==========================================
+  ruleta:
+    no_games: "<red>No hay juegos registrados en el core.</red>"
+    already_active: "<red>¡Ya hay un evento en curso o una votación activa!</red>"
 
 gamemode:
   invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></#FF3131>"
@@ -491,3 +428,25 @@ hologram:
     - ""
     - "&#29FF00&l[ CLIC PARA SIGUIENTE PÁGINA ]"
     - "&r&#FFE600mc.liric.xyz"
+
+# ==========================================
+# HIDE AND SEEK — MENSAJES
+# ==========================================
+hideandseek:
+  hunter:
+    title_main: "<#FF0000>¡Eres el Cazador!</#FF0000>"
+    title_sub: "<white>Espera a que se escondan...</white>"
+    eye_activated: "<prefix> <red>¡El ojo que todo lo ve está activo! Sigue el polvo rojo...</red>"
+  hider:
+    title_main: "<#00FF00>¡Escóndete!</#00FF00>"
+    title_sub: "<white>Click derecho con la vara para cambiar bloque</white>"
+    disguise_changed: "<prefix> <green>Te has transformado en: <yellow><block></yellow></green>"
+  actionbar:
+    preparation: "<white>El cazador sale en: <red><time>s</red></white>"
+  hunter_released: "<prefix> <red><b>¡El cazador ha sido liberado! ¡Que empiece la búsqueda!</b></red>"
+  solidified: "<prefix> <gray>Te has quedado quieto y ahora eres un bloque sólido.</gray>"
+  unsolidified: "<prefix> <yellow>Te has movido y ya no eres un bloque sólido.</yellow>"
+  broadcast:
+    hunter_wins: "<newline><#FF0000>💀 <b>¡EL CAZADOR HA GANADO!</b></#FF0000><newline><white>No quedó nadie vivo.</white><newline>"
+    hiders_win: "<newline><#00FF00>🏆 <b>¡LOS ESCONDITES GANARON!</b></#00FF00><newline><white>El tiempo se agotó.</white><newline>"
+    hider_killed: "<prefix> <red>¡El cazador ha encontrado y eliminado a <b><player></b>!</red>"

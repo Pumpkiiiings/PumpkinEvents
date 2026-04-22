@@ -140,7 +140,7 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
 
                         chestHolograms.values.forEach { holo ->
                             if (!holo.isDead) {
-                                holo.customName(plugin.messageManager.parse("<red>¡Vacío!</red> <gray>|</gray> <aqua>Refill en $timeStr</aqua>"))
+                                holo.customName(plugin.messageManager.parse("<aqua>Refill en $timeStr</aqua>"))
                             }
                         }
                     }
@@ -209,9 +209,10 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
     private fun crearJaula(loc: Location) {
         val cx = loc.blockX; val cy = loc.blockY; val cz = loc.blockZ
         val w = loc.world ?: return
+        val radius = if (isDuos) 2 else 1
         plugin.server.regionScheduler.run(plugin, loc) { _ ->
-            for (x in -1..1) { for (y in -1..3) { for (z in -1..1) {
-                if (x == -1 || x == 1 || z == -1 || z == 1 || y == -1 || y == 3) {
+            for (x in -radius..radius) { for (y in -1..3) { for (z in -radius..radius) {
+                if (x == -radius || x == radius || z == -radius || z == radius || y == -1 || y == 3) {
                     val b = w.getBlockAt(cx + x, cy + y, cz + z)
                     if (b.type.isAir) { b.setType(Material.GLASS, false); cages.add(b.location) }
                 }
@@ -250,7 +251,7 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
             val holo = holoLoc.world.spawnEntity(holoLoc, EntityType.ARMOR_STAND) as ArmorStand
             holo.isMarker = true; holo.isInvisible = true; holo.setGravity(false)
             holo.isCustomNameVisible = true
-            holo.customName(plugin.messageManager.parse("<red>¡Vacío!</red>"))
+            holo.customName(plugin.messageManager.parse("<aqua>Refill en 05:00</aqua>"))
             chestHolograms[loc] = holo
         }
     }

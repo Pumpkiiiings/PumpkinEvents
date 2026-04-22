@@ -23,48 +23,69 @@ object SkywarsManager {
     fun generarLoot(tipo: SkywarsChest): List<ItemStack> {
         val items = mutableListOf<ItemStack>()
 
+        fun ench(mat: Material, e: org.bukkit.enchantments.Enchantment, lvl: Int, amount: Int = 1): ItemStack {
+            val i = ItemStack(mat, amount)
+            i.addUnsafeEnchantment(e, lvl)
+            return i
+        }
+
         when (tipo) {
             SkywarsChest.POBRE -> {
-                val armas = listOf(Material.WOODEN_SWORD, Material.STONE_SWORD, Material.WOODEN_AXE)
+                val armas = listOf(ItemStack(Material.WOODEN_SWORD), ItemStack(Material.STONE_SWORD), ItemStack(Material.WOODEN_AXE))
                 val armaduras = listOf(Material.LEATHER_CHESTPLATE, Material.LEATHER_LEGGINGS, Material.LEATHER_BOOTS, Material.GOLDEN_HELMET)
                 val bloques = listOf(Material.DIRT, Material.OAK_PLANKS)
 
-                items.add(ItemStack(armas.random()))
+                items.add(armas.random())
                 items.add(ItemStack(armaduras.random()))
                 if (Math.random() < 0.5) items.add(ItemStack(armaduras.random()))
                 items.add(ItemStack(bloques.random(), (16..32).random()))
                 items.add(ItemStack(Material.SNOWBALL, 8))
                 items.add(ItemStack(Material.APPLE, 4))
+                if (Math.random() < 0.2) items.add(ench(Material.WOODEN_SWORD, org.bukkit.enchantments.Enchantment.SHARPNESS, 1))
             }
             SkywarsChest.NORMAL -> {
-                val armas = listOf(Material.STONE_SWORD, Material.IRON_SWORD, Material.IRON_AXE, Material.BOW)
+                val armas = listOf(ItemStack(Material.STONE_SWORD), ItemStack(Material.IRON_SWORD), ench(Material.BOW, org.bukkit.enchantments.Enchantment.POWER, 1))
                 val armaduras = listOf(Material.CHAINMAIL_CHESTPLATE, Material.IRON_LEGGINGS, Material.IRON_BOOTS, Material.IRON_HELMET)
                 val bloques = listOf(Material.STONE, Material.OAK_PLANKS, Material.GLASS)
 
-                items.add(ItemStack(armas.random()))
-                if (Math.random() < 0.3) items.add(ItemStack(Material.ARROW, 12))
+                items.add(armas.random())
+                items.add(ItemStack(Material.ARROW, (8..16).random()))
                 items.add(ItemStack(armaduras.random()))
                 items.add(ItemStack(armaduras.random()))
                 items.add(ItemStack(bloques.random(), 64))
                 items.add(ItemStack(Material.EGG, 16))
                 items.add(ItemStack(Material.COOKED_BEEF, 8))
-                if (Math.random() < 0.2) items.add(ItemStack(Material.GOLDEN_APPLE, 1))
+                if (Math.random() < 0.3) items.add(ItemStack(Material.GOLDEN_APPLE, 1))
                 if (Math.random() < 0.1) items.add(ItemStack(Material.ENDER_PEARL, 1))
+                if (Math.random() < 0.2) items.add(ench(Material.IRON_SWORD, org.bukkit.enchantments.Enchantment.SHARPNESS, 1))
             }
             SkywarsChest.OP -> {
-                val armas = listOf(Material.DIAMOND_SWORD, Material.DIAMOND_AXE, Material.BOW)
-                val armaduras = listOf(Material.DIAMOND_CHESTPLATE, Material.DIAMOND_LEGGINGS, Material.DIAMOND_BOOTS, Material.DIAMOND_HELMET)
-                val bloques = listOf(Material.COBBLESTONE, Material.OAK_WOOD)
+                val armas = listOf(
+                    ench(Material.DIAMOND_SWORD, org.bukkit.enchantments.Enchantment.SHARPNESS, 2),
+                    ench(Material.NETHERITE_SWORD, org.bukkit.enchantments.Enchantment.SHARPNESS, 1),
+                    ench(Material.BOW, org.bukkit.enchantments.Enchantment.POWER, 3)
+                )
+                val armaduras = listOf(
+                    ench(Material.DIAMOND_CHESTPLATE, org.bukkit.enchantments.Enchantment.PROTECTION, 2),
+                    ench(Material.NETHERITE_CHESTPLATE, org.bukkit.enchantments.Enchantment.PROTECTION, 1),
+                    ench(Material.DIAMOND_LEGGINGS, org.bukkit.enchantments.Enchantment.PROTECTION, 2),
+                    ench(Material.NETHERITE_LEGGINGS, org.bukkit.enchantments.Enchantment.PROTECTION, 1),
+                    ench(Material.DIAMOND_BOOTS, org.bukkit.enchantments.Enchantment.FEATHER_FALLING, 4),
+                    ench(Material.DIAMOND_HELMET, org.bukkit.enchantments.Enchantment.PROTECTION, 2)
+                )
+                val bloques = listOf(Material.COBBLESTONE, Material.OAK_WOOD, Material.OBSIDIAN)
 
-                items.add(ItemStack(armas.random()))
+                items.add(armas.random())
                 items.add(ItemStack(Material.ARROW, 32))
-                items.add(ItemStack(armaduras.random()))
-                items.add(ItemStack(armaduras.random()))
+                items.add(armaduras.random())
+                items.add(armaduras.random())
+                items.add(armaduras.random())
                 items.add(ItemStack(bloques.random(), 64))
-                items.add(ItemStack(bloques.random(), 64))
-                items.add(ItemStack(Material.ENDER_PEARL, (1..3).random()))
-                items.add(ItemStack(Material.GOLDEN_APPLE, (2..4).random()))
-                if (Math.random() < 0.3) items.add(ItemStack(Material.ENCHANTED_GOLDEN_APPLE, 1)) // 30% Notch Apple
+                items.add(ItemStack(Material.ENDER_PEARL, (2..4).random()))
+                items.add(ItemStack(Material.GOLDEN_APPLE, (3..6).random()))
+                items.add(ItemStack(Material.ENCHANTED_GOLDEN_APPLE, (1..2).random())) 
+                items.add(ItemStack(Material.WATER_BUCKET, 1))
+                if (Math.random() < 0.5) items.add(ItemStack(Material.LAVA_BUCKET, 1))
             }
         }
         return items

@@ -1,5 +1,5 @@
 name: PumpkinEventos
-version: '3.0.6'
+version: '3.2.2'
 main: pumpkin.eventos.PumpkinEventos
 api-version: '1.21'
 author: Pumpkingz
@@ -42,6 +42,15 @@ commands:
     aliases: [puntos, score]
   espectear:
     description: Vuelve al mapa del evento como espectador.
+  arena:
+    description: Comandos de administración de arenas.
+    permission: pumpkin.admin
+  pvote:
+    description: Votar por un efecto de poción.
+    usage: /pvote <efecto>
+  pvpvote:
+    description: Votar por PvP (si/no).
+    usage: /pvpvote <si|no>
 
 permissions:
   pumpkin.admin:

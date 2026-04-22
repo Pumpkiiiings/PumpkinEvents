@@ -21,6 +21,10 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
     private var timer = 15
     var gameTimer = 300
 
+    // --- MODO CAOS ---
+    private var lastEliminationTime = 0L
+    private var chaosActivated = false
+
     private var minX = 0
     private var maxX = 0
     private var minZ = 0
@@ -103,17 +107,33 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
 
                 gameTimer--
                 if (gameTimer <= 0) {
-                    plugin.server.broadcast(mm.parse("<newline><red><b>¡TIEMPO AGOTADO!</b></red> <white>El juego ha terminado en empate.</white><newline>"))
+                    plugin.server.broadcast(plugin.messageManager.parse(plugin.languageManager.get("suelolava.time_out")))
                     stop()
                     task.cancel()
                     return@runAtFixedRate
                 }
 
-                // Comprobar eliminación (si toca lava o cae al vacío)
-                val toEliminate = players.filter { it.location.block.type == Material.LAVA || it.location.y <= targetWorld.minHeight + 2 }
+                // Comprobar eliminación
+                val toEliminate = players.filter { it.location.block.type == org.bukkit.Material.LAVA || it.location.y <= targetWorld.minHeight + 2 }
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                    toEliminate.forEach { eliminate(it) }
+                    toEliminate.forEach { p ->
+                        eliminate(p)
+                        lastEliminationTime = System.currentTimeMillis()
+                    }
                 }
+
+                // Comprobar modo caos
+                val chaosCfg = plugin.config
+                if (chaosCfg.getBoolean("suelolava.chaos_mode.enabled", true) && !chaosActivated) {
+                    val threshold = chaosCfg.getInt("suelolava.chaos_mode.alive_threshold", 4)
+                    val idleSec = chaosCfg.getInt("suelolava.chaos_mode.idle_seconds", 60)
+                    val timeSinceElim = (System.currentTimeMillis() - lastEliminationTime) / 1000
+                    if (players.size >= threshold && timeSinceElim >= idleSec && lastEliminationTime > 0) {
+                        chaosActivated = true
+                        plugin.server.globalRegionScheduler.run(plugin) { _ -> activateChaosMode() }
+                    }
+                }
+
 
                 if (players.size <= 1) {
                     plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
@@ -184,6 +204,25 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
                     }
                 }
             }
+        }
+    }
+
+    private fun activateChaosMode() {
+        val lang = plugin.languageManager
+        val mm = plugin.messageManager
+        val arrows = plugin.config.getInt("suelolava.chaos_mode.bow_arrows", 3)
+
+        val title = net.kyori.adventure.title.Title.title(
+            mm.parse(lang.get("suelolava.chaos.title_main")),
+            mm.parse(lang.get("suelolava.chaos.title_sub"))
+        )
+        plugin.server.broadcast(mm.parse(lang.get("suelolava.chaos.broadcast")))
+
+        players.forEach { p ->
+            p.showTitle(title)
+            p.playSound(p.location, org.bukkit.Sound.ENTITY_WITHER_SPAWN, 1f, 0.5f)
+            p.inventory.addItem(org.bukkit.inventory.ItemStack(org.bukkit.Material.BOW))
+            p.inventory.addItem(org.bukkit.inventory.ItemStack(org.bukkit.Material.ARROW, arrows))
         }
     }
 

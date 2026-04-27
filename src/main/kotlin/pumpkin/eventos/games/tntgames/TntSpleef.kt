@@ -78,7 +78,7 @@ class TntSpleef(plugin: PumpkinEventos) : EventGame(plugin,"tntspleef", "<#FF313
 
     override fun checkWinner() {
         val winner = players.firstOrNull() ?: return
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>TNT SPLEEF</b></#FF3131> <white>» <purple>${winner.name}</purple> ha ganado el evento!<newline>"))
+        plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>TNT SPLEEF</b></#FF3131> <white>» <light_purple>${winner.name}</light_purple> ha ganado el evento!<newline>"))
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
         plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()

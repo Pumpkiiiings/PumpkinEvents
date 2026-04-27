@@ -47,9 +47,11 @@ class MapManager(private val plugin: PumpkinEventos) {
                     return@runNow
                 }
 
+                // --- FIX: PERMITIMOS MONSTRUOS A NIVEL DE MUNDO SLIME ---
+                // Si esto está en false, el servidor borra instantáneamente cualquier mob (incluso los del plugin)
                 val props = SlimePropertyMap().apply {
                     setValue(SlimeProperties.ALLOW_ANIMALS, false)
-                    setValue(SlimeProperties.ALLOW_MONSTERS, false)
+                    setValue(SlimeProperties.ALLOW_MONSTERS, true) // <--- Ahora los mobs del plugin pueden existir
                     setValue(SlimeProperties.PVP, true)
                 }
 
@@ -77,15 +79,17 @@ class MapManager(private val plugin: PumpkinEventos) {
                             setGameRule(GameRule.DO_DAYLIGHT_CYCLE, false)
                             setGameRule(GameRule.DO_WEATHER_CYCLE, false)
                             setGameRule(GameRule.DO_IMMEDIATE_RESPAWN, true)
-                            setGameRule(GameRule.DO_MOB_SPAWNING, false)
                             setGameRule(GameRule.ANNOUNCE_ADVANCEMENTS, false)
                             setGameRule(GameRule.DO_FIRE_TICK, false)
+
+                            // --- FIX: NO SPAWNS NATURALES ---
+                            // Esto evita que salgan zombies en lo oscuro, pero DEJA al plugin spawnear sus Withers/Dragones
+                            setGameRule(GameRule.DO_MOB_SPAWNING, false)
 
                             // El daño por caída es false por defecto para casi todos los juegos
                             setGameRule(GameRule.FALL_DAMAGE, false)
 
                             // --- APLICAR REGLAS PERSONALIZADAS ---
-                            // Fix del tipado usando as! de forma genérica
                             for ((rule, value) in customGameRules) {
                                 @Suppress("UNCHECKED_CAST")
                                 val typedRule = rule as GameRule<Any>

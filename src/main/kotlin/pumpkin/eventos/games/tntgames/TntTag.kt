@@ -7,6 +7,7 @@ import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.EventGame
 import pumpkin.eventos.games.triggerAnvils
 import pumpkin.eventos.games.triggerGeoffrey
@@ -21,12 +22,15 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
     var timer = 30
     var isPreparation = true
     private var glowActivated = false
+    private var gameSecondsElapsed = 0
+    private val borderManager = BorderShrinkManager(plugin, this)
 
     override fun onStart() {
         timer = 10
         isPreparation = true
         itPlayers.clear()
         glowActivated = false
+        gameSecondsElapsed = 0
 
         // Dar items especiales a todos
         val listener = plugin.tntTagListener
@@ -90,6 +94,21 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> selectNewIts() }, 2L)
                 }
             }
+
+            // Border shrink: arrancar a los 5 minutos (300s) de juego real (sin contar preparación)
+            if (!isPreparation) {
+                gameSecondsElapsed++
+                if (gameSecondsElapsed == 300) {
+                    val world = gameWorld ?: return@runAtFixedRate
+                    val center = currentArena?.centerLocation
+                    val cx = center?.x ?: 0.0
+                    val cz = center?.z ?: 0.0
+                    plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                        borderManager.start(world, cx, cz, delaySeconds = 0L)
+                    }
+                }
+            }
+
         }, 1, 1, TimeUnit.SECONDS)
     }
 
@@ -166,6 +185,7 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
     }
 
     override fun onStop() {
+        gameWorld?.let { borderManager.stop(it) }
         plugin.eventManager.currentGame = null
 
         val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation

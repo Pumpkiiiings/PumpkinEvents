@@ -44,10 +44,15 @@ import pumpkin.eventos.games.tntgames.TntTag
 import pumpkin.eventos.games.tntgames.TntTagListener
 import pumpkin.eventos.games.skywars.Skywars
 import pumpkin.eventos.games.skywars.SkywarsListener
+import pumpkin.eventos.games.skywars.SkywarsTntFireballListener
 import pumpkin.eventos.games.iceboat.IceBoatRacing
 import pumpkin.eventos.games.hideandseek.HideAndSeek
 import pumpkin.eventos.games.hideandseek.HideAndSeekListener
 import pumpkin.eventos.games.iceboat.IceBoatListener
+import pumpkin.eventos.games.findbutton.FindTheButton
+import pumpkin.eventos.games.findbutton.FindTheButtonListener
+import pumpkin.eventos.games.buildbattle.BuildBattle
+import pumpkin.eventos.games.buildbattle.BuildBattleListener
 
 import pumpkin.eventos.games.miniwalls.MiniWalls
 import pumpkin.eventos.games.miniwalls.MiniWallsListener
@@ -70,6 +75,7 @@ import pumpkin.eventos.manager.PuntajeHoloManager
 import pumpkin.eventos.utils.LanguageManager
 import pumpkin.eventos.utils.MessageManager
 import pumpkin.eventos.utils.WorldUtils
+import pumpkin.eventos.hooks.EventosExpansion
 import com.github.retrooper.packetevents.PacketEvents
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 
@@ -89,6 +95,7 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var potionVoteManager: PotionVoteManager
     lateinit var pvpVoteManager: PvpVoteManager
     lateinit var tntTagListener: TntTagListener
+    lateinit var tntRunGame: TntRun
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
@@ -104,7 +111,7 @@ class PumpkinEventos : JavaPlugin() {
         val mm = MiniMessage.miniMessage()
 
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.2.0 - CARGANDO ⚡</#CCFF00>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.2.5 - CARGANDO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
@@ -143,7 +150,8 @@ class PumpkinEventos : JavaPlugin() {
         // --- 4. REGISTRO DE JUEGOS ---
         eventManager.registerGame(SimonDice(this))
         eventManager.registerGame(TntTag(this))
-        eventManager.registerGame(TntRun(this))
+        tntRunGame = TntRun(this)
+        eventManager.registerGame(tntRunGame)
         eventManager.registerGame(TntSpleef(this))
         eventManager.registerGame(Spleef(this))
         eventManager.registerGame(SueloLava(this))
@@ -162,10 +170,19 @@ class PumpkinEventos : JavaPlugin() {
         val miniWallsGame = MiniWalls(this)
         eventManager.registerGame(miniWallsGame)
         eventManager.registerGame(IceBoatRacing(this))
+        eventManager.registerGame(FindTheButton(this))
+        eventManager.registerGame(BuildBattle(this, false))  // Solo
+        eventManager.registerGame(BuildBattle(this, true))   // Equipos
 
         // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
         boardManager.startTasks()
+
+        // --- 5b. PLACEHOLDERAPI ---
+        if (server.pluginManager.isPluginEnabled("PlaceholderAPI")) {
+            EventosExpansion(this).register()
+            componentLogger.info(mm.deserialize("<green>[PumpkinEventos] PlaceholderAPI detectado - %eventos_team% registrado.</green>"))
+        }
 
         // --- 6. LISTENERS ---
         val pm = server.pluginManager
@@ -184,6 +201,7 @@ class PumpkinEventos : JavaPlugin() {
         // ─── Listeners individuales por juego ───────────────────────────────
         pm.registerEvents(tntTagListener, this)               // TntTag
         pm.registerEvents(TntRunListener(this), this)         // TntRun
+        pm.registerEvents(tntRunGame, this)                    // TntRun (feather)
         pm.registerEvents(TntSpleefListener(this), this)      // TntSpleef
         pm.registerEvents(SpleefListener(this), this)         // Spleef
         pm.registerEvents(SueloLavaListener(this), this)      // SueloLava
@@ -199,8 +217,11 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(RobaLaCoronaListener(this), this)   // RobaLaCorona
         pm.registerEvents(SimonDiceGameListener(this), this)  // SimonDice (damage/drop)
         pm.registerEvents(SkywarsListener(this), this)        // Skywars
+        pm.registerEvents(SkywarsTntFireballListener(this), this) // Skywars TNT/Fireball
         pm.registerEvents(IceBoatListener(this), this)        // IceBoat
         pm.registerEvents(MiniWallsListener(this, miniWallsGame), this) // MiniWalls
+        pm.registerEvents(FindTheButtonListener(this), this)  // FindTheButton
+        pm.registerEvents(BuildBattleListener(this), this)    // BuildBattle
 
         // MenuManager como listener (clicks en inventarios)
         pm.registerEvents(menuManager, this)

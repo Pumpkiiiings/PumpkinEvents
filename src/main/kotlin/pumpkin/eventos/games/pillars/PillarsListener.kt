@@ -23,13 +23,6 @@ class PillarsListener(private val plugin: PumpkinEventos) : Listener {
         if (game.isPreparation) { e.isCancelled = true; return }
     }
 
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    fun onBlockBreak(e: BlockBreakEvent) {
-        val game = game() ?: return
-        if (e.player.hasPermission("pumpkin.admin")) return
-        if (game.isPreparation) { e.isCancelled = true; return }
-    }
-
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     fun onPvp(e: EntityDamageByEntityEvent) {
         val attacker = e.damager as? Player ?: return

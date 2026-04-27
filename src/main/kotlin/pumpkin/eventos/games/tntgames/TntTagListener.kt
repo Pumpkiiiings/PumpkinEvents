@@ -52,20 +52,6 @@ class TntTagListener(private val plugin: PumpkinEventos) : Listener {
             }
             player.inventory.addItem(item)
         }
-
-        if (cfg.getBoolean("tnttag.items.feather.enabled", true)) {
-            val item = ItemStack(Material.FEATHER).apply {
-                editMeta { meta: ItemMeta ->
-                    meta.displayName(plugin.messageManager.parse("<#FFD700><b>🪶 Pluma</b></#FFD700>"))
-                    meta.lore(listOf(
-                        plugin.messageManager.parse("<gray>Clic derecho para planear suavemente.</gray>"),
-                        plugin.messageManager.parse("<dark_gray>Cooldown: ${cfg.getInt("tnttag.items.feather.cooldown_ticks", 60) / 20}s</dark_gray>")
-                    ))
-                    meta.persistentDataContainer.set(key, PersistentDataType.STRING, "feather")
-                }
-            }
-            player.inventory.addItem(item)
-        }
     }
 
     @EventHandler
@@ -98,16 +84,6 @@ class TntTagListener(private val plugin: PumpkinEventos) : Listener {
                 val vV = cfg.getDouble("tnttag.items.doublejump.velocity_vertical", 1.3)
                 player.velocity = player.location.direction.multiply(vH).setY(vV)
                 player.playSound(player.location, Sound.ENTITY_BAT_TAKEOFF, 1f, 1f)
-            }
-            "feather" -> {
-                val cd = cfg.getInt("tnttag.items.feather.cooldown_ticks", 60)
-                if (player.hasCooldown(Material.FEATHER)) return
-                player.setCooldown(Material.FEATHER, cd)
-                val vH = cfg.getDouble("tnttag.items.feather.velocity_horizontal", 0.5)
-                val vV = cfg.getDouble("tnttag.items.feather.velocity_vertical", 1.3)
-                player.velocity = player.location.direction.multiply(vH).setY(vV)
-                player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1f, 1.2f)
-                player.world.spawnParticle(org.bukkit.Particle.CLOUD, player.location, 15, 0.2, 0.1, 0.2, 0.05)
             }
         }
     }

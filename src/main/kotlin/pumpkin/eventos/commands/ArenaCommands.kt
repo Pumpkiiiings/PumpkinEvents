@@ -28,10 +28,12 @@ object ArenaCommands {
 
     private val GAME_TYPES = listOf(
         "tnttag", "tntrun", "simondice", "suelolava",
-        "pillars", "sumo", "blockparty", "spleef",
+        "pillars", "sumo", "spleef",
         "tntspleef", "luzroja", "sillas", "ruletarusa",
         "cristales", "jalarcuerda", "skywars_solos",
-        "skywars_duos", "iceboat", "miniwalls", "corona", "hideandseek"
+        "skywars_duos", "iceboat", "miniwalls", "corona", "hideandseek",
+        "buildbattle_solo", "buildbattle_teams",
+        "battleroyale"
     )
 
     private fun msg(sender: CommandSender, plugin: PumpkinEventos, path: String, vararg resolvers: net.kyori.adventure.text.minimessage.tag.resolver.TagResolver) {
@@ -42,8 +44,19 @@ object ArenaCommands {
 
     fun build(plugin: PumpkinEventos): com.mojang.brigadier.tree.LiteralCommandNode<io.papermc.paper.command.brigadier.CommandSourceStack> {
         return Commands.literal("arena")
+            .requires { it.sender.hasPermission("pumpkin.admin") }
+            .executes { ctx ->
+                val list = plugin.languageManager.getList("commands.arena.help")
+                if (list.isEmpty()) {
+                    msg(ctx.source.sender, plugin, "arena_usage.missing_section", Placeholder.parsed("section", "commands.arena.help"))
+                } else {
+                    list.forEach { line -> ctx.source.sender.sendMessage(plugin.messageManager.parse(line)) }
+                }
+                1
+            }
             // --- CREATE ---
             .then(Commands.literal("create")
+                .executes { ctx -> msg(ctx.source.sender, plugin, "arena_usage.create"); 1 }
                 .then(Commands.argument("name", StringArgumentType.word())
                     .then(Commands.argument("type", StringArgumentType.word())
                         .suggests { _, builder ->
@@ -74,6 +87,7 @@ object ArenaCommands {
             )
             // --- DUPLICATE ---
             .then(Commands.literal("duplicate")
+                .executes { ctx -> msg(ctx.source.sender, plugin, "arena_usage.duplicate"); 1 }
                 .then(Commands.argument("source", StringArgumentType.word())
                     .suggests { _, builder ->
                         plugin.arenaManager.getAvailableArenas().forEach { builder.suggest(it.id) }
@@ -115,6 +129,7 @@ object ArenaCommands {
             )
             // --- EDIT ---
             .then(Commands.literal("edit")
+                .executes { ctx -> msg(ctx.source.sender, plugin, "arena_usage.edit"); 1 }
                 .then(Commands.argument("map", StringArgumentType.word())
                     .suggests { _, builder ->
                         plugin.arenaManager.getAvailableArenas().forEach { builder.suggest(it.id) }

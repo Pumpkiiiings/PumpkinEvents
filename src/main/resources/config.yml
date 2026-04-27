@@ -1,7 +1,7 @@
 # Pumpkin Eventos - Configuración General
 
 tab:
-  player-format: "<prefix> <player> <suffix>"
+  player-format: "<prefix><reset> <player> %eventos_team%"
   header: |
     <newline>
     <b><color:#FFCD00>LYRIC </color></b> <color:#AAAAAA>|</color> <color:#FFFFFF>Eventos</color>
@@ -28,6 +28,43 @@ miniwalls:
     - "BARRIER"
     - "BLACK_STAINED_GLASS"
     - "OBSIDIAN"
+  # Bloques que los jugadores SÍ pueden romper aunque no los hayan colocado
+  breakable_blocks:
+    # Lanas (Bases de los equipos)
+    - "RED_WOOL"
+    - "BLUE_WOOL"
+    - "YELLOW_WOOL"
+    - "GREEN_WOOL"
+    - "WHITE_WOOL"
+    # Materiales de Construcción Comunes
+    - "DIRT"
+    - "GRASS_BLOCK"
+    - "COBBLESTONE"
+    - "STONE"
+    - "OAK_PLANKS"
+    - "SPRUCE_PLANKS"
+    - "BIRCH_PLANKS"
+    - "BRICKS"
+    - "SAND"
+    - "GRAVEL"
+    # Vegetación (Para limpiar el terreno de la arena)
+    - "OAK_LEAVES"
+    - "SPRUCE_LEAVES"
+    - "BIRCH_LEAVES"
+    - "TALL_GRASS"
+    - "SHORT_GRASS"
+    - "DANDELION"
+    - "POPPY"
+    - "BLUE_ORCHID"
+    - "ALLIUM"
+    - "AZURE_BLUET"
+    - "RED_TULIP"
+    - "ORANGE_TULIP"
+    - "WHITE_TULIP"
+    - "PINK_TULIP"
+    - "OXEYE_DAISY"
+    - "CORNFLOWER"
+    - "LILY_OF_THE_VALLEY"
 
 # ==========================================
 # TNT TAG — Items Especiales
@@ -44,11 +81,6 @@ tnttag:
     doublejump:
       enabled: true
       cooldown_ticks: 600       # 30 segundos
-      velocity_horizontal: 0.5
-      velocity_vertical: 1.3
-    feather:
-      enabled: true
-      cooldown_ticks: 60        # 3 segundos
       velocity_horizontal: 0.5
       velocity_vertical: 1.3
 
@@ -81,6 +113,10 @@ hideandseek:
   solidify_seconds: 5
   eye_cooldown_seconds: 60
   eye_duration_seconds: 5
+  preparation_seconds: 30
+  game_duration_seconds: 300
+  decoys_per_player: 3
+  decoy_spawn_radius: 25
 
 pvp_vote:
   # Define en qué modos se lanza la votación de PvP
@@ -90,7 +126,6 @@ pvp_vote:
   suelolava: true
   pillars: false
   sumo: false
-  blockparty: false
   spleef: false
   tntspleef: false
   luzroja: false
@@ -103,3 +138,12 @@ pvp_vote:
   iceboat: false
   miniwalls: false
   corona: false
+
+# ==========================================
+# BUILD BATTLE
+# ==========================================
+buildbattle:
+  plot_radius: 15          # Radio en bloques de cada parcela (cuadrado ±radius)
+  build_time_seconds: 300  # 5 minutos de construcción
+  vote_time_seconds: 30    # 30 segundos por parcela en votación
+  

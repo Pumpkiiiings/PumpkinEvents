@@ -1,57 +1,69 @@
 package pumpkin.eventos.games.hideandseek
 
-import com.github.retrooper.packetevents.PacketEvents
-import com.github.retrooper.packetevents.protocol.entity.type.EntityTypes
-import com.github.retrooper.packetevents.util.Vector3d
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerDestroyEntities
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerEntityTeleport
-import com.github.retrooper.packetevents.wrapper.play.server.WrapperPlayServerSpawnEntity
-import io.github.retrooper.packetevents.util.SpigotConversionUtil
-
+import me.libraryaddict.disguise.DisguiseAPI
+import me.libraryaddict.disguise.disguisetypes.DisguiseType
+import me.libraryaddict.disguise.disguisetypes.MobDisguise
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
+import org.bukkit.GameRule
+import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.entity.Entity
+import org.bukkit.entity.EntityType
+import org.bukkit.entity.Mob
 import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
-import java.util.Optional
 import java.util.UUID
 import java.util.concurrent.TimeUnit
-
-data class DisguiseData(
-    var type: Material = Material.HAY_BLOCK,
-    var entityId: Int = 0,
-    var uuid: UUID = UUID.randomUUID(),
-    var lastMoveTime: Long = System.currentTimeMillis(),
-    var isSolid: Boolean = false,
-    var solidLocation: org.bukkit.Location? = null
-)
+import kotlin.random.Random
 
 class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#FF8C00>Hide & Seek</#FF8C00>") {
 
-    var cazador: Player? = null
+    companion object {
+        val hunterCounts = mutableMapOf<UUID, Int>()
+    }
+
+
+    val cazadores = mutableSetOf<Player>()
     val escondites = mutableSetOf<Player>()
-    val disguises = mutableMapOf<Player, DisguiseData>()
+
+    val disguisedPlayers = mutableMapOf<UUID, DisguiseType>()
+    val spawnedDecoys = mutableListOf<Entity>()
+    var hunterEyeCooldown = mutableMapOf<Player, Long>()
 
     var isPreparation = true
     var prepTimer = 30
     var gameTimer = 300
 
-    var hunterEyeCooldown = mutableMapOf<Player, Long>()
+    // --- SÓLO ANIMALES DE GRANJA ---
+    private val availableMobs = arrayOf(
+        DisguiseType.COW,
+        DisguiseType.PIG,
+        DisguiseType.SHEEP,
+        DisguiseType.CHICKEN
+    )
 
     override fun getExtraPlaceholders(): Map<String, String> {
         val timer = if (isPreparation) prepTimer else gameTimer
         val min = timer / 60
         val sec = timer % 60
         return mapOf(
-            "%cazador%" to (cazador?.name ?: "Nadie"),
+            "%cazador%" to if (cazadores.isEmpty()) "Nadie" else cazadores.first().name,
             "%vivos%" to escondites.size.toString(),
             "%time_left%" to String.format("%02d:%02d", min, sec)
+        )
+    }
+
+    override fun getCustomGameRules(): Map<GameRule<*>, Any> {
+        return mapOf(
+            GameRule.FALL_DAMAGE to false, // Daño de caída desactivado (para que los pollos/cerdos puedan tirarse sin morir tontamente)
+            GameRule.NATURAL_REGENERATION to true
         )
     }
 
@@ -59,71 +71,88 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
         val allPlayers = players.toList()
         if (allPlayers.isEmpty()) { stop(); return }
 
-        cazador = allPlayers.random()
-        escondites.addAll(allPlayers.filter { it != cazador })
+        val minCount = allPlayers.minOfOrNull { hunterCounts.getOrDefault(it.uniqueId, 0) } ?: 0
+        val candidates = allPlayers.filter { hunterCounts.getOrDefault(it.uniqueId, 0) == minCount }
+        
+        val firstHunter = candidates.random()
+        hunterCounts[firstHunter.uniqueId] = (hunterCounts[firstHunter.uniqueId] ?: 0) + 1
+
+        cazadores.add(firstHunter)
+        escondites.addAll(allPlayers.filter { it != firstHunter })
 
         isPreparation = true
         prepTimer = plugin.config.getInt("hideandseek.preparation_seconds", 30)
         gameTimer = plugin.config.getInt("hideandseek.game_duration_seconds", 300)
         hunterEyeCooldown.clear()
+        disguisedPlayers.clear()
+        spawnedDecoys.clear()
 
-        plugin.server.globalRegionScheduler.run(plugin) { _ ->
+        val arena = currentArena ?: return
+        val targetWorld = gameWorld ?: arena.centerLocation?.world ?: return
+
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             allPlayers.forEach { p ->
                 p.inventory.clear()
                 p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
                 p.gameMode = GameMode.ADVENTURE
-                
-                if (p == cazador) {
+
+                if (cazadores.contains(p)) {
+                    // Cazador congelado y ciego
                     p.addPotionEffect(PotionEffect(PotionEffectType.BLINDNESS, prepTimer * 20, 1, false, false))
                     p.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, prepTimer * 20, 255, false, false))
                     p.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, prepTimer * 20, 250, false, false))
-                    
+
+                    // Asegurarnos de que el jugador aparezca en un spawn o centro
+                    p.teleportAsync(arena.spawnPoints.firstOrNull()?.clone()?.apply { world = targetWorld } ?: arena.centerLocation!!)
+
                     val titleMain = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.title_main"))
                     val titleSub = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.title_sub"))
                     p.showTitle(Title.title(titleMain, titleSub))
                 } else {
+                    // Escondites
+                    p.teleportAsync(arena.spawnPoints.lastOrNull()?.clone()?.apply { world = targetWorld } ?: arena.centerLocation!!)
+
                     val titleMain = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hider.title_main"))
                     val titleSub = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hider.title_sub"))
                     p.showTitle(Title.title(titleMain, titleSub))
 
-                    allPlayers.forEach { viewer ->
-                        viewer.hidePlayer(plugin, p)
-                    }
+                    val mobType = availableMobs.random()
+                    disguisePlayer(p, mobType)
 
-                    val wand = ItemStack(Material.BLAZE_ROD)
-                    val meta = wand.itemMeta
-                    meta?.displayName(plugin.messageManager.parse("<#FFAA00><b>Réplica Bloques</b> <gray>(Click Derecho)</gray></#FFAA00>"))
-                    wand.itemMeta = meta
-                    p.inventory.setItem(0, wand)
-
-                    spawnDisguise(p, Material.HAY_BLOCK)
+                    // Opcional: Darles una espadita de madera a los escondidos para que puedan defenderse
+                    p.inventory.addItem(ItemStack(Material.WOODEN_SWORD))
                 }
             }
-        }
+
+            // Llenar el mapa de animales falsos (decoys) para confundir al cazador
+            spawnDecoyMobs(arena.centerLocation!!.apply { world = targetWorld }, escondites.toList())
+
+        }, 10L) // Delay para seguridad del TP
 
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
             if (isPreparation) {
                 prepTimer--
-                
+
                 val rawMsg = plugin.languageManager.get("hideandseek.actionbar.preparation")
-                val actionMsg = plugin.messageManager.parse(rawMsg, Placeholder.parsed("time", prepTimer.toString()))
+                val actionMsg = plugin.messageManager.parse(rawMsg.ifEmpty { "<yellow>Prepárate... $prepTimer s</yellow>" }, Placeholder.parsed("time", prepTimer.toString()))
                 allPlayers.forEach { p -> p.sendActionBar(actionMsg) }
 
                 if (prepTimer <= 0) {
                     isPreparation = false
-                    val releasedMsg = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter_released"))
+                    val releasedMsg = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter_released").ifEmpty { "<red>¡EL CAZADOR HA SIDO LIBERADO!</red>" })
                     plugin.server.broadcast(releasedMsg)
-                    
+
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                        cazador?.let { c ->
-                            c.activePotionEffects.forEach { c.removePotionEffect(it.type) }
+                        cazadores.forEach { c ->
+                            c.activePotionEffects.forEach { c.removePotionEffect(it.type) } // Quitamos ceguera/lentitud
                             c.playSound(c.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
-                            
+                            c.gameMode = GameMode.SURVIVAL
+
                             val eye = ItemStack(Material.ENDER_EYE)
                             val eyeMeta = eye.itemMeta
-                            eyeMeta?.displayName(plugin.messageManager.parse("<#FF0000><b>El Ojo que Todo lo Ve</b> <gray>(Click Derecho)</gray></#FF0000>"))
+                            eyeMeta?.displayName(plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.eye_item_name").ifEmpty { "<#00FFFF>Ojo Revelador</#00FFFF>" }))
                             eye.itemMeta = eyeMeta
                             c.inventory.setItem(0, eye)
                             c.inventory.setItem(1, ItemStack(Material.DIAMOND_SWORD))
@@ -134,157 +163,128 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
             }
 
             gameTimer--
-            
+
             if (gameTimer <= 0) {
-                plugin.server.globalRegionScheduler.run(plugin) { _ -> 
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     val winMsg = plugin.languageManager.get("hideandseek.broadcast.hiders_win")
-                    plugin.server.broadcast(plugin.messageManager.parse(winMsg))
-                    escondites.forEach { plugin.puntajeManager.addPoints(it, 15, "¡Victoria escondido!") }
+                    plugin.server.broadcast(plugin.messageManager.parse(winMsg.ifEmpty { "<green>¡Los escondidos ganaron!</green>" }))
+                    escondites.forEach { plugin.puntajeManager.addPoints(it, 15, "¡Sobreviviste!") }
                     stop()
                 }
                 task.cancel()
                 return@runAtFixedRate
             }
         }, 1, 1, TimeUnit.SECONDS)
-
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
-
-            val now = System.currentTimeMillis()
-            val solidTimeLimit = plugin.config.getLong("hideandseek.solidify_seconds", 5) * 1000
-
-            escondites.forEach { p ->
-                val data = disguises[p] ?: return@forEach
-
-                if (!data.isSolid) {
-                    val loc = p.location
-                    val teleportPacket = WrapperPlayServerEntityTeleport(
-                        data.entityId,
-                        Vector3d(loc.x, loc.y, loc.z),
-                        loc.yaw, loc.pitch, true
-                    )
-                    
-                    p.world.players.forEach { viewer ->
-                        if (viewer != p) {
-                            PacketEvents.getAPI().playerManager.sendPacket(viewer, teleportPacket)
-                        }
-                    }
-
-                    if (now - data.lastMoveTime >= solidTimeLimit) {
-                        solidifyPlayer(p, data)
-                    }
-                } else {
-                    val blockLoc = data.solidLocation
-                    if (blockLoc != null && now % 20 == 0L) { 
-                        val bData = data.type.createBlockData()
-                        p.world.players.forEach { it.sendBlockChange(blockLoc, bData) }
-                    }
-                }
-            }
-        }, 1, 1)
     }
 
-    fun spawnDisguise(player: Player, type: Material) {
-        val oldData = disguises[player]
-        if (oldData != null && !oldData.isSolid) {
-            val destroyPacket = WrapperPlayServerDestroyEntities(oldData.entityId)
-            player.world.players.forEach { viewer ->
-                if (viewer != player) {
-                    PacketEvents.getAPI().playerManager.sendPacket(viewer, destroyPacket)
+    fun disguisePlayer(player: Player, mobType: DisguiseType) {
+        val disguise = MobDisguise(mobType)
+
+        disguise.isReplaceSounds = true
+        // --- AHORA PUEDES VER TU PROPIO CUERPO ---
+        disguise.isSelfDisguiseVisible = true
+
+        DisguiseAPI.disguiseToAll(player, disguise)
+        disguisedPlayers[player.uniqueId] = mobType
+    }
+
+    private fun spawnDecoyMobs(center: Location, hiders: List<Player>) {
+        val typeCount = mutableMapOf<DisguiseType, Int>()
+        for (uuid in disguisedPlayers.keys) {
+            val type = disguisedPlayers[uuid] ?: continue
+            typeCount[type] = typeCount.getOrDefault(type, 0) + 1
+        }
+
+        for ((type, count) in typeCount) {
+            val entityType = disguiseTypeToEntity(type)
+            val amount = count * plugin.config.getInt("hideandseek.decoys_per_player", 4)
+
+            for (i in 0 until amount) {
+                val spawnLoc = getRandomNearby(center, plugin.config.getInt("hideandseek.decoy_spawn_radius", 40))
+                val mob = center.world.spawnEntity(spawnLoc, entityType)
+
+                if (mob is Mob) {
+                    mob.setAI(true)
+                    mob.removeWhenFarAway = false
+                    mob.isCustomNameVisible = false
+                    spawnedDecoys.add(mob)
                 }
             }
         }
-
-        val fakeId = (Math.random() * 1000000.0).toInt() + 100000 
-        val loc = player.location
-        val blockData = type.createBlockData()
-        val globalId = SpigotConversionUtil.fromBukkitBlockData(blockData).globalId
-
-        val spawnPacket = WrapperPlayServerSpawnEntity(
-            fakeId,
-            Optional.of(UUID.randomUUID()),
-            EntityTypes.FALLING_BLOCK,
-            Vector3d(loc.x, loc.y, loc.z),
-            0f, 0f, 0f,
-            globalId,
-            Optional.empty()
-        )
-
-        player.world.players.forEach { viewer ->
-            if (viewer != player) {
-                PacketEvents.getAPI().playerManager.sendPacket(viewer, spawnPacket)
-            }
-        }
-
-        disguises[player] = DisguiseData(
-            type = type,
-            entityId = fakeId,
-            uuid = spawnPacket.uuid.get(),
-            lastMoveTime = System.currentTimeMillis(),
-            isSolid = false
-        )
     }
 
-    fun solidifyPlayer(player: Player, data: DisguiseData) {
-        data.isSolid = true
-        data.solidLocation = player.location.block.location
-        
-        val destroyPacket = WrapperPlayServerDestroyEntities(data.entityId)
-        player.world.players.forEach { viewer ->
-            if (viewer != player) {
-                PacketEvents.getAPI().playerManager.sendPacket(viewer, destroyPacket)
-            }
+    private fun disguiseTypeToEntity(type: DisguiseType): EntityType {
+        return when (type) {
+            DisguiseType.COW -> EntityType.COW
+            DisguiseType.PIG -> EntityType.PIG
+            DisguiseType.SHEEP -> EntityType.SHEEP
+            DisguiseType.CHICKEN -> EntityType.CHICKEN
+            else -> EntityType.PIG
         }
-        
-        val bData = data.type.createBlockData()
-        player.world.players.forEach { it.sendBlockChange(data.solidLocation!!, bData) }
-        
-        player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("hideandseek.solidified")))
-        player.playSound(player.location, Sound.BLOCK_STONE_PLACE, 1f, 1f)
     }
 
-    fun unsolidifyPlayer(player: Player, data: DisguiseData) {
-        if (!data.isSolid) return
-        data.isSolid = false
-        
-        val realBlock = data.solidLocation?.block?.blockData ?: Material.AIR.createBlockData()
-        player.world.players.forEach { it.sendBlockChange(data.solidLocation!!, realBlock) }
-        data.solidLocation = null
-        
-        spawnDisguise(player, data.type)
-        player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("hideandseek.unsolidified")))
+    private fun getRandomNearby(center: Location, radius: Int): Location {
+        // Encontrar un bloque sólido seguro al azar para el Decoy
+        val x = center.x + (Random.nextDouble() * radius * 2) - radius
+        val z = center.z + (Random.nextDouble() * radius * 2) - radius
+
+        var highestY = center.blockY
+        for (y in (center.blockY + 20) downTo (center.blockY - 20)) {
+            val block = center.world.getBlockAt(x.toInt(), y, z.toInt())
+            if (block.type.isSolid) {
+                highestY = y + 1
+                break
+            }
+        }
+        return Location(center.world, x, highestY.toDouble(), z)
     }
 
     override fun eliminate(player: Player) {
-        super.eliminate(player)
+        super.eliminate(player) // Lo hace espectador
         escondites.remove(player)
-        
-        val data = disguises.remove(player)
-        if (data != null) {
-            if (data.isSolid && data.solidLocation != null) {
-                val realBlock = data.solidLocation!!.block.blockData
-                player.world.players.forEach { it.sendBlockChange(data.solidLocation!!, realBlock) }
-            } else {
-                val destroyPacket = WrapperPlayServerDestroyEntities(data.entityId)
-                player.world.players.forEach { viewer ->
-                    if (viewer != player) {
-                        PacketEvents.getAPI().playerManager.sendPacket(viewer, destroyPacket)
-                    }
-                }
-            }
-        }
+        cazadores.remove(player)
 
-        players.forEach { viewer ->
-            viewer.showPlayer(plugin, player)
-        }
-
-        val rawDie = plugin.languageManager.get("hideandseek.broadcast.hider_killed")
-        plugin.server.broadcast(plugin.messageManager.parse(rawDie, Placeholder.parsed("player", player.name)))
+        DisguiseAPI.undisguiseToAll(player)
+        disguisedPlayers.remove(player.uniqueId)
 
         if (escondites.isEmpty()) {
             val winMsg = plugin.languageManager.get("hideandseek.broadcast.hunter_wins")
-            plugin.server.broadcast(plugin.messageManager.parse(winMsg))
-            cazador?.let { plugin.puntajeManager.addPoints(it, 20, "¡Victoria cazador!") }
+            plugin.server.broadcast(plugin.messageManager.parse(winMsg.ifEmpty { "<red>¡Los cazadores aniquilaron a todos!</red>" }))
+            cazadores.forEach { plugin.puntajeManager.addPoints(it, 20, "¡Cazador Implacable!") }
+            stop()
+        }
+    }
+
+    // Método para convertir en cazador (Infección)
+    fun convertToHunter(player: Player) {
+        escondites.remove(player)
+        cazadores.add(player)
+
+        DisguiseAPI.undisguiseToAll(player)
+        disguisedPlayers.remove(player.uniqueId)
+
+        player.activePotionEffects.forEach { player.removePotionEffect(it.type) }
+        player.playSound(player.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
+        player.gameMode = GameMode.SURVIVAL
+
+        val eye = ItemStack(Material.ENDER_EYE)
+        val eyeMeta = eye.itemMeta
+        eyeMeta?.displayName(plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.eye_item_name").ifEmpty { "<#00FFFF>Ojo Revelador</#00FFFF>" }))
+        eye.itemMeta = eyeMeta
+        player.inventory.setItem(0, eye)
+        player.inventory.setItem(1, ItemStack(Material.DIAMOND_SWORD))
+
+        val titleMain = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.title_main"))
+        val titleSub = plugin.messageManager.parse(plugin.languageManager.get("hideandseek.hunter.infected_sub"))
+        player.showTitle(Title.title(titleMain, titleSub))
+
+        val rawDie = plugin.languageManager.get("hideandseek.broadcast.hider_killed")
+        plugin.server.broadcast(plugin.messageManager.parse(rawDie.ifEmpty { "<red>☠ <player> fue cazado y ahora es Cazador!</red>" }, Placeholder.parsed("player", player.name)))
+
+        if (escondites.isEmpty()) {
+            val winMsg = plugin.languageManager.get("hideandseek.broadcast.hunter_wins")
+            plugin.server.broadcast(plugin.messageManager.parse(winMsg.ifEmpty { "<red>¡Los cazadores aniquilaron a todos!</red>" }))
+            cazadores.forEach { plugin.puntajeManager.addPoints(it, 20, "¡Cazadores Implacables!") }
             stop()
         }
     }
@@ -294,32 +294,20 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
     override fun onStop() {
         plugin.eventManager.currentGame = null
         val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        
+
         (players + spectators).forEach { p ->
-            (players + spectators).forEach { viewer ->
-                viewer.showPlayer(plugin, p)
-            }
-            
+            DisguiseAPI.undisguiseToAll(p)
             p.inventory.clear()
             p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
             p.gameMode = GameMode.ADVENTURE
             p.teleportAsync(lobby)
         }
-        
-        disguises.values.forEach { data ->
-            if (data.isSolid && data.solidLocation != null) {
-                val realBlock = data.solidLocation!!.block.blockData
-                plugin.server.onlinePlayers.forEach { it.sendBlockChange(data.solidLocation!!, realBlock) }
-            } else {
-                val destroyPacket = WrapperPlayServerDestroyEntities(data.entityId)
-                plugin.server.onlinePlayers.forEach { viewer ->
-                    PacketEvents.getAPI().playerManager.sendPacket(viewer, destroyPacket)
-                }
-            }
-        }
-        disguises.clear()
+
+        spawnedDecoys.forEach { it.remove() }
+        spawnedDecoys.clear()
+
+        disguisedPlayers.clear()
         escondites.clear()
-        cazador = null
+        cazadores.clear()
     }
 }
-

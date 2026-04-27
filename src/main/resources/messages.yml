@@ -15,8 +15,6 @@ commands:
     - "<#FF3131>🛑 /evento detener</#FF3131> <gray>» Detener Evento Activo</gray>"
     - "<#BF00FF>🍖 /evento revivir <jugador></#BF00FF> <gray>» Revivir Espectador</gray>"
     - ""
-  start:
-    starting: "<prefix><#39FF14>Iniciando evento <#00FFFF><game></#00FFFF> en arena <#CCFF00><arena></#CCFF00>...</#39FF14>"
   setup:
     lobby_set: "<prefix><#39FF14>✔</#39FF14> <white>Lobby principal establecido.</white>"
     waiting_set: "<prefix><#00FFFF>⏳</#00FFFF> <white>Spawn de espera configurado.</white>"
@@ -37,6 +35,33 @@ commands:
     no_spawns: "<prefix><#FF3131>¡Error! Debes añadir al menos 1 spawn con <#00FFFF>/evento arena addspawn</#00FFFF></#FF3131>"
     saved: "<prefix><#39FF14>✔</#39FF14> <white>¡El mapa <#CCFF00><map></#CCFF00> ha sido guardado exitosamente!</white>"
     cancelled: "<prefix><#FF3131>Modo creación cancelado.</#FF3131>"
+    help:
+      - ""
+      - "<#FF5500><bold>⚡ ARENA SETUP</bold></#FF5500>"
+      - ""
+      - "<#39FF14>/arena create <nombre> <tipo></#39FF14> <gray>» Crear nueva arena</gray>"
+      - "<#39FF14>/arena duplicate <origen> <nombre> <tipo></#39FF14> <gray>» Duplicar arena</gray>"
+      - "<#39FF14>/arena edit <mapa></#39FF14> <gray>» Editar arena existente</gray>"
+      - "<#00FFFF>/arena setcenter</#00FFFF> <gray>» Centro del mapa</gray>"
+      - "<#00FFFF>/arena addspawn</#00FFFF> <gray>» Añadir punto de spawn</gray>"
+      - "<#00FFFF>/arena setgradas</#00FFFF> <gray>» Gradas de espectadores</gray>"
+      - "<#00FFFF>/arena setdueloa / setduelob</#00FFFF> <gray>» Puntos de duelo</gray>"
+      - "<#00FFFF>/arena addchair</#00FFFF> <gray>» Añadir silla</gray>"
+      - "<#39FF14>/arena save</#39FF14> <gray>» Guardar arena</gray>"
+      - "<#FF3131>/arena cancel</#FF3131> <gray>» Cancelar edición</gray>"
+      - ""
+    duplicate_success: "<prefix><#39FF14>✔</#39FF14> <white>Arena <#CCFF00><source></#CCFF00> duplicada como <#CCFF00><target></#CCFF00> (tipo: <#00FFFF><type></#00FFFF>).</white>"
+    duplicate_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    duplicate_already_exists: "<prefix><#FF3131>Ya existe una arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    edit_started: "<prefix><#00FFFF>✏</#00FFFF> <white>Editando arena <#CCFF00><map></#CCFF00>. Usa los comandos de setup y luego <#39FF14>/evento arena save</#39FF14>.</white>"
+    edit_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
+    chair_added: "<prefix><#39FF14>🪑</#39FF14> <white>Silla #<count> añadida a <#CCFF00><map></#CCFF00></white>"
+    no_block_aimed: "<prefix><#FF3131>Debes mirar directamente a un bloque (Slab/Escalera) para añadirlo como silla.</#FF3131>"
+  reload:
+    success: "<prefix><#39FF14>Archivos de configuración recargados correctamente.</#39FF14>"
+  ruleta:
+    no_games: "<red>No hay juegos registrados en el core.</red>"
+    already_active: "<red>¡Ya hay un evento en curso o una votación activa!</red>"
   start:
     not_found: "<prefix><#FF3131>Juego no encontrado.</#FF3131>"
     starting: "<prefix><#39FF14>Iniciando evento <game> en modo <mode>...</#39FF14>"
@@ -49,7 +74,7 @@ commands:
   espectear:
     instruction:
       - ""
-      - "<#FF3131><b>☠ ¡HAS SIDO ELIMINADO!</b></##FF3131>"
+      - "<#FF3131><b>☠ ¡HAS SIDO ELIMINADO!</b></#FF3131>"
       - "<white>Pero no te vayas aún... puedes seguir viendo la partida.</white>"
       - "<click:run_command:'/espectear'><hover:show_text:'<gray>Haz clic para volver al mapa como fantasma'><#00FFFF><b>[CLIC AQUÍ PARA ESPECTEAR]</b></#00FFFF></hover></click>"
       - ""
@@ -143,14 +168,6 @@ tutorials:
     - "<gray>»</gray> <white><#FF3131>Tocar el suelo fuera de la arena es eliminación.</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
-  blockparty:
-    - "<newline><#FF1493><bold>━━━━━━━━━ BLOCK PARTY ━━━━━━━━━</bold></#FF1493>"
-    - ""
-    - "<gray>»</gray> <white>Mira el color que aparecerá en tu inventario.</white>"
-    - "<gray>»</gray> <white>Párate sobre <#FFCC00>ese color</#FFCC00> antes de que acabe el tiempo.</white>"
-    - "<gray>»</gray> <white><#FF3131>Los bloques incorrectos desaparecerán bajo tus pies.</#FF3131></white>"
-    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
-
   simondice:
     - "<newline><#39FF14><bold>━━━━━━━━━ SIMÓN DICE ━━━━━━━━━</bold></#39FF14>"
     - ""
@@ -210,6 +227,75 @@ tutorials:
     - "<gray>»</gray> <white>Sigue la pista y cruza los <#FFCC00>Checkpoints</#FFCC00>.</white>"
     - "<gray>»</gray> <white><#39FF14>¡El primero en completar las vueltas gana!</#39FF14></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  miniwalls:
+    - "<newline><#FF5500><bold>━━━━━━━━ MINI WALLS ━━━━━━━━</bold></#FF5500>"
+    - ""
+    - "<gray>»</gray> <white>Defiende tu <#FFCC00>Wither (Nexo)</#FFCC00> de los demás equipos.</white>"
+    - "<gray>»</gray> <white>Las paredes caerán después de <#39FF14>30 segundos</#39FF14> de preparación.</white>"
+    - "<gray>»</gray> <white>Elige tu <#00FFFF>Equipo</#00FFFF> en el lobby con la lana.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Si tu Wither muere, ya no reaparecerás!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  hideandseek:
+    - "<newline><#FF8C00><bold>━━━━━━━━ HIDE & SEEK ━━━━━━━━</bold></#FF8C00>"
+    - ""
+    - "<gray>»</gray> <white>Un cazador intentará encontrar a todos los <#FFCC00>escondidos</#FFCC00>.</white>"
+    - "<gray>»</gray> <white>Los escondidos se disfrazan de <#39FF14>mobs</#39FF14> para camuflarse.</white>"
+    - "<gray>»</gray> <white><#FF3131>Si el cazador te encuentra, te convertirás en cazador.</#FF3131></white>"
+    - "<gray>»</gray> <white>El cazador tiene el <#00FFFF>Ojo que Todo lo Ve</#00FFFF> para buscar.</white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  buildbattle_solo:
+    - "<newline><#FF9900><bold>━━━━━━━ BUILD BATTLE ━━━━━━━</bold></#FF9900>"
+    - ""
+    - "<gray>»</gray> <white>Tienes <#FF9900>5 minutos</#FF9900> para construir en tu parcela.</white>"
+    - "<gray>»</gray> <white>Usa la <#00FFFF>Varita de Selección</#00FFFF> para rellenar zonas rápido.</white>"
+    - "<gray>»</gray> <white>Al terminar, todos votarán las construcciones.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡No puedes construir fuera de tu parcela!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  buildbattle_teams:
+    - "<newline><#FF9900><bold>━━━ BUILD BATTLE EQUIPOS ━━━</bold></#FF9900>"
+    - ""
+    - "<gray>»</gray> <white>Elige tu equipo y construyan juntos.</white>"
+    - "<gray>»</gray> <white>Tienen <#FF9900>5 minutos</#FF9900> para construir en su parcela.</white>"
+    - "<gray>»</gray> <white>Al terminar, todos votarán las construcciones.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡No pueden salirse de su parcela!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+# ==========================================
+# LOBBY — MENSAJES
+# ==========================================
+lobby:
+  pvp_disabled: "<prefix><red>¡El PvP está desactivado en el lobby!</red>"
+
+# ==========================================
+# MINI WALLS — MENSAJES
+# ==========================================
+miniwalls:
+  lobby:
+    actionbar: "<yellow>El juego inicia en: <b><time></b>s</yellow>"
+    team_selected: "<white>Seleccionaste el <team_color><b><team_name></b></white>"
+  preparation:
+    actionbar: "<#39FF14>Tiempo de Preparación: <b><time></b>s</#39FF14>"
+  walls_fallen: "<#FF5500><bold>¡LAS PAREDES HAN CAÍDO! ¡A LUCHAR!</bold></#FF5500>"
+  deathmatch:
+    start: "<newline><#BF00FF><bold>¡DEATHMATCH!</bold></#BF00FF> <white>¡Todos los Withers han sido destruidos! El mapa colapsará.</white><newline>"
+  elimination:
+    respawning: "<green>¡Reapareciendo en tu base!</green>"
+    permanent: "<red>☠</red> <yellow><player></yellow> <white>ha sido eliminado definitivamente.</white>"
+  wither:
+    under_attack: "<red>⚠️ <b>¡TU WITHER ESTÁ BAJO ATAQUE! (<hp> HP)</b></red>"
+    self_damage: "<red>¡No puedes dañar a tu propio Nexo!</red>"
+    destroyed: "<newline>☠ <team_color><b>¡EL WITHER <team_name> HA SIDO DESTRUIDO!</b></team_color> <white>¡Ya no reaparecerán!</white><newline>"
+  build:
+    height_limit: "<red>¡Has alcanzado el límite de altura!</red>"
+    only_placed: "<red>Solo puedes romper bloques puestos por jugadores.</red>"
+  heal_on_kill: "<#FF1493>❤ <b>+<hearts> Corazones</b></#FF1493>"
+  broadcast:
+    winner: "<newline><#FF5500><b>MINI WALLS</b></#FF5500> <white>» ¡El equipo <team_color><team_name></team_color> ha ganado la partida!<newline>"
+
 tntrun:
   actionbar:
     preparation: "<white>El suelo caerá en: <aqua><bold><time></bold>s"
@@ -249,10 +335,6 @@ sumo:
   round_winner: "<newline><#39FF14>⭐ <bold><winner></bold> ha tirado a <loser>!</#39FF14><newline>"
   broadcast:
     winner: "<newline><#FF9900><b>SUMO 1v1</b></#FF9900> <white>» <color:#67FF00><player></color> es el gran campeón!<newline>"
-
-blockparty:
-  broadcast:
-    winner: "<newline><#FF1493><b>BLOCK PARTY</b></#FF1493> <white>» <color:#67FF00><player></color> es el mejor bailador!<newline>"
 
 sillas:
   actionbar:
@@ -377,31 +459,6 @@ suelolava:
     started: "<newline><#FF4500><b>¡LA LAVA ESTÁ SUBIENDO!</b></#FF4500> <white>¡Busca la altura máxima!<newline>"
     winner: "<newline><#FF4500><b>EL SUELO ES LAVA</b></#FF4500> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
 
-# ==========================================
-# ARENA COMMANDS — MENSAJES
-# ==========================================
-commands:
-  arena:
-    duplicate_success: "<prefix><#39FF14>✔</  #39FF14> <white>Arena <#CCFF00><source></  #CCFF00> duplicada como <#CCFF00><target></#CCFF00> (tipo: <#00FFFF><type></#00FFFF>).</white>"
-    duplicate_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
-    duplicate_already_exists: "<prefix><#FF3131>Ya existe una arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
-    edit_started: "<prefix><#00FFFF>✏</  #00FFFF> <white>Editando arena <#CCFF00><map></#CCFF00>. Usa los comandos de setup y luego <#39FF14>/evento arena save</#39FF14>.</white>"
-    edit_not_found: "<prefix><#FF3131>No existe ninguna arena llamada <#CCFF00><map></#CCFF00>.</#FF3131>"
-    chair_added: "<prefix><#39FF14>🪑</  #39FF14> <white>Silla #<count> añadida a <#CCFF00><map></#CCFF00></white>"
-    no_block_aimed: "<prefix><#FF3131>Debes mirar directamente a un bloque (Slab/Escalera) para añadirlo como silla.</#FF3131>"
-
-# ==========================================
-# RELOAD — MENSAJES
-# ==========================================
-  reload:
-    success: "<prefix><#39FF14>Archivos de configuración recargados correctamente.</#39FF14>"
-
-# ==========================================
-# RULETA — MENSAJES
-# ==========================================
-  ruleta:
-    no_games: "<red>No hay juegos registrados en el core.</red>"
-    already_active: "<red>¡Ya hay un evento en curso o una votación activa!</red>"
 
 gamemode:
   invalid: "<prefix><#FF3131>Modo de juego inválido: <#CCFF00><mode></#CCFF00></#FF3131>"
@@ -437,10 +494,14 @@ hideandseek:
     title_main: "<#FF0000>¡Eres el Cazador!</#FF0000>"
     title_sub: "<white>Espera a que se escondan...</white>"
     eye_activated: "<prefix> <red>¡El ojo que todo lo ve está activo! Sigue el polvo rojo...</red>"
+    eye_cooldown: "<red>La habilidad está en cooldown. Faltan <time>s.</red>"
+    eye_item_name: "<#FF0000><b>El Ojo que Todo lo Ve</b> <gray>(Click Derecho)</gray></#FF0000>"
+    infected_sub: "<red>¡Has sido infectado!</red>"
   hider:
     title_main: "<#00FF00>¡Escóndete!</#00FF00>"
     title_sub: "<white>Click derecho con la vara para cambiar bloque</white>"
     disguise_changed: "<prefix> <green>Te has transformado en: <yellow><block></yellow></green>"
+  decoy_penalty: "<yellow>¡Ese era un mob real! Penalización de 3 segundos de lentitud.</yellow>"
   actionbar:
     preparation: "<white>El cazador sale en: <red><time>s</red></white>"
   hunter_released: "<prefix> <red><b>¡El cazador ha sido liberado! ¡Que empiece la búsqueda!</b></red>"
@@ -450,3 +511,23 @@ hideandseek:
     hunter_wins: "<newline><#FF0000>💀 <b>¡EL CAZADOR HA GANADO!</b></#FF0000><newline><white>No quedó nadie vivo.</white><newline>"
     hiders_win: "<newline><#00FF00>🏆 <b>¡LOS ESCONDITES GANARON!</b></#00FF00><newline><white>El tiempo se agotó.</white><newline>"
     hider_killed: "<prefix> <red>¡El cazador ha encontrado y eliminado a <b><player></b>!</red>"
+
+# ==========================================
+# MENSAJES DE ARENA EXTRA
+# ==========================================
+arena_usage:
+  create: "<prefix><#FF3131>Uso: /evento arena create <nombre> <tipo></#FF3131>"
+  duplicate: "<prefix><#FF3131>Uso: /evento arena duplicate <origen> <nombre> <tipo></#FF3131>"
+  edit: "<prefix><#FF3131>Uso: /evento arena edit <mapa></#FF3131>"
+  missing_section: "<red>Falta la sección '<section>' en messages.yml</red>"
+
+# ==========================================
+# MINI WALLS — MENSAJES EXTRA GUI
+# ==========================================
+miniwalls_gui:
+  team_selector_title: "<#FF5500><b>Selector de Equipo</b></#FF5500>"
+  team_item_name: "<#00FFFF><b>🚩 Elegir Equipo</b></#00FFFF>"
+  team_player_count: "<gray>Jugadores: <white><count></white></gray>"
+  team_selected_lore: "<#39FF14>✔ Seleccionado</#39FF14>"
+  team_click_lore: "<yellow>Clic para seleccionar</yellow>"
+  wither_name: "<team_color><b>NEXO <team_name></b>"

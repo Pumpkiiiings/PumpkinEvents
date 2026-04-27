@@ -5,9 +5,11 @@ import org.bukkit.Location
 import org.bukkit.entity.Display
 import org.bukkit.entity.EntityType
 import org.bukkit.entity.Interaction
+import org.bukkit.entity.Player
 import org.bukkit.entity.TextDisplay
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
+import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEntityEvent
 import org.bukkit.util.Transformation
 import org.joml.Vector3f
@@ -18,15 +20,55 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
 
     private var displayUUID: UUID? = null
     private var interactionUUID: UUID? = null
+    private var holoLocation: Location? = null // Guardamos la locación para los schedulers
+
     private var paginaActual = 0
+    private var wasEmpty = true // Controla si el mundo no tenía a nadie
 
     init {
         plugin.server.pluginManager.registerEvents(this, plugin)
         cargarHolograma()
+        iniciarTareaActualizacion()
+    }
+
+    // --- TAREA EN TIEMPO REAL ---
+    private fun iniciarTareaActualizacion() {
+        // Se ejecuta cada 5 segundos (100 ticks)
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
+            val loc = holoLocation ?: return@runAtFixedRate
+
+            // Ejecutamos en la región del holograma
+            plugin.server.regionScheduler.run(plugin, loc) { _ ->
+                val displayId = displayUUID ?: return@run
+                val entity = plugin.server.getEntity(displayId) as? TextDisplay ?: return@run
+
+                val worldPlayers = entity.world.players.size
+
+                if (worldPlayers > 0) {
+                    if (wasEmpty) {
+                        // Alguien entró al mundo: Mostrar "Cargando..."
+                        wasEmpty = false
+                        entity.text(plugin.messageManager.parse("<yellow>Cargando estadísticas...</yellow>"))
+
+                        // Retrasamos la carga real 1.5 segundos (30 ticks)
+                        plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
+                            actualizarTexto()
+                        }, 30L)
+                    } else {
+                        // Ya había gente, se actualiza en tiempo real de forma invisible
+                        actualizarTexto()
+                    }
+                } else {
+                    // Si no hay nadie, no hacemos nada, pero marcamos que quedó vacío
+                    wasEmpty = true
+                }
+            }
+        }, 100L, 100L)
     }
 
     fun spawnHolograma(loc: Location) {
         eliminarHolograma()
+        holoLocation = loc
 
         plugin.server.regionScheduler.run(plugin, loc) { _ ->
             val display = loc.world.spawnEntity(loc, EntityType.TEXT_DISPLAY) as TextDisplay
@@ -87,7 +129,9 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
             val scores = plugin.puntajeManager.getAllSorted()
             val totalPaginas = if (scores.isEmpty()) 1 else ((scores.size - 1) / 10) + 1
 
+            // Ajustar página por si eliminaron jugadores de la base de datos
             if (paginaActual >= totalPaginas) paginaActual = 0
+            if (paginaActual < 0) paginaActual = totalPaginas - 1
 
             val start = paginaActual * 10
             val end = (start + 10).coerceAtMost(scores.size)
@@ -106,14 +150,7 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
                 val entryTemplate = lang.get("hologram.entry")
                 subList.forEachIndexed { index, score ->
                     val rank = start + index + 1
-
-                    // --- CORRECCIÓN AQUÍ ---
-                    // Solo pedimos el color al config si es 1, 2 o 3. Si no, usamos el default.
-                    val rankColor = if (rank <= 3) {
-                        lang.get("hologram.rank_colors.$rank")
-                    } else {
-                        lang.get("hologram.rank_colors.default")
-                    }
+                    val rankColor = if (rank <= 3) lang.get("hologram.rank_colors.$rank") else lang.get("hologram.rank_colors.default")
 
                     lines.add(entryTemplate
                         .replace("<rank_color>", rankColor)
@@ -123,18 +160,38 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
                 }
             }
             lang.getList("hologram.footer").forEach { lines.add(it) }
+
+            // TextDisplay se actualiza al instante
             entity.text(plugin.messageManager.parse(lines.joinToString("<newline>")))
         }
     }
 
+    // --- CLICK DERECHO (PÁGINA SIGUIENTE) ---
     @EventHandler
-    fun alHacerClic(e: PlayerInteractEntityEvent) {
+    fun alHacerClicDerecho(e: PlayerInteractEntityEvent) {
         val uuid = interactionUUID ?: return
         if (e.rightClicked.uniqueId == uuid) {
             e.isCancelled = true
             paginaActual++
-            actualizarTexto()
+            actualizarTexto() // Actualiza inmediatamente
             e.player.playSound(e.player.location, org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.2f)
+            e.player.sendActionBar(plugin.messageManager.parse("<green>Página siguiente ➔</green>"))
+        }
+    }
+
+    // --- CLICK IZQUIERDO (PÁGINA ANTERIOR) ---
+    // En las entidades Interaction, el Click Izquierdo llama al evento de Daño
+    @EventHandler
+    fun alHacerClicIzquierdo(e: EntityDamageByEntityEvent) {
+        val uuid = interactionUUID ?: return
+        if (e.entity.uniqueId == uuid) {
+            e.isCancelled = true
+            val p = e.damager as? Player ?: return
+
+            paginaActual--
+            actualizarTexto() // Actualiza inmediatamente
+            p.playSound(p.location, org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 0.8f)
+            p.sendActionBar(plugin.messageManager.parse("<red>⬅ Página anterior</red>"))
         }
     }
 
@@ -146,9 +203,15 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
         if (dUUID.isNotEmpty() && iUUID.isNotEmpty()) {
             displayUUID = UUID.fromString(dUUID)
             interactionUUID = UUID.fromString(iUUID)
+
+            // Recuperar la locación para el scheduler si el servidor reinició
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                actualizarVisuales()
-                actualizarTexto()
+                val entity = plugin.server.getEntity(displayUUID!!)
+                if (entity != null) {
+                    holoLocation = entity.location
+                    actualizarVisuales()
+                    actualizarTexto()
+                }
             }, 40L)
         }
     }
@@ -164,6 +227,7 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
         interactionUUID?.let { plugin.server.getEntity(it)?.remove() }
         displayUUID = null
         interactionUUID = null
+        holoLocation = null
         plugin.config.set("holograma.display_uuid", "")
         plugin.config.set("holograma.interaction_uuid", "")
         plugin.saveConfig()

@@ -58,17 +58,6 @@ scoreboard:
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
-  # --- BLOCK PARTY ---
-  ingame_blockparty:
-    - ""
-    - " <dark_gray>|</dark_gray> <#FF1493>🎨</#FF1493> <white>Evento:</white> <#39FF14>Block Party</#39FF14>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%alive%</#00FFFF>"
-    - ""
-    - " <dark_gray>|</dark_gray> <#00FFFF>🌈</#00FFFF> <white>Color:</white> %color%"
-    - " <dark_gray>|</dark_gray> <#FFCC00>⌛</#FFCC00> <white>Tiempo:</white> <#39FF14>%time%s</#39FF14>"
-    - ""
-    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
-
   # --- SIMÓN DICE ---
   ingame_simondice:
     - ""
@@ -169,10 +158,15 @@ scoreboard:
   ingame_iceboat:
     - ""
     - " <dark_gray>|</dark_gray> <#00FFFF>🚤</#00FFFF> <white>Evento:</white> <#FFCC00>Ice Boat</#FFCC00>"
-    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%vivos%</#00FFFF>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>En Pista:</white> <#00FFFF>%vivos%</#00FFFF>"
     - ""
     - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Vueltas:</white> <#00FFFF>%vueltas_totales%</#00FFFF>"
-    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%s</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%time_left%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Mejores Tiempos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> %lap_best_1%"
+    - " <dark_gray>|</dark_gray> %lap_best_2%"
+    - " <dark_gray>|</dark_gray> %lap_best_3%"
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
@@ -200,6 +194,27 @@ scoreboard:
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
+  # --- BUILD BATTLE ---
+  ingame_buildbattle_solo:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF9900>🏗</#FF9900> <white>Evento:</white> <#FF9900>Build Battle</#FF9900>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Parcelas:</white> <#00FFFF>%bb_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Fase:</white> <#FF9900>%bb_phase%</#FF9900>"
+    - " <dark_gray>|</dark_gray> <#FF9900>⏱</#FF9900> <white>Tiempo:</white> <#39FF14>%bb_timer%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  ingame_buildbattle_teams:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF9900>🏗</#FF9900> <white>Evento:</white> <#FF9900>Build Battle Equipos</#FF9900>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Equipos:</white> <#00FFFF>%bb_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Fase:</white> <#FF9900>%bb_phase%</#FF9900>"
+    - " <dark_gray>|</dark_gray> <#FF9900>⏱</#FF9900> <white>Tiempo:</white> <#39FF14>%bb_timer%</#39FF14>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
 # ==========================================
 # BOSSBARS
 # ==========================================
@@ -209,7 +224,6 @@ bossbar:
   ingame_sumo: "⚔ <red>%luchador1%</red> <white>vs</white> <aqua>%luchador2%</aqua> ⚔"
   ingame_pillars: "<bold>PILLARS:</bold> <aqua>Próximo ítem en %item_timer%s</aqua>"
   ingame_suelolava: "<bold>LAVA:</bold> <#FF4500>Altura: %lava_y%</#FF4500> <gray>|</gray> <white>⏳ %time_left%</white>"
-  ingame_blockparty: "<bold>BUSCA EL COLOR:</bold> %color% <gray>|</gray> <white>⏳ %time%s</white>"
   ingame_simondice: "⚡ <yellow>Simón Dice</yellow> <gray>|</gray> <white>%orden% <gray>|</gray> ⏳ %time%s</white>"
   ingame_luzroja: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Llegaron: %meta%</white>"
   ingame_sillas: "<bold>ESTADO:</bold> %estado% <gray>|</gray> <white>Sillas: %sillas%</white>"
@@ -220,3 +234,5 @@ bossbar:
   ingame_iceboat: "<bold>CARRERA:</bold> <#00FFFF>¡Corre a la meta!</#00FFFF> <gray>|</gray> <white>⏳ %time_left%</white>"
   ingame_miniwalls: "<bold>MINI WALLS:</bold> <#FF5500>Fase: %phase%</#FF5500> <gray>|</gray> <white>⏳ %time%</white>"
   ingame_hideandseek: "<bold>HIDE & SEEK:</bold> <#FF8C00>¡Que no te vean!</#FF8C00> <gray>|</gray> <white>⏳ %time_left%</white>"
+  ingame_buildbattle_solo: "<bold>BUILD BATTLE:</bold> <#FF9900>%bb_phase%</#FF9900> <gray>|</gray> <white>⏳ %bb_timer%</white>"
+  ingame_buildbattle_teams: "<bold>BUILD BATTLE:</bold> <#FF9900>%bb_phase%</#FF9900> <gray>|</gray> <white>⏳ %bb_timer%</white>"

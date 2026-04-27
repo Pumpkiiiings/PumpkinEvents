@@ -19,6 +19,9 @@ import pumpkin.eventos.games.pillars.PillarsOfFortune
 import pumpkin.eventos.games.skywars.Skywars
 import pumpkin.eventos.games.skywars.SwPhase
 import pumpkin.eventos.games.spleef.Spleef
+import pumpkin.eventos.games.miniwalls.MiniWalls
+import pumpkin.eventos.games.hideandseek.HideAndSeek
+import pumpkin.eventos.games.lava.SueloLava
 
 /**
  * Listener global que maneja eventos comunes a todos los juegos:
@@ -35,7 +38,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         if (game == null || !game.isRunning) { e.isCancelled = true; return }
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune || game is Spleef || game is Skywars) return
+        if (game is PillarsOfFortune || game is Spleef || game is Skywars || game is MiniWalls || game is SueloLava) return
         e.isCancelled = true
     }
 
@@ -51,7 +54,8 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         }
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune || game is Skywars) return
+        // Modos con drops vanilla — se permite romper y se mantiene isDropItems = true
+        if (game is PillarsOfFortune || game is Skywars || game is MiniWalls || game is SueloLava) return
         e.isCancelled = true
     }
 
@@ -106,6 +110,54 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
                 }
             }
 
+            // =====================================
+            // SISTEMA UNIVERSAL DE MUERTES
+            // =====================================
+            val mm = plugin.messageManager
+
+            if (killer != null && killer != player && game.players.contains(killer)) {
+                plugin.puntajeManager.addPoints(killer, 5, "Asesinato")
+                
+                val cause = player.lastDamageCause?.cause ?: e.cause
+                var msgs = listOf(
+                    "<#FF3131>⚔ <yellow>${killer.name}</yellow> <gray>asesinó brutalmente a</gray> <red>${player.name}</red></#FF3131>",
+                    "<#FF3131>⚔ <red>${player.name}</red> <gray>fue destrozado por</gray> <yellow>${killer.name}</yellow></#FF3131>",
+                    "<#FF3131>⚔ <yellow>${killer.name}</yellow> <gray>mandó al lobby a</gray> <red>${player.name}</red></#FF3131>"
+                )
+                var msg = msgs.random()
+
+                if (cause == EntityDamageEvent.DamageCause.VOID) {
+                    msg = "<#FF3131>☠ <yellow>${killer.name}</yellow> <gray>empujó al vacío a</gray> <red>${player.name}</red></#FF3131>"
+                } else if (cause == EntityDamageEvent.DamageCause.PROJECTILE) {
+                    msg = "<#FF3131>🏹 <yellow>${killer.name}</yellow> <gray>acertó un flechazo mortal a</gray> <red>${player.name}</red></#FF3131>"
+                }
+                plugin.server.broadcast(mm.parse(msg))
+
+                // Fix para curación de MiniWalls
+                if (game is MiniWalls) {
+                    val kit = game.playerKit[killer]
+                    if (kit != null && kit.healOnKill > 0.0) {
+                        killer.health = (killer.health + kit.healOnKill).coerceAtMost(killer.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: 20.0)
+                        killer.playSound(killer.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
+                        val hearts = (kit.healOnKill / 2).toInt()
+                        killer.sendMessage(mm.parse("<#FF1493>❤ <b>+$hearts Corazones</b></#FF1493>"))
+                    }
+                }
+
+            } else {
+                val isVoid = player.location.y <= (game.gameWorld?.minHeight ?: -64) + 10
+                val cause = if (isVoid) EntityDamageEvent.DamageCause.VOID else (player.lastDamageCause?.cause ?: e.cause)
+                
+                val msg = when {
+                    cause == EntityDamageEvent.DamageCause.LAVA -> "<#FF3131>🔥 <red>${player.name}</red> <gray>se fundió en la lava.</gray></#FF3131>"
+                    cause == EntityDamageEvent.DamageCause.VOID || isVoid -> "<#FF3131>☠ <red>${player.name}</red> <gray>cayó al vacío infinito.</gray></#FF3131>"
+                    cause == EntityDamageEvent.DamageCause.FALL -> "<#FF3131>☠ <red>${player.name}</red> <gray>se estrelló contra el suelo.</gray></#FF3131>"
+                    cause == EntityDamageEvent.DamageCause.FIRE || cause == EntityDamageEvent.DamageCause.FIRE_TICK -> "<#FF3131>🔥 <red>${player.name}</red> <gray>murió calcinado.</gray></#FF3131>"
+                    else -> "<#FF3131>☠ <red>${player.name}</red> <gray>murió de forma misteriosa.</gray></#FF3131>"
+                }
+                plugin.server.broadcast(mm.parse(msg))
+            }
+
             game.eliminate(player)
         }
     }
@@ -126,8 +178,13 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
             e.isCancelled = true; return
         }
 
+        // MiniWalls, HideAndSeek, PillarsOfFortune y SueloLava manejan su propio daño
+        if (game is MiniWalls || game is HideAndSeek || game is PillarsOfFortune || game is SueloLava) return
+
         if (e.cause != EntityDamageEvent.DamageCause.VOID) {
             e.damage = 0.001
         }
     }
 }
+
+

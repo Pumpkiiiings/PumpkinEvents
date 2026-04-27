@@ -198,7 +198,7 @@ class BoosterManager(private val plugin: PumpkinEventos, private val game: Event
                     picker.scheduler.run(plugin, { _ ->
                         type.applyEffect(picker, plugin)
                         picker.playSound(picker.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 2f)
-                        picker.sendMessage(plugin.messageManager.parse("<purple><b>!</b></purple> <white>Has recogido: ${type.color}<b>${type.displayName}</b></white>"))
+                        picker.sendMessage(plugin.messageManager.parse("<light_purple><b>!</b></light_purple> <white>Has recogido: ${type.color}<b>${type.displayName}</b></white>"))
                     }, null)
 
                     world.spawnParticle(org.bukkit.Particle.FIREWORK, currentLoc, 15, 0.2, 0.2, 0.2, 0.1)

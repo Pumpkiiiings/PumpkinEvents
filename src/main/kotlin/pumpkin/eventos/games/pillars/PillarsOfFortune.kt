@@ -14,6 +14,7 @@ import org.bukkit.entity.Snowball
 import org.bukkit.event.EventHandler
 import org.bukkit.event.Listener
 import org.bukkit.event.block.Action
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.entity.EntityDamageByEntityEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import org.bukkit.inventory.ItemStack
@@ -22,16 +23,20 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.potion.PotionType
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.EventGame
 import java.util.concurrent.ConcurrentLinkedQueue
+import java.util.concurrent.TimeUnit
 
 class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<aqua>Pillars of Fortune</aqua>"), Listener {
 
     var isPreparation = true
     private var startTimer = 10
     var itemTimer = 10
+    private var gameTimer = 0  // cuenta segundos de juego para disparar el border a los 5 min
 
     private val cageLocations = ConcurrentLinkedQueue<Location>()
+    private val borderManager = BorderShrinkManager(plugin, this)
 
     init {
         plugin.server.pluginManager.registerEvents(this, plugin)
@@ -56,6 +61,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         isPreparation = true
         startTimer = 10
         itemTimer = 10
+        gameTimer = 0
         cageLocations.clear()
 
         val arena = currentArena ?: return
@@ -144,6 +150,18 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 task.cancel()
                 checkWinner()
                 return@runAtFixedRate
+            }
+
+            // -- BORDER SHRINK: arrancar a los 5 minutos (300 segundos) --
+            gameTimer++
+            if (gameTimer == 300) {
+                val world = gameWorld ?: return@runAtFixedRate
+                val center = currentArena?.centerLocation
+                val cx = center?.x ?: 0.0
+                val cz = center?.z ?: 0.0
+                plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                    borderManager.start(world, cx, cz, delaySeconds = 0L)
+                }
             }
 
             itemTimer--
@@ -336,8 +354,19 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         stop()
     }
 
+    @EventHandler
+    fun onBlockBreak(e: BlockBreakEvent) {
+        val p = e.player
+        if (plugin.eventManager.currentGame != this || !isRunning) return
+        if (p.hasPermission("pumpkin.admin")) return
+        if (isPreparation) { e.isCancelled = true; return }
+        // Drop vanilla en todos los bloques
+        e.isDropItems = true
+    }
+
     override fun onStop() {
         removeCages()
+        gameWorld?.let { borderManager.stop(it) }
         plugin.eventManager.currentGame = null
 
         var lobby = plugin.arenaManager.mainLobby

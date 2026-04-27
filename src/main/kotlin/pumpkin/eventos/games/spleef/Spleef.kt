@@ -114,7 +114,7 @@ class Spleef(plugin: PumpkinEventos) : EventGame(plugin, "spleef", "<#E0FFFF>Spl
 
     override fun checkWinner() {
         val winner = players.firstOrNull() ?: return
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#E0FFFF><b>SPLEEF CLÁSICO</b></#E0FFFF> <white>» <purple>${winner.name}</purple> ha ganado el evento!<newline>"))
+        plugin.server.broadcast(plugin.messageManager.parse("<newline><#E0FFFF><b>SPLEEF CLÁSICO</b></#E0FFFF> <white>» <light_purple>${winner.name}</light_purple> ha ganado el evento!<newline>"))
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
         plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
         stop()

@@ -7,24 +7,35 @@ import org.bukkit.NamespacedKey
 import org.bukkit.Sound
 import org.bukkit.block.BlockFace
 import org.bukkit.entity.Player
+import org.bukkit.event.EventHandler
+import org.bukkit.event.Listener
+import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.inventory.EquipmentSlot
 import org.bukkit.inventory.ItemStack
 import org.bukkit.persistence.PersistentDataType
+import org.bukkit.potion.PotionEffect
+import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
-import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.BoosterManager
 import pumpkin.eventos.games.BoosterType
+import pumpkin.eventos.games.EventGame
+import java.util.concurrent.TimeUnit
 
-class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT Run</yellow>") {
+class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT Run</yellow>"), Listener {
 
     var isPreparation = true
     var timer = 10
+    private var gameSecondsElapsed = 0
 
-    // 1. Creamos la instancia del BoosterManager asociada a este juego
+    // Booster system
     private val boosterManager = BoosterManager(plugin, this)
+    private val borderManager = BorderShrinkManager(plugin, this)
 
     override fun onStart() {
         isPreparation = true
         timer = 10
+        gameSecondsElapsed = 0
 
         plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
@@ -42,10 +53,9 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
                     players.forEach { p ->
                         p.sendActionBar(runMsg)
-                        giveFeather(p) // <-- ENTREGAMOS LA PLUMA AQUÍ
+                        giveFeather(p)
                     }
 
-                    // 2. Iniciamos el sistema de Boosters cuando termina el tiempo de preparación
                     boosterManager.start(BoosterType.entries.toList())
                 }
                 return@runAtFixedRate
@@ -53,6 +63,18 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
             val toEliminate = players.filter { it.location.y <= it.world.minHeight + 2 }
             toEliminate.forEach { eliminate(it) }
+
+            // Border shrink: arrancar a los 5 minutos (300s) de juego real
+            gameSecondsElapsed++
+            if (gameSecondsElapsed == 300) {
+                val world = gameWorld ?: return@runAtFixedRate
+                val center = currentArena?.centerLocation
+                val cx = center?.x ?: 0.0
+                val cz = center?.z ?: 0.0
+                plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                    borderManager.start(world, cx, cz, delaySeconds = 0L)
+                }
+            }
 
         }, 20L, 20L)
 
@@ -79,6 +101,29 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
         player.inventory.setItem(4, feather) // Lo pone en el medio de la hotbar
     }
 
+    @EventHandler
+    fun onFeatherUse(e: PlayerInteractEvent) {
+        val p = e.player
+        if (!isRunning || isPreparation) return
+        if (!players.contains(p)) return
+        if (e.hand != EquipmentSlot.HAND) return
+
+        val item = e.item ?: return
+        val key = NamespacedKey(plugin, "tnt_item")
+        val tag = item.itemMeta?.persistentDataContainer?.get(key, PersistentDataType.STRING) ?: return
+        if (tag != "feather") return
+
+        e.isCancelled = true
+        if (p.hasCooldown(Material.FEATHER)) return
+        p.setCooldown(Material.FEATHER, 60) // 3 segundos (60 ticks)
+
+        p.scheduler.run(plugin, { _ ->
+            p.velocity = p.location.direction.normalize().multiply(0.3).setY(1.2)
+            p.playSound(p.location, Sound.ENTITY_BAT_TAKEOFF, 1f, 1.2f)
+            p.addPotionEffect(PotionEffect(PotionEffectType.SLOW_FALLING, 40, 0, false, false))
+        }, null)
+    }
+
     private fun scheduleBlockBreak(player: Player) {
         val box = player.boundingBox
         val y = box.minY - 0.05
@@ -98,8 +143,11 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
                 if (!isRunning) return@runDelayed
                 if (block.type != Material.AIR) {
                     block.setType(Material.AIR, false)
+                    // Eliminar también el bloque de soporte debajo (segunda capa)
                     val blockBelow = block.getRelative(BlockFace.DOWN)
-                    if (blockBelow.type == Material.TNT) blockBelow.setType(Material.AIR, false)
+                    if (blockBelow.type != Material.AIR) {
+                        blockBelow.setType(Material.AIR, false)
+                    }
                 }
             }, 6L)
         }
@@ -115,13 +163,10 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
     }
 
     override fun onStop() {
-        // 3. Detenemos los boosters y limpiamos los items que estén flotando en el aire
         boosterManager.stop()
-
-        // Limpiar Scoreboard y BossBar notificando al Core
+        gameWorld?.let { borderManager.stop(it) }
         plugin.eventManager.currentGame = null
 
-        // FIX: Verificamos si lobby es nulo o si SU MUNDO es nulo (que causa la excepción).
         var lobby = plugin.arenaManager.mainLobby
         if (lobby == null || lobby.world == null) {
             lobby = plugin.server.worlds[0].spawnLocation

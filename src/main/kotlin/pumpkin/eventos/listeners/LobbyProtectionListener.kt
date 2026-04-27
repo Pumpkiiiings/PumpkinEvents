@@ -12,12 +12,13 @@ import pumpkin.eventos.PumpkinEventos
 class LobbyProtectionListener(private val plugin: PumpkinEventos) : Listener {
 
     private fun isInLobby(player: Player): Boolean {
-        // Si el juego está activo, el Lobby no cuenta
-        if (plugin.eventManager.currentGame != null && plugin.eventManager.currentGame!!.isRunning) {
-            return false
-        }
-        val lobbyLoc = plugin.arenaManager.mainLobby ?: return false
-        return player.world == lobbyLoc.world
+        val lobbyLoc = plugin.arenaManager.mainLobby
+        val waitingLoc = plugin.arenaManager.waitingSpawn
+
+        val inMain = lobbyLoc != null && player.world.name == lobbyLoc.world?.name
+        val inWaiting = waitingLoc != null && player.world.name == waitingLoc.world?.name
+
+        return inMain || inWaiting
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)

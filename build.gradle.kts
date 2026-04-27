@@ -20,7 +20,7 @@ plugins {
 }
 
 group = "liric.mistaken"
-version = "3.2.2"
+version = "3.2.8"
 
 java {
     toolchain {
@@ -37,7 +37,9 @@ repositories {
     maven("https://jitpack.io")
     maven("https://repo.helpch.at/releases")
     maven("https://repo.infernalsuite.com/repository/maven-snapshots/")
+    maven("https://repo.md-5.net/content/groups/public/")
 
+    maven("https://maven.maxhenkel.de/repository/public")
     flatDir {
         dirs("libs")
     }
@@ -45,6 +47,7 @@ repositories {
 
 dependencies {
     compileOnly("io.papermc.paper:paper-api:1.21.4-R0.1-SNAPSHOT")
+    compileOnly("de.maxhenkel.voicechat:voicechat-api:2.5.0")
     implementation(kotlin("stdlib"))
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.2")
@@ -59,6 +62,7 @@ dependencies {
 
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
+    compileOnly(files("libs/LibsDisguises.jar"))
 }
 
 tasks {

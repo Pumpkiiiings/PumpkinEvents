@@ -28,7 +28,22 @@ class ArenaManager(private val plugin: PumpkinEventos) {
     val activeSetups = ConcurrentHashMap<UUID, ArenaSetupSession>()
 
     var mainLobby: Location? = null
+        get() {
+            if (field != null && field?.world == null) {
+                val worldName = config.getString("lobbies.main.world", "world")
+                if (worldName != null) field?.world = org.bukkit.Bukkit.getWorld(worldName)
+            }
+            return field
+        }
+
     var waitingSpawn: Location? = null
+        get() {
+            if (field != null && field?.world == null) {
+                val worldName = config.getString("lobbies.waiting.world", "world")
+                if (worldName != null) field?.world = org.bukkit.Bukkit.getWorld(worldName)
+            }
+            return field
+        }
 
     private val file = File(plugin.dataFolder, "arenas.yml")
     private var config = YamlConfiguration()

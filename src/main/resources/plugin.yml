@@ -1,5 +1,5 @@
 name: PumpkinEventos
-version: '3.2.2'
+version: '3.2.8'
 main: pumpkin.eventos.PumpkinEventos
 api-version: '1.21'
 author: Pumpkingz

@@ -42,7 +42,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
     var gameTimer = 60 // 1 Minuto de duración de partida
 
     private val playerData = mutableMapOf<Player, PlayerRhythmData>()
-    private val playerTeam = mutableMapOf<Player, EquipoCuerda>()
+    internal val playerTeam = mutableMapOf<Player, EquipoCuerda>()
 
     init {
         // Registramos el evento SOLO UNA VEZ al prender el server

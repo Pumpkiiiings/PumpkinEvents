@@ -81,7 +81,7 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
             val primerRey = players.randomOrNull()
             if (primerRey != null) {
                 asignarCorona(primerRey)
-                plugin.server.broadcast(plugin.messageManager.parse("<newline><#FFD700>👑 ¡<b>${primerRey.name}</b> ha comenzado con la corona!</bold></#FFD700><newline>"))
+                plugin.server.broadcast(plugin.messageManager.parse("<newline><#FFD700>👑 ¡<b>${primerRey.name}</b> ha comenzado con la corona!</#FFD700><newline>"))
             }
 
             // Iniciar boosters
@@ -134,15 +134,25 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
     }
 
     private fun iniciarReloj() {
+        // Variable para contar los 10 segundos
+        var ticksPuntos = 0
+
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
             gameTimer--
+            ticksPuntos++
 
             currentHolder?.let { holder ->
-                val currentScore = scores[holder.uniqueId] ?: 0
-                scores[holder.uniqueId] = currentScore + 5
-                holder.sendActionBar(plugin.messageManager.parse("<#FFD700>👑 <b>¡Rey Actual!</b> <gray>|</gray> +5 Puntos"))
+                // Cada 10 segundos, dar 5 puntos
+                if (ticksPuntos >= 10) {
+                    val currentScore = scores[holder.uniqueId] ?: 0
+                    scores[holder.uniqueId] = currentScore + 5
+                    holder.sendActionBar(plugin.messageManager.parse("<#FFD700>👑 <b>¡Rey Actual!</b> <gray>|</gray> <#39FF14>+5 Puntos</#39FF14>"))
+                    ticksPuntos = 0
+                } else {
+                    holder.sendActionBar(plugin.messageManager.parse("<#FFD700>👑 <b>¡Rey Actual!</b> <gray>|</gray> Próximos puntos en ${10 - ticksPuntos}s"))
+                }
             }
 
             if (gameTimer <= 0) {
@@ -177,6 +187,7 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
             e.isCancelled = true
         }
     }
+
     fun alTirarCorona(e: PlayerDropItemEvent) {
         if (isRunning && e.itemDrop.itemStack.type == Material.GOLDEN_HELMET) {
             e.isCancelled = true
@@ -207,7 +218,7 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
         } catch (ignored: Exception) {}
 
         plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
+        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
 
         (players + spectators).forEach { p ->
             p.isGlowing = false

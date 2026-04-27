@@ -4,7 +4,6 @@ import dev.triumphteam.gui.builder.item.ItemBuilder
 import dev.triumphteam.gui.guis.Gui
 import net.kyori.adventure.text.Component
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
-import net.kyori.adventure.title.Title
 import org.bukkit.Bukkit
 import org.bukkit.Color
 import org.bukkit.GameMode
@@ -15,33 +14,32 @@ import org.bukkit.Particle
 import org.bukkit.Sound
 import org.bukkit.attribute.Attribute
 import org.bukkit.enchantments.Enchantment
-import org.bukkit.entity.EntityType
 import org.bukkit.entity.Player
-import org.bukkit.entity.Wither
 import org.bukkit.inventory.ItemFlag
 import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.LeatherArmorMeta
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import org.bukkit.scoreboard.Team
+import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.BoosterManager
 import pumpkin.eventos.games.BoosterType
 import pumpkin.eventos.games.EventGame
-import java.time.Duration
-import java.util.*
+import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
 
-enum class MwPhase { LOBBY, PREPARING, PLAYING, DEATHMATCH, ENDED }
+enum class MwPhase { LOBBY, PREPARING, PLAYING, DEATHMATCH, DRAW, ENDED }
 
-enum class MwTeam(val displayName: String, val chatColor: String, val armorColor: Color, val wool: Material) {
-    RED("Rojo", "<#FF3131>", Color.RED, Material.RED_WOOL),
-    BLUE("Azul", "<#00FFFF>", Color.BLUE, Material.BLUE_WOOL),
-    YELLOW("Amarillo", "<#FFD700>", Color.YELLOW, Material.YELLOW_WOOL),
-    GREEN("Verde", "<#39FF14>", Color.LIME, Material.GREEN_WOOL)
+enum class MwTeam(val displayName: String, val chatColor: String, val armorColor: Color, val wool: Material, val glass: Material) {
+    RED("Rojo", "<#FF3131>", Color.RED, Material.RED_WOOL, Material.RED_STAINED_GLASS),
+    BLUE("Azul", "<#00FFFF>", Color.BLUE, Material.BLUE_WOOL, Material.BLUE_STAINED_GLASS),
+    YELLOW("Amarillo", "<#FFD700>", Color.YELLOW, Material.YELLOW_WOOL, Material.YELLOW_STAINED_GLASS),
+    GREEN("Verde", "<#39FF14>", Color.LIME, Material.GREEN_WOOL, Material.GREEN_STAINED_GLASS)
 }
 
 enum class MwKit(val displayName: String, val icon: Material, val maxArrows: Int, val arrowRegen: Int, val healOnKill: Double) {
@@ -54,25 +52,30 @@ enum class MwKit(val displayName: String, val icon: Material, val maxArrows: Int
 
 class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF5500>Mini Walls</#FF5500>") {
 
+    companion object {
+        const val MAX_NEXUS_HP = 100
+    }
+
     var phase = MwPhase.LOBBY
     var mainTimer = 20
 
     val playerTeam = mutableMapOf<Player, MwTeam>()
     val playerKit = mutableMapOf<Player, MwKit>()
-    val teamWithers = mutableMapOf<MwTeam, Wither>()
+    val respawnTimers = mutableMapOf<UUID, Int>()
+    val teamNexusLoc = mutableMapOf<MwTeam, Location>()
+    val teamNexusHP = mutableMapOf<MwTeam, Int>()
+    val teamNexusCooldown = mutableMapOf<MwTeam, Long>() // Para el Cooldown de 5 segundos
+
     val teamSpawns = mutableMapOf<MwTeam, Location>()
-
-    // Antigrief: Solo pueden romper lo que han puesto
     val placedBlocks = ConcurrentHashMap.newKeySet<Location>()
-
-    // Limite de construcción
     var maxHeightLimit = 256
 
     private val arrowTicks = mutableMapOf<Player, Int>()
     private val boosterManager = BoosterManager(plugin, this)
-
-    // Para la destrucción del mapa
+    private val borderManager = BorderShrinkManager(plugin, this)
     private val mapBlocks = mutableListOf<Location>()
+
+    private var nexoShootTimer = 0
 
     init {
         plugin.server.pluginManager.registerEvents(MiniWallsListener(plugin, this), plugin)
@@ -82,19 +85,25 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         val min = mainTimer / 60
         val sec = mainTimer % 60
 
-        fun formatWither(team: MwTeam): String {
-            val w = teamWithers[team]
-            if (w == null || w.isDead) return "<red>✗</red>"
-            return "<green>❤ ${w.health.toInt()}</green>"
+        fun formatNexo(team: MwTeam): String {
+            val hp = teamNexusHP[team]
+            return if (hp == null || hp <= 0) "<red>✗</red>" else {
+                val pct = (hp * 100) / MAX_NEXUS_HP
+                when {
+                    pct > 60 -> "<green>❤ $pct%</green>"
+                    pct > 30 -> "<yellow>❤ $pct%</yellow>"
+                    else     -> "<red>❤ $pct%</red>"
+                }
+            }
         }
 
         return mapOf(
             "%time%" to String.format("%02d:%02d", min, sec),
             "%phase%" to phase.name,
-            "%w_red%" to formatWither(MwTeam.RED),
-            "%w_blue%" to formatWither(MwTeam.BLUE),
-            "%w_yellow%" to formatWither(MwTeam.YELLOW),
-            "%w_green%" to formatWither(MwTeam.GREEN)
+            "%w_red%" to formatNexo(MwTeam.RED),
+            "%w_blue%" to formatNexo(MwTeam.BLUE),
+            "%w_yellow%" to formatNexo(MwTeam.YELLOW),
+            "%w_green%" to formatNexo(MwTeam.GREEN)
         )
     }
 
@@ -103,25 +112,24 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
             GameRule.FALL_DAMAGE to true,
             GameRule.KEEP_INVENTORY to true,
             GameRule.NATURAL_REGENERATION to true,
-            GameRule.DO_IMMEDIATE_RESPAWN to true
+            GameRule.DO_IMMEDIATE_RESPAWN to true,
+            GameRule.MOB_GRIEFING to false
         )
     }
 
     override fun onStart() {
         phase = MwPhase.LOBBY
         mainTimer = 20
-        playerTeam.clear(); playerKit.clear(); teamWithers.clear(); teamSpawns.clear()
-        placedBlocks.clear(); arrowTicks.clear(); mapBlocks.clear()
+        nexoShootTimer = 0
+        playerTeam.clear(); playerKit.clear(); teamNexusLoc.clear(); teamNexusHP.clear(); teamSpawns.clear()
+        placedBlocks.clear(); arrowTicks.clear(); mapBlocks.clear(); teamNexusCooldown.clear()
 
         val arena = currentArena ?: return
         val targetWorld = gameWorld ?: return
 
-        // El Duelo A es el Lobby de Espera del mapa
         val lobbyWait = arena.dueloA?.clone()?.apply { world = targetWorld } ?: targetWorld.spawnLocation
-        // El Duelo B marca la altura máxima (Max Y)
         maxHeightLimit = arena.dueloB?.blockY ?: targetWorld.maxHeight
 
-        // Configurar los 4 spawns (Orden: Rojo, Azul, Amarillo, Verde)
         val spawns = arena.spawnPoints
         MwTeam.values().forEachIndexed { index, team ->
             if (index < spawns.size) {
@@ -129,15 +137,15 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
             }
         }
 
-        // --- FASE 1: LOBBY (20 SEGUNDOS) ---
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             players.forEach { p ->
                 p.gameMode = GameMode.ADVENTURE
                 p.inventory.clear()
                 p.teleportAsync(lobbyWait)
 
-                // Items de selección
-                val teamItem = ItemStack(Material.WHITE_WOOL).apply { itemMeta = itemMeta?.apply { displayName(plugin.messageManager.parse("<#00FFFF><b>🚩 Elegir Equipo</b></#00FFFF>")) } }
+                val currentTeam = playerTeam[p]
+                val woolMat = currentTeam?.wool ?: Material.WHITE_WOOL
+                val teamItem = ItemStack(woolMat).apply { itemMeta = itemMeta?.apply { displayName(plugin.messageManager.parse(plugin.languageManager.get("miniwalls_gui.team_item_name"))) } }
                 p.inventory.setItem(0, teamItem)
             }
             iniciarRelojMaestro()
@@ -145,11 +153,20 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
     }
 
     private fun iniciarRelojMaestro() {
-        val arena = currentArena ?: return
         val targetWorld = gameWorld ?: return
+        var tickNexo = 0
 
         plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
             if (!isRunning) { task.cancel(); return@runAtFixedRate }
+
+            if (phase == MwPhase.PLAYING) {
+                tickNexo++
+                nexoAura()
+                if (tickNexo >= 3) {
+                    tickNexo = 0
+                    nexoDispara()
+                }
+            }
 
             when (phase) {
                 MwPhase.LOBBY -> {
@@ -165,13 +182,12 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
                     if (mainTimer <= 0) {
                         caerParedes(targetWorld)
                         phase = MwPhase.PLAYING
-                        mainTimer = 300 // 5 Minutos de juego normal
-
+                        mainTimer = 300
                         val startMsg = plugin.messageManager.parse("<#FF5500><bold>¡LAS PAREDES HAN CAÍDO! ¡A LUCHAR!</bold></#FF5500>")
                         plugin.server.broadcast(startMsg)
                         players.forEach { it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f) }
-
                         boosterManager.start(listOf(BoosterType.STRENGTH_1, BoosterType.REGEN_1, BoosterType.GAPPLE))
+                        // El borde NO se activa aquí — solo en DEATHMATCH
                     }
                     mainTimer--
                 }
@@ -179,25 +195,77 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
                     regenerarFlechas()
                     if (checkWinCondition()) { task.cancel(); return@runAtFixedRate }
 
-                    if (mainTimer <= 0) {
-                        iniciarDeathmatch()
-                    }
+                    if (mainTimer <= 0) iniciarDeathmatch()
                     mainTimer--
                 }
                 MwPhase.DEATHMATCH -> {
                     regenerarFlechas()
                     if (checkWinCondition()) { task.cancel(); return@runAtFixedRate }
-
-                    // Cada segundo se rompen 10 bloques del mapa
                     romperMapaProgresivo(targetWorld)
+
+                    if (mainTimer <= 0) {
+                        // Nadie ganó en DEATHMATCH → DRAW
+                        task.cancel()
+                        plugin.server.globalRegionScheduler.run(plugin) { _ -> declararEmpate() }
+                        return@runAtFixedRate
+                    }
+                    mainTimer--
                 }
-                MwPhase.ENDED -> task.cancel()
+                MwPhase.DRAW, MwPhase.ENDED -> task.cancel()
             }
         }, 1, 1, TimeUnit.SECONDS)
     }
 
+    private fun nexoAura() {
+        plugin.server.globalRegionScheduler.run(plugin) { _ ->
+            teamNexusLoc.forEach { (equipo, loc) ->
+                if ((teamNexusHP[equipo] ?: 0) > 0) {
+                    val radio = 6.0
+                    players.forEach { p ->
+                        if (p.location.world == loc.world && p.location.distance(loc) <= radio) {
+                            if (playerTeam[p] == equipo) {
+                                p.addPotionEffect(PotionEffect(PotionEffectType.REGENERATION, 40, 0, false, false, false))
+                                p.world.spawnParticle(Particle.HAPPY_VILLAGER, p.location.add(0.0, 1.0, 0.0), 3, 0.2, 0.2, 0.2)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private fun nexoDispara() {
+        plugin.server.globalRegionScheduler.run(plugin) { _ ->
+            teamNexusLoc.forEach { (equipo, nexoLoc) ->
+                if ((teamNexusHP[equipo] ?: 0) <= 0) return@forEach
+
+                val objetivo = players.firstOrNull {
+                    it.location.world == nexoLoc.world &&
+                            it.location.distance(nexoLoc) <= 10.0 &&
+                            playerTeam[it] != equipo
+                }
+
+                if (objetivo != null) {
+                    val origenLaser = nexoLoc.clone().add(0.5, 1.5, 0.5)
+                    val dir = objetivo.eyeLocation.subtract(origenLaser).toVector()
+
+                    for (i in 1..10) {
+                        val point = origenLaser.clone().add(dir.clone().multiply(i / 10.0))
+                        nexoLoc.world.spawnParticle(Particle.FLAME, point, 2, 0.0, 0.0, 0.0, 0.0)
+                    }
+
+                    nexoLoc.world.playSound(nexoLoc, Sound.ENTITY_GUARDIAN_ATTACK, 1f, 1f)
+
+                    // --- DAÑO MASIVO: Quita 2 corazones fijos (4 de vida) ---
+                    objetivo.damage(4.0)
+                    objetivo.addPotionEffect(PotionEffect(PotionEffectType.POISON, 60, 0))
+                    objetivo.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 40, 1))
+                }
+            }
+        }
+    }
+
     private fun agruparJugadoresYKits() {
-        // Asignar equipos faltantes
         val unassigned = players.filter { !playerTeam.containsKey(it) }.toMutableList()
         val availableTeams = teamSpawns.keys.toList()
 
@@ -207,20 +275,16 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
             tIndex++
         }
 
-        // Asignar kits aleatorios si no eligieron (Como pediste, aleatorio en esta fase)
         players.forEach { p ->
-            if (!playerKit.containsKey(p)) {
-                playerKit[p] = MwKit.values().random()
-            }
+            if (!playerKit.containsKey(p)) playerKit[p] = MwKit.values().random()
         }
     }
 
     private fun iniciarPreparacion(world: org.bukkit.World) {
         phase = MwPhase.PREPARING
-        mainTimer = 30 // 30s de Prep
+        mainTimer = 30
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            // Spawneamos Withers y configuramos Scoreboard Teams para que no ataquen a los suyos
             val sb = Bukkit.getScoreboardManager().mainScoreboard
 
             teamSpawns.forEach { (equipo, spawn) ->
@@ -228,52 +292,46 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
                 sbTeam.color(net.kyori.adventure.text.format.NamedTextColor.NAMES.value(equipo.name.lowercase()) ?: net.kyori.adventure.text.format.NamedTextColor.WHITE)
                 sbTeam.setOption(Team.Option.NAME_TAG_VISIBILITY, Team.OptionStatus.ALWAYS)
                 sbTeam.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER)
+                sbTeam.setAllowFriendlyFire(false)
 
-                // Mover a los jugadores a su base
                 players.filter { playerTeam[it] == equipo }.forEach { p ->
                     sbTeam.addEntry(p.name)
                     p.teleportAsync(spawn)
                     equipPlayer(p)
                 }
 
-                // Spawn Wither
-                val witherLoc = spawn.clone().add(0.0, 1.0, 0.0)
-                plugin.server.regionScheduler.run(plugin, witherLoc) { _ ->
-                    val wither = world.spawnEntity(witherLoc, EntityType.WITHER) as Wither
-                    wither.isCustomNameVisible = true
-                    wither.customName(plugin.messageManager.parse("${equipo.chatColor}<b>NEXO ${equipo.displayName.uppercase()}</b>"))
+                val nexoLoc = spawn.clone().add(0.0, 1.0, 0.0)
+                teamNexusLoc[equipo] = nexoLoc
+        teamNexusHP[equipo] = MAX_NEXUS_HP
+                teamNexusCooldown[equipo] = 0L
 
-                    // Quitar IA de movimiento pero dejar ataques
-                    wither.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 999999, 255, false, false))
-                    wither.getAttribute(Attribute.MAX_HEALTH)?.baseValue = 100.0 // 100 HP para el Wither
-                    wither.health = 100.0
-
-                    sbTeam.addEntry(wither.uniqueId.toString()) // Aliados del Wither
-                    teamWithers[equipo] = wither
+                plugin.server.regionScheduler.run(plugin, nexoLoc) { _ ->
+                    nexoLoc.clone().subtract(0.0, 1.0, 0.0).block.setType(equipo.wool, false)
+                    nexoLoc.block.setType(Material.BEACON, false)
+                    nexoLoc.clone().add(0.0, 1.0, 0.0).block.setType(equipo.glass, false)
+                    world.spawnParticle(Particle.END_ROD, nexoLoc.clone().add(0.5, 1.5, 0.5), 50, 0.5, 0.5, 0.5, 0.1)
                 }
             }
         }
     }
 
     private fun caerParedes(world: org.bukkit.World) {
-        // Leemos la config para saber qué bloques romper
         val bloquesPared = plugin.config.getStringList("miniwalls.wall_blocks").mapNotNull { Material.matchMaterial(it) }
         if (bloquesPared.isEmpty()) return
 
-        // Escanear el mapa y convertir a aire
         val arena = currentArena ?: return
-        val posA = arena.dueloA ?: return
-        val posB = arena.dueloB ?: return
+        val allPoints = mutableListOf<Location>()
+        arena.centerLocation?.let { allPoints.add(it) }
+        allPoints.addAll(arena.spawnPoints)
+        if (allPoints.isEmpty()) return
 
-        val minX = min(posA.blockX, posB.blockX); val maxX = max(posA.blockX, posB.blockX)
-        val minZ = min(posA.blockZ, posB.blockZ); val maxZ = max(posA.blockZ, posB.blockZ)
-        val minY = world.minHeight; val maxY = posB.blockY
+        val minX = allPoints.minOf { it.blockX } - 50; val maxX = allPoints.maxOf { it.blockX } + 50
+        val minZ = allPoints.minOf { it.blockZ } - 50; val maxZ = allPoints.maxOf { it.blockZ } + 50
+        val avgY = allPoints.sumOf { it.blockY } / allPoints.size
+        val minY = max(world.minHeight, avgY - 30); val maxY = min(maxHeightLimit, avgY + 30)
 
-        val minCX = minX shr 4; val maxCX = maxX shr 4
-        val minCZ = minZ shr 4; val maxCZ = maxZ shr 4
-
-        for (cx in minCX..maxCX) {
-            for (cz in minCZ..maxCZ) {
+        for (cx in (minX shr 4)..(maxX shr 4)) {
+            for (cz in (minZ shr 4)..(maxZ shr 4)) {
                 plugin.server.regionScheduler.run(plugin, world, cx, cz) { _ ->
                     for (x in max(minX, cx shl 4)..min(maxX, (cx shl 4) + 15)) {
                         for (z in max(minZ, cz shl 4)..min(maxZ, (cz shl 4) + 15)) {
@@ -283,7 +341,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
                                     block.setType(Material.AIR, false)
                                     world.spawnParticle(Particle.CLOUD, block.location.add(0.5,0.5,0.5), 2, 0.2, 0.2, 0.2, 0.05)
                                 } else if (block.type.isSolid) {
-                                    mapBlocks.add(block.location) // Guardamos bloques sólidos para el Deathmatch
+                                    mapBlocks.add(block.location)
                                 }
                             }
                         }
@@ -295,17 +353,28 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
 
     private fun iniciarDeathmatch() {
         phase = MwPhase.DEATHMATCH
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#BF00FF><bold>¡DEATHMATCH!</bold></#BF00FF> <white>¡Todos los Withers han sido destruidos! El mapa colapsará.</white><newline>"))
+        mainTimer = 180 // 3 minutos de DEATHMATCH
+        plugin.server.broadcast(plugin.messageManager.parse("<newline><#BF00FF><bold>¡DEATHMATCH!</bold></#BF00FF> <white>¡Todos los Nexos han sido destruidos! El mapa colapsará en 3 minutos.</white><newline>"))
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            // Matar Withers restantes
-            teamWithers.values.forEach { w ->
-                if (!w.isDead) w.health = 0.0
+            teamNexusLoc.forEach { (equipo, loc) ->
+                teamNexusHP[equipo] = 0
+                plugin.server.regionScheduler.run(plugin, loc) { _ ->
+                    loc.block.setType(Material.AIR)
+                    loc.clone().add(0.0, 1.0, 0.0).block.setType(Material.AIR)
+                }
             }
-            teamWithers.clear()
-
             players.forEach { it.playSound(it.location, Sound.ENTITY_WITHER_DEATH, 1f, 1f) }
-            mapBlocks.shuffle() // Desordenamos los bloques del mapa para romperlos al azar
+            mapBlocks.shuffle()
+        }
+
+        // Iniciar borde SOLO en DEATHMATCH
+        val targetWorld = gameWorld ?: return
+        val center = currentArena?.centerLocation
+        val cx = center?.x ?: 0.0
+        val cz = center?.z ?: 0.0
+        plugin.server.globalRegionScheduler.run(plugin) { _ ->
+            borderManager.start(targetWorld, cx, cz, delaySeconds = 0L)
         }
     }
 
@@ -313,7 +382,6 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         if (mapBlocks.isEmpty()) return
 
         plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            // Romper 15 bloques al azar por segundo
             val aRomper = min(15, mapBlocks.size)
             for (i in 0 until aRomper) {
                 val loc = mapBlocks.removeAt(mapBlocks.lastIndex)
@@ -358,7 +426,6 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         p.health = p.getAttribute(Attribute.MAX_HEALTH)?.value ?: 20.0
         p.foodLevel = 20
 
-        // Armadura de Equipo
         val helmet = ItemStack(Material.LEATHER_HELMET).apply { itemMeta = (itemMeta as LeatherArmorMeta).apply { setColor(team.armorColor); isUnbreakable = true } }
         val chest = ItemStack(Material.LEATHER_CHESTPLATE).apply { itemMeta = (itemMeta as LeatherArmorMeta).apply { setColor(team.armorColor); isUnbreakable = true } }
         val legs = ItemStack(Material.LEATHER_LEGGINGS).apply { itemMeta = (itemMeta as LeatherArmorMeta).apply { setColor(team.armorColor); isUnbreakable = true } }
@@ -366,11 +433,11 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
 
         p.inventory.helmet = helmet; p.inventory.chestplate = chest; p.inventory.leggings = legs; p.inventory.boots = boots
 
-        // Items por Kit
+        // --- LOS PICOS AHORA TIENEN EFICIENCIA 3 ---
         when (kit) {
             MwKit.SOLDIER -> {
                 p.inventory.addItem(ItemStack(Material.STONE_SWORD).apply { itemMeta = itemMeta?.apply { isUnbreakable = true } })
-                p.inventory.addItem(ItemStack(Material.STONE_PICKAXE))
+                p.inventory.addItem(ItemStack(Material.STONE_PICKAXE).apply { itemMeta = itemMeta?.apply { addEnchant(Enchantment.EFFICIENCY, 3, true) } })
                 p.inventory.addItem(ItemStack(Material.WOODEN_AXE))
                 p.inventory.addItem(ItemStack(team.wool, 10))
                 p.inventory.addItem(ItemStack(Material.WOODEN_SHOVEL))
@@ -378,27 +445,27 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
             MwKit.ARCHER -> {
                 p.inventory.addItem(ItemStack(Material.WOODEN_SWORD).apply { itemMeta = itemMeta?.apply { isUnbreakable = true } })
                 p.inventory.addItem(ItemStack(Material.BOW).apply { itemMeta = itemMeta?.apply { isUnbreakable = true } })
-                p.inventory.addItem(ItemStack(Material.STONE_PICKAXE))
+                p.inventory.addItem(ItemStack(Material.STONE_PICKAXE).apply { itemMeta = itemMeta?.apply { addEnchant(Enchantment.EFFICIENCY, 3, true) } })
                 p.inventory.addItem(ItemStack(Material.WOODEN_AXE))
                 p.inventory.addItem(ItemStack(team.wool, 10))
             }
             MwKit.BUILDER -> {
                 p.inventory.addItem(ItemStack(Material.WOODEN_SWORD).apply { itemMeta = itemMeta?.apply { isUnbreakable = true } })
-                p.inventory.addItem(ItemStack(Material.IRON_PICKAXE))
+                p.inventory.addItem(ItemStack(Material.IRON_PICKAXE).apply { itemMeta = itemMeta?.apply { addEnchant(Enchantment.EFFICIENCY, 3, true) } })
                 p.inventory.addItem(ItemStack(Material.STONE_AXE))
                 p.inventory.addItem(ItemStack(team.wool, 20))
                 p.inventory.addItem(ItemStack(Material.STONE_SHOVEL))
             }
             MwKit.KNIGHT -> {
-                p.inventory.chestplate = ItemStack(Material.IRON_CHESTPLATE) // Pechera de hierro
+                p.inventory.chestplate = ItemStack(Material.IRON_CHESTPLATE)
                 p.inventory.addItem(ItemStack(Material.IRON_SWORD).apply { itemMeta = itemMeta?.apply { isUnbreakable = true } })
-                p.inventory.addItem(ItemStack(Material.WOODEN_PICKAXE))
+                p.inventory.addItem(ItemStack(Material.WOODEN_PICKAXE).apply { itemMeta = itemMeta?.apply { addEnchant(Enchantment.EFFICIENCY, 3, true) } })
                 p.inventory.addItem(ItemStack(team.wool, 10))
             }
             MwKit.SCOUT -> {
                 val knockSword = ItemStack(Material.STONE_SWORD).apply { itemMeta = itemMeta?.apply { isUnbreakable = true; addEnchant(Enchantment.KNOCKBACK, 1, true) } }
                 p.inventory.addItem(knockSword)
-                p.inventory.addItem(ItemStack(Material.GOLDEN_PICKAXE))
+                p.inventory.addItem(ItemStack(Material.GOLDEN_PICKAXE).apply { itemMeta = itemMeta?.apply { addEnchant(Enchantment.EFFICIENCY, 3, true) } })
                 p.inventory.addItem(ItemStack(team.wool, 15))
                 p.addPotionEffect(PotionEffect(PotionEffectType.SPEED, 99999, 0, false, false))
             }
@@ -409,17 +476,58 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         if (!players.contains(player)) return
 
         val team = playerTeam[player] ?: return
-        val wither = teamWithers[team]
+        val hpNexo = teamNexusHP[team] ?: 0
 
-        if (wither != null && !wither.isDead) {
-            // WITHER VIVO: Respawnea
-            player.sendActionBar(plugin.messageManager.parse("<green>¡Reapareciendo en tu base!</green>"))
-            val spawn = teamSpawns[team]!!
-            player.teleportAsync(spawn).thenRun {
-                plugin.server.regionScheduler.runDelayed(plugin, spawn, { _ -> equipPlayer(player) }, 5L)
-            }
+        if (hpNexo > 0) {
+            val spawn = teamSpawns[team] ?: return
+            val respawnSeconds = 5
+
+            // Poner en espectador inmediatamente
+            player.gameMode = GameMode.SPECTATOR
+            player.inventory.clear()
+            player.playSound(player.location, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1f, 1.5f)
+
+            // Contador regresivo con title
+            var secondsLeft = respawnSeconds
+            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                if (!isRunning || !players.contains(player)) {
+                    task.cancel()
+                    return@runAtFixedRate
+                }
+
+                if (secondsLeft <= 0) {
+                    task.cancel()
+                    // Reaparecemos al jugador
+                    plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                        player.teleportAsync(spawn).thenRun {
+                            plugin.server.regionScheduler.runDelayed(plugin, spawn, { _ ->
+                                if (isRunning && players.contains(player)) {
+                                    equipPlayer(player)
+                                }
+                            }, 5L)
+                        }
+                    }
+                    return@runAtFixedRate
+                }
+
+                // Mostrar title con cuenta regresiva
+                val title = net.kyori.adventure.title.Title.title(
+                    plugin.messageManager.parse("<red><b>¡MUERTO!</b></red>"),
+                    plugin.messageManager.parse("<white>Reaparecerás en <yellow><b>$secondsLeft</b></yellow> segundo${if (secondsLeft == 1) "" else "s"}</white>"),
+                    net.kyori.adventure.title.Title.Times.times(
+                        java.time.Duration.ZERO,
+                        java.time.Duration.ofMillis(1100),
+                        java.time.Duration.ZERO
+                    )
+                )
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                    player.showTitle(title)
+                    player.playSound(player.location, Sound.BLOCK_NOTE_BLOCK_HAT, 0.8f, if (secondsLeft <= 2) 1.5f else 1f)
+                }
+
+                secondsLeft--
+            }, 0L, 1L, java.util.concurrent.TimeUnit.SECONDS)
         } else {
-            // WITHER MUERTO: Eliminación real
             players.remove(player)
             spectators.add(player)
             player.gameMode = GameMode.SPECTATOR
@@ -447,7 +555,11 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         val winnerStr = winnerTeam?.displayName ?: "Nadie"
         val color = winnerTeam?.chatColor ?: "<white>"
 
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF5500><b>MINI WALLS</b></#FF5500> <white>» ¡El equipo $color$winnerStr</$color> ha ganado la partida!<newline>"))
+        val winMsg = plugin.languageManager.get("miniwalls.broadcast.winner")
+            .replace("<team_color>", color)
+            .replace("<team_name>", winnerStr)
+            .replace("</team_color>", "")
+        plugin.server.broadcast(plugin.messageManager.parse(winMsg))
 
         players.filter { playerTeam[it] == winnerTeam }.forEach {
             it.world.spawnParticle(Particle.FIREWORK, it.location, 100)
@@ -457,11 +569,26 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<#FF55
         stop()
     }
 
+    fun declararEmpate() {
+        phase = MwPhase.DRAW
+        plugin.server.broadcast(plugin.messageManager.parse("<newline><gold><bold>¡EMPATE!</bold></gold> <white>El tiempo se agotó. Nadie ganó esta partida.</white><newline>"))
+        val drawTitle = net.kyori.adventure.title.Title.title(
+            plugin.messageManager.parse("<gold><b>¡EMPATE!</b></gold>"),
+            plugin.messageManager.parse("<white>El tiempo se agotó</white>")
+        )
+        players.forEach { p ->
+            p.showTitle(drawTitle)
+            p.playSound(p.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 0.5f)
+            plugin.puntajeManager.addPoints(p, 5, "Empate en Mini Walls")
+        }
+        stop()
+    }
+
     override fun onStop() {
         phase = MwPhase.ENDED
         boosterManager.stop()
+        gameWorld?.let { borderManager.stop(it) }
 
-        // Limpiar Scoreboard Teams
         val sb = Bukkit.getScoreboardManager().mainScoreboard
         MwTeam.values().forEach { sb.getTeam("MW_${it.name}")?.unregister() }
 

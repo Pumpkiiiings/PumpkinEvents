@@ -16,6 +16,7 @@ class EventManager(private val plugin: PumpkinEventos) {
     val games = mutableMapOf<String, EventGame>()
     var isVoting = false
     var currentGame: EventGame? = null
+    val narrators = mutableSetOf<java.util.UUID>()
 
     fun registerGame(game: EventGame) { games[game.id] = game }
 
@@ -91,13 +92,31 @@ class EventManager(private val plugin: PumpkinEventos) {
                 val actualSpawn = arenaTemplate.centerLocation?.clone() ?: world.spawnLocation
                 actualSpawn.world = world
 
+                val spawns = arenaTemplate.spawnPoints
+                var spawnIndex = 0
+
                 Bukkit.getOnlinePlayers().forEach { p ->
-                    // --- ACTUALIZADO: IceBoatRacing también espera en el Lobby ---
-                    if (game !is PillarsOfFortune && game !is JalarCuerda && game !is IceBoatRacing) {
+                    if (narrators.contains(p.uniqueId)) {
                         p.teleportAsync(actualSpawn)
+                        p.inventory.clear()
+                        p.gameMode = org.bukkit.GameMode.SPECTATOR
+                        game.spectators.add(p)
+                    } else {
+                        // Modos que NECESITAN estar en el centro para una fase previa de lobby/votación
+                        if (game is pumpkin.eventos.games.skywars.Skywars || 
+                            game is pumpkin.eventos.games.miniwalls.MiniWalls || 
+                            game is pumpkin.eventos.games.sumo.Sumo) {
+                            p.teleportAsync(actualSpawn)
+                        } else if (game !is PillarsOfFortune && game !is JalarCuerda && game !is IceBoatRacing) {
+                            // Si hay spawns en la arena, se reparten circularmente; si no, usan el actualSpawn
+                            val loc = if (spawns.isNotEmpty()) spawns[spawnIndex % spawns.size].clone() else actualSpawn
+                            loc.world = world
+                            p.teleportAsync(loc)
+                            spawnIndex++
+                        }
+                        p.inventory.clear()
+                        game.players.add(p)
                     }
-                    p.inventory.clear()
-                    game.players.add(p)
                 }
 
                 currentGame = game

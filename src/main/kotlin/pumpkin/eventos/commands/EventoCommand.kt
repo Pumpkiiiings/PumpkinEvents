@@ -28,7 +28,7 @@ object EventoCommand {
     private fun enviarAyuda(sender: CommandSender, plugin: PumpkinEventos) {
         val list = plugin.languageManager.getList("commands.help")
         if (list.isEmpty()) {
-            sender.sendMessage(plugin.messageManager.parse("<red>Falta la sección 'commands.help' en messages.yml</red>"))
+            sendMsg(sender, plugin, "arena_usage.missing_section", Placeholder.parsed("section", "commands.help"))
         } else {
             list.forEach { line -> sender.sendMessage(plugin.messageManager.parse(line)) }
         }
@@ -134,6 +134,19 @@ object EventoCommand {
             1
         }
 
+        val narrador = Commands.literal("narrator").executes { ctx ->
+            val p = ctx.source.sender as? Player ?: return@executes 0
+            val em = plugin.eventManager
+            if (em.narrators.contains(p.uniqueId)) {
+                em.narrators.remove(p.uniqueId)
+                p.sendMessage(plugin.messageManager.parse("<red>Modo narrador desactivado. Participarás en el siguiente evento.</red>"))
+            } else {
+                em.narrators.add(p.uniqueId)
+                p.sendMessage(plugin.messageManager.parse("<green>Modo narrador activado. Serás espectador en el mapa en el siguiente evento.</green>"))
+            }
+            1
+        }
+
         // --- /pvote <efecto> ---
         val pvote = Commands.literal("pvote")
             .then(Commands.argument("efecto", StringArgumentType.word())
@@ -174,6 +187,7 @@ object EventoCommand {
         root.then(detener)
         root.then(revivir)
         root.then(ruleta)
+        root.then(narrador)
         root.then(pvote)
         root.then(pvpvote)
 

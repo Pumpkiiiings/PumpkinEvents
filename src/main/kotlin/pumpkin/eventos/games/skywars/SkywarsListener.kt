@@ -35,7 +35,7 @@ class SkywarsListener(private val plugin: PumpkinEventos) : Listener {
                     // Llenar inventario
                     val state = block.state as org.bukkit.block.Chest
                     state.inventory.clear()
-                    val loot = SkywarsManager.generarLoot(game.chosenChest)
+                    val loot = SkywarsManager.generarLoot(game.chosenChest, plugin)
                     loot.forEach { item ->
                         val slot = (0 until 27).random()
                         state.inventory.setItem(slot, item)
@@ -82,22 +82,9 @@ class SkywarsListener(private val plugin: PumpkinEventos) : Listener {
         val game = plugin.eventManager.currentGame as? Skywars ?: return
 
         if (game.isRunning && game.players.contains(victim)) {
-            // Cancelar mensaje de muerte predeterminado
-            e.deathMessage(null)
-            
             if (killer != null && game.players.contains(killer)) {
                 val currentKills = game.kills[killer] ?: 0
                 game.kills[killer] = currentKills + 1
-                
-                // Mensaje de muerte personalizado
-                val isVoid = victim.location.y <= (game.gameWorld?.minHeight ?: -64) + 10
-                if (victim.lastDamageCause?.cause == org.bukkit.event.entity.EntityDamageEvent.DamageCause.VOID || isVoid) {
-                    plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>☠ <yellow>${killer.name}</yellow> <gray>mandó al eterno vacío a</gray> <red>${victim.name}</red></#FF3131>"))
-                } else {
-                    plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>⚔ <yellow>${killer.name}</yellow> <gray>mató a</gray> <red>${victim.name}</red></#FF3131>"))
-                }
-            } else {
-                plugin.server.broadcast(plugin.messageManager.parse("<#FF3131>☠ <red>${victim.name}</red> <gray>murió.</gray></#FF3131>"))
             }
         }
     }

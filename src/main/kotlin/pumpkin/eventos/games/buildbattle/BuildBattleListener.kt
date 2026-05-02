@@ -40,10 +40,12 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
     private fun isInsidePlot(loc: Location, center: Location, radius: Int): Boolean {
         if (loc.world != center.world) return false
         val height = plugin.config.getInt("buildbattle.plot_height", 15)
-        return abs(loc.blockX - center.blockX) <= radius &&
-               abs(loc.blockZ - center.blockZ) <= radius &&
+        // Usamos < (estricto) en X/Z para que la capa exterior (las paredes) sea intocable.
+        // Con radius=16 en una parcela 31x31: interior buildable = 29x29, paredes = protegidas.
+        return abs(loc.blockX - center.blockX) < radius &&
+               abs(loc.blockZ - center.blockZ) < radius &&
                loc.blockY > center.blockY &&
-               loc.blockY <= center.blockY + height
+               loc.blockY < center.blockY + height
     }
 
     // --- Partículas de selección ---

@@ -42,7 +42,8 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
         val height = plugin.config.getInt("buildbattle.plot_height", 15)
         return abs(loc.blockX - center.blockX) <= radius &&
                abs(loc.blockZ - center.blockZ) <= radius &&
-               abs(loc.blockY - center.blockY) <= height
+               loc.blockY > center.blockY &&
+               loc.blockY <= center.blockY + height
     }
 
     // --- Partículas de selección ---

@@ -80,6 +80,16 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         if (!game.isRunning) return
         if (!game.players.contains(player)) return
 
+        // Si el PvP está desactivado por votación, cancelamos cualquier daño entre jugadores
+        if (!game.pvpEnabled && e is EntityDamageByEntityEvent) {
+            val damager = e.damager
+            val isPlayerHit = damager is Player || (damager is Projectile && damager.shooter is Player)
+            if (isPlayerHit) {
+                e.isCancelled = true
+                return
+            }
+        }
+
         if (player.health - e.finalDamage <= 0) {
             val mainHand = player.inventory.itemInMainHand.type
             val offHand = player.inventory.itemInOffHand.type

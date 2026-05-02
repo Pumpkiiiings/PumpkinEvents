@@ -184,6 +184,8 @@ class BuildBattle(
         phase = BbPhase.VOTING
         players.forEach { p ->
             p.gameMode = GameMode.ADVENTURE
+            p.allowFlight = true
+            p.isFlying = true
             p.inventory.clear()
             // Dar items de voto
             val voteYes = ItemStack(Material.LIME_DYE).apply {
@@ -281,6 +283,8 @@ class BuildBattle(
         val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
         (players + spectators).forEach { p ->
             p.inventory.clear()
+            p.allowFlight = false
+            p.isFlying = false
             p.gameMode = GameMode.ADVENTURE
             p.teleportAsync(lobby)
         }

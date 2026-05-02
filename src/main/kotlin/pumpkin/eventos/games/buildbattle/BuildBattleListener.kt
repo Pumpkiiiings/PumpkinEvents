@@ -220,6 +220,19 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onPvP(e: org.bukkit.event.entity.EntityDamageByEntityEvent) {
+        val game = game() ?: return
+        if (!game.isRunning) return
+        // PvP completamente desactivado en Build Battle (no se registra ningún hit)
+        if (e.damager is Player || (e.damager is org.bukkit.entity.Projectile &&
+                (e.damager as org.bukkit.entity.Projectile).shooter is Player)) {
+            if (game.players.contains(e.entity) || game.spectators.contains(e.entity)) {
+                e.isCancelled = true
+            }
+        }
+    }
+
     // Menú de equipos (si isTeams)
     @EventHandler
     fun onEquipoSelect(e: PlayerInteractEvent) {

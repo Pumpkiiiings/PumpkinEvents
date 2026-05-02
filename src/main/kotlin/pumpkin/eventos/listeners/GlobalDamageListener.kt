@@ -24,6 +24,7 @@ import pumpkin.eventos.games.hideandseek.HideAndSeek
 import pumpkin.eventos.games.lava.SueloLava
 import pumpkin.eventos.games.battleroyale.BattleRoyale
 import pumpkin.eventos.games.battleroyale.BRPhase
+import pumpkin.eventos.games.buildbattle.BuildBattle
 
 /**
  * Listener global que maneja eventos comunes a todos los juegos:
@@ -41,7 +42,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
         if (game is BattleRoyale && game.phase != BRPhase.PLAYING) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune || game is Spleef || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale) return
+        if (game is PillarsOfFortune || game is Spleef || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale || game is BuildBattle) return
         e.isCancelled = true
     }
 
@@ -59,7 +60,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
         if (game is BattleRoyale && game.phase != BRPhase.PLAYING) { e.isCancelled = true; return }
         // Modos con drops vanilla — se permite romper y se mantiene isDropItems = true
-        if (game is PillarsOfFortune || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale) return
+        if (game is PillarsOfFortune || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale || game is BuildBattle) return
         e.isCancelled = true
     }
 

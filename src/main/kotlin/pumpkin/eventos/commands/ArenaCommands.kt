@@ -21,6 +21,7 @@ import pumpkin.eventos.arena.ArenaSetupSession
  *   /evento arena setdueloa / setduelob
  *   /evento arena addspawn
  *   /evento arena addchair
+ *   /evento arena scanbuildbattle <radio>
  *   /evento arena save
  *   /evento arena cancel
  */
@@ -33,7 +34,7 @@ object ArenaCommands {
         "cristales", "jalarcuerda", "skywars_solos",
         "skywars_duos", "iceboat", "miniwalls", "corona", "hideandseek",
         "buildbattle_solo", "buildbattle_teams",
-        "battleroyale"
+        "battleroyale", "parkour", "parkour_duos"
     )
 
     private fun msg(sender: CommandSender, plugin: PumpkinEventos, path: String, vararg resolvers: net.kyori.adventure.text.minimessage.tag.resolver.TagResolver) {
@@ -198,21 +199,59 @@ object ArenaCommands {
                 1
             })
             // --- ADDCHAIR ---
+            // Para Parkour: guarda la ubicación del jugador como centro del checkpoint.
+            // La detección en juego detecta si el jugador está a <=2 bloques del checkpoint (área 2x2).
             .then(Commands.literal("addchair").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
                 val session = plugin.arenaManager.activeSetups[sender.uniqueId]
                 if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                val block = sender.getTargetBlockExact(5)
-                if (block == null || block.type.isAir) {
-                    msg(sender, plugin, "commands.arena.no_block_aimed")
-                    return@executes 0
-                }
-                session.chairs.add(block.location)
+                // Usamos la ubicación de los pies del jugador como centro del checkpoint
+                session.chairs.add(sender.location)
                 msg(sender, plugin, "commands.arena.chair_added",
                     Placeholder.parsed("map", session.name),
                     Placeholder.parsed("count", session.chairs.size.toString()))
                 1
             })
+            // --- SCANBUILDBATTLE ---
+            .then(Commands.literal("scanbuildbattle")
+                .executes { ctx -> msg(ctx.source.sender, plugin, "arena_usage.scanbuildbattle", Placeholder.parsed("usage", "/evento arena scanbuildbattle <radio>")); 1 }
+                .then(Commands.argument("radio", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 1000))
+                    .executes { ctx ->
+                        val sender = ctx.source.sender as? Player ?: return@executes 0
+                        val session = plugin.arenaManager.activeSetups[sender.uniqueId]
+                        if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                        if (!session.type.contains("buildbattle", ignoreCase = true)) {
+                            sender.sendMessage(plugin.messageManager.parse("<red>Este comando es solo para arenas de Build Battle.</red>"))
+                            return@executes 0
+                        }
+                        
+                        val radio = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radio")
+                        val center = sender.location
+                        val world = center.world ?: return@executes 0
+                        
+                        var foundCount = 0
+                        
+                        for (x in center.blockX - radio..center.blockX + radio) {
+                            for (y in center.blockY - radio..center.blockY + radio) {
+                                for (z in center.blockZ - radio..center.blockZ + radio) {
+                                    val block = world.getBlockAt(x, y, z)
+                                    if (block.type == org.bukkit.Material.GOLD_BLOCK) {
+                                        // Guardar el centro exacto del bloque (+0.5) para que los jugadores aparezcan centrados
+                                        val loc = block.location.clone().add(0.5, 1.0, 0.5)
+                                        session.spawns.add(loc)
+                                        foundCount++
+                                    }
+                                }
+                            }
+                        }
+                        
+                        sender.sendMessage(plugin.messageManager.parse("<green>✔ Escaneo completado en radio de $radio bloques.</green>"))
+                        sender.sendMessage(plugin.messageManager.parse("<yellow>Se detectaron y añadieron <b>$foundCount</b> parcelas nuevas.</yellow>"))
+                        sender.sendMessage(plugin.messageManager.parse("<yellow>Total de parcelas registradas: <b>${session.spawns.size}</b>.</yellow>"))
+                        1
+                    }
+                )
+            )
             // --- SAVE ---
             .then(Commands.literal("save").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0

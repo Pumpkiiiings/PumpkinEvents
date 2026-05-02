@@ -1,6 +1,5 @@
-package pumpkin.eventos.games.tntgames
+package pumpkin.eventos.games.tntgames.listeners
 
-import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
 import org.bukkit.Sound
@@ -15,6 +14,7 @@ import org.bukkit.inventory.ItemStack
 import org.bukkit.inventory.meta.ItemMeta
 import org.bukkit.persistence.PersistentDataType
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.tntgames.TntTag
 
 class TntTagListener(private val plugin: PumpkinEventos) : Listener {
 

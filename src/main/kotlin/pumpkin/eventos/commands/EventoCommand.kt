@@ -9,13 +9,10 @@ import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver
 import net.kyori.adventure.title.Title
 import org.bukkit.command.CommandSender
 import org.bukkit.entity.Player
-import org.bukkit.potion.PotionEffect
-import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.simondice.SimonDice
 import pumpkin.eventos.games.simondice.SimonMode
 import java.time.Duration
-import java.util.concurrent.TimeUnit
 
 object EventoCommand {
 
@@ -36,8 +33,15 @@ object EventoCommand {
 
     fun register(commands: io.papermc.paper.command.brigadier.Commands, plugin: PumpkinEventos) {
 
+        // Raíz del comando: Solo se puede ver si tienes admin, o alguno de los 3 permisos nuevos.
         val root = Commands.literal("evento")
-            .requires { it.sender.hasPermission("pumpkin.admin") }
+            .requires { ctx ->
+                val s = ctx.sender
+                s.hasPermission("pumpkin.admin") ||
+                        s.hasPermission("pumpkin.evento.iniciar") ||
+                        s.hasPermission("pumpkin.evento.votacion") ||
+                        s.hasPermission("pumpkin.evento.ruleta")
+            }
             .executes { ctx ->
                 enviarAyuda(ctx.source.sender, plugin)
                 1
@@ -48,21 +52,28 @@ object EventoCommand {
             1
         }
 
-        // --- RELOAD ---
-        val reload = Commands.literal("reload").executes { ctx ->
-            plugin.reloadConfig()
-            plugin.languageManager.reload()
-            plugin.menuManager.reload()
-            sendMsg(ctx.source.sender, plugin, "commands.reload.success")
-            1
-        }
+        // --- RELOAD (Solo Admin) ---
+        val reload = Commands.literal("reload")
+            .requires { it.sender.hasPermission("pumpkin.admin") }
+            .executes { ctx ->
+                plugin.reloadConfig()
+                plugin.languageManager.reload()
+                plugin.menuManager.reload()
+                sendMsg(ctx.source.sender, plugin, "commands.reload.success")
+                1
+            }
 
-        val votacion = Commands.literal("lanzarvotacion").executes { ctx ->
-            plugin.eventManager.startVoting()
-            1
-        }
+        // --- VOTACIÓN (Admin o pumpkin.evento.votacion) ---
+        val votacion = Commands.literal("lanzarvotacion")
+            .requires { it.sender.hasPermission("pumpkin.admin") || it.sender.hasPermission("pumpkin.evento.votacion") }
+            .executes { ctx ->
+                plugin.eventManager.startVoting()
+                1
+            }
 
+        // --- SETUP (Solo Admin) ---
         val setup = Commands.literal("setup")
+            .requires { it.sender.hasPermission("pumpkin.admin") }
             .then(Commands.literal("lobby").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
                 plugin.arenaManager.setMainLobbyLoc(sender.location)
@@ -76,10 +87,12 @@ object EventoCommand {
                 1
             })
 
-        // --- ARENA → delegado a ArenaCommands ---
+        // --- ARENA → delegado a ArenaCommands (Admin por defecto dentro de ArenaCommands) ---
         val arena = ArenaCommands.build(plugin)
 
+        // --- INICIAR (Admin o pumpkin.evento.iniciar) ---
         val iniciar = Commands.literal("iniciar")
+            .requires { it.sender.hasPermission("pumpkin.admin") || it.sender.hasPermission("pumpkin.evento.iniciar") }
             .then(Commands.argument("game", StringArgumentType.word())
                 .suggests { _, builder -> plugin.eventManager.games.keys.forEach { builder.suggest(it) }; builder.buildFuture() }
                 .then(Commands.argument("modo", StringArgumentType.word())
@@ -97,19 +110,24 @@ object EventoCommand {
                 .executes { ctx -> procesarInicio(ctx.source.sender, plugin, StringArgumentType.getString(ctx, "game"), "automatico", null); 1 }
             )
 
-        val detener = Commands.literal("detener").executes { ctx ->
-            val game = plugin.eventManager.currentGame
-            if (game != null && game.isRunning) {
-                game.stop()
-                plugin.eventManager.currentGame = null
-                sendMsg(ctx.source.sender, plugin, "commands.stop.stopped")
-            } else {
-                sendMsg(ctx.source.sender, plugin, "commands.stop.no_event")
+        // --- DETENER (Admin o pumpkin.evento.iniciar) ---
+        val detener = Commands.literal("detener")
+            .requires { it.sender.hasPermission("pumpkin.admin") || it.sender.hasPermission("pumpkin.evento.iniciar") }
+            .executes { ctx ->
+                val game = plugin.eventManager.currentGame
+                if (game != null && game.isRunning) {
+                    game.stop()
+                    plugin.eventManager.currentGame = null
+                    sendMsg(ctx.source.sender, plugin, "commands.stop.stopped")
+                } else {
+                    sendMsg(ctx.source.sender, plugin, "commands.stop.no_event")
+                }
+                1
             }
-            1
-        }
 
+        // --- REVIVIR (Solo Admin) ---
         val revivir = Commands.literal("revivir")
+            .requires { it.sender.hasPermission("pumpkin.admin") }
             .then(Commands.argument("player", ArgumentTypes.player()).executes { ctx ->
                 val resolver = ctx.getArgument("player", PlayerSelectorArgumentResolver::class.java)
                 val target = resolver.resolve(ctx.source).firstOrNull() ?: return@executes 0
@@ -118,34 +136,48 @@ object EventoCommand {
                     game.spectators.remove(target)
                     game.players.add(target)
                     target.gameMode = org.bukkit.GameMode.ADVENTURE
-                    target.teleportAsync(game.currentArena?.spawnPoints?.randomOrNull() ?: target.location)
+
+                    // --- CORRECCIÓN: Asignar el mundo de juego a la Location ---
+                    val rawSpawn = game.currentArena?.spawnPoints?.randomOrNull()?.clone()
+                    if (rawSpawn != null) {
+                        rawSpawn.world = game.gameWorld ?: target.world
+                    }
+                    val finalLoc = rawSpawn ?: target.location
+
+                    target.teleportAsync(finalLoc)
                     sendMsg(ctx.source.sender, plugin, "commands.revive.success", Placeholder.parsed("player", target.name))
                 }
                 1
             })
 
-        val ruleta = Commands.literal("ruleta").executes { ctx ->
-            val sender = ctx.source.sender as? Player ?: return@executes 0
-            if (plugin.eventManager.currentGame != null || plugin.eventManager.isVoting) {
-                sendMsg(sender, plugin, "commands.ruleta.already_active")
-                return@executes 0
+        // --- RULETA (Admin o pumpkin.evento.ruleta) ---
+        val ruleta = Commands.literal("ruleta")
+            .requires { it.sender.hasPermission("pumpkin.admin") || it.sender.hasPermission("pumpkin.evento.ruleta") }
+            .executes { ctx ->
+                val sender = ctx.source.sender as? Player ?: return@executes 0
+                if (plugin.eventManager.currentGame != null || plugin.eventManager.isVoting) {
+                    sendMsg(sender, plugin, "commands.ruleta.already_active")
+                    return@executes 0
+                }
+                iniciarRuleta(plugin, sender)
+                1
             }
-            iniciarRuleta(plugin, sender)
-            1
-        }
 
-        val narrador = Commands.literal("narrator").executes { ctx ->
-            val p = ctx.source.sender as? Player ?: return@executes 0
-            val em = plugin.eventManager
-            if (em.narrators.contains(p.uniqueId)) {
-                em.narrators.remove(p.uniqueId)
-                p.sendMessage(plugin.messageManager.parse("<red>Modo narrador desactivado. Participarás en el siguiente evento.</red>"))
-            } else {
-                em.narrators.add(p.uniqueId)
-                p.sendMessage(plugin.messageManager.parse("<green>Modo narrador activado. Serás espectador en el mapa en el siguiente evento.</green>"))
+        // --- NARRADOR (Solo Admin) ---
+        val narrador = Commands.literal("narrator")
+            .requires { it.sender.hasPermission("pumpkin.admin") }
+            .executes { ctx ->
+                val p = ctx.source.sender as? Player ?: return@executes 0
+                val em = plugin.eventManager
+                if (em.narrators.contains(p.uniqueId)) {
+                    em.narrators.remove(p.uniqueId)
+                    p.sendMessage(plugin.messageManager.parse("<red>Modo narrador desactivado. Participarás en el siguiente evento.</red>"))
+                } else {
+                    em.narrators.add(p.uniqueId)
+                    p.sendMessage(plugin.messageManager.parse("<green>Modo narrador activado. Serás espectador en el mapa en el siguiente evento.</green>"))
+                }
+                1
             }
-            1
-        }
 
         // --- /pvote <efecto> ---
         val pvote = Commands.literal("pvote")
@@ -178,6 +210,7 @@ object EventoCommand {
                 }
             )
 
+        // Agregar los nodos al comando principal
         root.then(ayuda)
         root.then(reload)
         root.then(votacion)
@@ -193,8 +226,8 @@ object EventoCommand {
 
         val commandNode = root.build()
         commands.register(commandNode, "Core de Eventos Pumpkin", listOf("eventos", "ev"))
-        
-        // Registrar también como comandos principales (root)
+
+        // Registrar también como comandos principales (root) para los jugadores normales
         commands.register(pvote.build(), "Votar por efecto de poción", emptyList())
         commands.register(pvpvote.build(), "Votar por PvP", emptyList())
         commands.register(arena, "Comandos de Arena", emptyList())

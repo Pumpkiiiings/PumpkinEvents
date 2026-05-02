@@ -4,11 +4,13 @@ import io.papermc.paper.plugin.lifecycle.event.types.LifecycleEvents
 import net.kyori.adventure.text.minimessage.MiniMessage
 import org.bukkit.plugin.java.JavaPlugin
 import pumpkin.eventos.arena.ArenaManager
+import pumpkin.eventos.arena.ArenaSetupListener
 import pumpkin.eventos.commands.EventoCommand
 import pumpkin.eventos.commands.GamemodeCommand
 import pumpkin.eventos.commands.PuntajeCommand
 import pumpkin.eventos.commands.VotarCommand
 import pumpkin.eventos.commands.SpectateCommand
+import pumpkin.eventos.commands.ExtrasCommand // <-- NUEVO COMANDO EXTRAS
 import pumpkin.eventos.games.corona.RobaLaCorona
 import pumpkin.eventos.games.corona.RobaLaCoronaListener
 import pumpkin.eventos.games.cristales.Cristales
@@ -37,11 +39,11 @@ import pumpkin.eventos.games.spleef.SpleefListener
 import pumpkin.eventos.games.sumo.Sumo
 import pumpkin.eventos.games.sumo.SumoListener
 import pumpkin.eventos.games.tntgames.TntRun
-import pumpkin.eventos.games.tntgames.TntRunListener
+import pumpkin.eventos.games.tntgames.listeners.TntRunListener
 import pumpkin.eventos.games.tntgames.TntSpleef
-import pumpkin.eventos.games.tntgames.TntSpleefListener
+import pumpkin.eventos.games.tntgames.listeners.TntSpleefListener
 import pumpkin.eventos.games.tntgames.TntTag
-import pumpkin.eventos.games.tntgames.TntTagListener
+import pumpkin.eventos.games.tntgames.listeners.TntTagListener
 import pumpkin.eventos.games.skywars.Skywars
 import pumpkin.eventos.games.skywars.SkywarsListener
 import pumpkin.eventos.games.skywars.SkywarsTntFireballListener
@@ -53,9 +55,14 @@ import pumpkin.eventos.games.findbutton.FindTheButton
 import pumpkin.eventos.games.findbutton.FindTheButtonListener
 import pumpkin.eventos.games.buildbattle.BuildBattle
 import pumpkin.eventos.games.buildbattle.BuildBattleListener
-
 import pumpkin.eventos.games.miniwalls.MiniWalls
 import pumpkin.eventos.games.miniwalls.MiniWallsListener
+import pumpkin.eventos.games.battleroyale.BattleRoyale
+import pumpkin.eventos.games.battleroyale.BattleRoyaleListener
+import pumpkin.eventos.games.battleroyale.GlowPacketListener
+import pumpkin.eventos.games.parkour.Parkour
+import pumpkin.eventos.games.parkour.ParkourListener
+
 import pumpkin.eventos.hud.BoardManager
 import pumpkin.eventos.hud.ChatFormatManager
 import pumpkin.eventos.listeners.ChatListener
@@ -72,10 +79,12 @@ import pumpkin.eventos.manager.PuntajeManager
 import pumpkin.eventos.manager.PvpVoteManager
 import pumpkin.eventos.manager.VoteManager
 import pumpkin.eventos.manager.PuntajeHoloManager
+import pumpkin.eventos.manager.ExtrasVoteManager // <-- NUEVO MANAGER EXTRAS
 import pumpkin.eventos.utils.LanguageManager
 import pumpkin.eventos.utils.MessageManager
 import pumpkin.eventos.utils.WorldUtils
 import pumpkin.eventos.hooks.EventosExpansion
+
 import com.github.retrooper.packetevents.PacketEvents
 import io.github.retrooper.packetevents.factory.spigot.SpigotPacketEventsBuilder
 
@@ -94,12 +103,18 @@ class PumpkinEventos : JavaPlugin() {
     lateinit var menuManager: MenuManager
     lateinit var potionVoteManager: PotionVoteManager
     lateinit var pvpVoteManager: PvpVoteManager
+    lateinit var extrasVoteManager: ExtrasVoteManager // <-- AÑADIDO
+
     lateinit var tntTagListener: TntTagListener
     lateinit var tntRunGame: TntRun
 
     lateinit var papaCalienteGame: PapaCaliente
     lateinit var congeladosGame: Congelados
     lateinit var dueloFinalGame: DueloFinal
+
+    // VARIABLE MÁGICA: Lee la versión directamente de tu plugin.yml
+    val pluginVersion: String
+        get() = pluginMeta.version
 
     override fun onLoad() {
         PacketEvents.setAPI(SpigotPacketEventsBuilder.build(this))
@@ -108,10 +123,12 @@ class PumpkinEventos : JavaPlugin() {
 
     override fun onEnable() {
         PacketEvents.getAPI().init()
+        PacketEvents.getAPI().eventManager.registerListener(GlowPacketListener(this))
         val mm = MiniMessage.miniMessage()
 
+        // Usamos $pluginVersion para que se actualice solo
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
-        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v3.2.5 - CARGANDO ⚡</#CCFF00>"))
+        componentLogger.info(mm.deserialize("<#CCFF00>⚡ EVENTOS CORE v$pluginVersion - CARGANDO ⚡</#CCFF00>"))
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
@@ -127,6 +144,8 @@ class PumpkinEventos : JavaPlugin() {
         languageManager = LanguageManager(this)
         chatFormatManager = ChatFormatManager(this)
 
+        server.messenger.registerOutgoingPluginChannel(this, "openboatutils:settings")
+
         WorldUtils.applyToAllWorlds()
 
         arenaManager = ArenaManager(this)
@@ -140,6 +159,7 @@ class PumpkinEventos : JavaPlugin() {
         menuManager = MenuManager(this)
         potionVoteManager = PotionVoteManager(this)
         pvpVoteManager = PvpVoteManager(this)
+        extrasVoteManager = ExtrasVoteManager(this) // <-- INICIALIZADO
 
         tntTagListener = TntTagListener(this)
 
@@ -173,6 +193,10 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(FindTheButton(this))
         eventManager.registerGame(BuildBattle(this, false))  // Solo
         eventManager.registerGame(BuildBattle(this, true))   // Equipos
+        eventManager.registerGame(BattleRoyale(this, false)) // Battle Royale Solo
+        eventManager.registerGame(BattleRoyale(this, true))  // Battle Royale Duos
+        eventManager.registerGame(Parkour(this, false))       // Parkour Solo
+        eventManager.registerGame(Parkour(this, true))        // Parkour Dúos
 
         // --- 5. HUD Y SCOREBOARD ---
         boardManager = BoardManager(this)
@@ -194,14 +218,15 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(WorldListener(), this)
         pm.registerEvents(LobbyProtectionListener(this), this)
         pm.registerEvents(pumpkin.eventos.utils.VoidUtil(this), this)
+        pm.registerEvents(ArenaSetupListener(this), this)
 
         // GlobalDamageListener — lógica de muerte letal, bloqueo global de bloques, drop
         pm.registerEvents(GlobalDamageListener(this), this)
 
         // ─── Listeners individuales por juego ───────────────────────────────
         pm.registerEvents(tntTagListener, this)               // TntTag
-        pm.registerEvents(TntRunListener(this), this)         // TntRun
-        pm.registerEvents(tntRunGame, this)                    // TntRun (feather)
+        pm.registerEvents(TntRunListener(this), this)         // TntRun (listener general)
+        pm.registerEvents(tntRunGame, this)                   // TntRun (uso pluma feather)
         pm.registerEvents(TntSpleefListener(this), this)      // TntSpleef
         pm.registerEvents(SpleefListener(this), this)         // Spleef
         pm.registerEvents(SueloLavaListener(this), this)      // SueloLava
@@ -222,6 +247,8 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(MiniWallsListener(this, miniWallsGame), this) // MiniWalls
         pm.registerEvents(FindTheButtonListener(this), this)  // FindTheButton
         pm.registerEvents(BuildBattleListener(this), this)    // BuildBattle
+        pm.registerEvents(BattleRoyaleListener(this), this)   // BattleRoyale
+        pm.registerEvents(ParkourListener(this), this)         // Parkour
 
         // MenuManager como listener (clicks en inventarios)
         pm.registerEvents(menuManager, this)
@@ -242,9 +269,11 @@ class PumpkinEventos : JavaPlugin() {
             VotarCommand.register(commands, this)
             GamemodeCommand.register(commands, this)
             SpectateCommand(this)
+            ExtrasCommand.register(commands, this) // <-- REGISTRADO AQUÍ
         }
 
-        componentLogger.info(mm.deserialize("<#39FF14>✔ PumpkinEventos v3.2.0 cargado correctamente.</#39FF14>"))
+        // Usamos la misma variable para el mensaje final
+        componentLogger.info(mm.deserialize("<#39FF14>✔ PumpkinEventos v$pluginVersion cargado correctamente.</#39FF14>"))
     }
 
     override fun onDisable() {
@@ -254,7 +283,7 @@ class PumpkinEventos : JavaPlugin() {
         }
         if (::arenaManager.isInitialized) arenaManager.shutdown()
         if (::mapManager.isInitialized) mapManager.shutdown()
-        
+
         PacketEvents.getAPI().terminate()
     }
 }

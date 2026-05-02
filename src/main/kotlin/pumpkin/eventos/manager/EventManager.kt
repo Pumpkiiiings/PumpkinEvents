@@ -8,7 +8,9 @@ import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import pumpkin.eventos.games.pillars.PillarsOfFortune
 import pumpkin.eventos.games.jalarcuerda.JalarCuerda
-import pumpkin.eventos.games.iceboat.IceBoatRacing // NUEVO
+import pumpkin.eventos.games.iceboat.IceBoatRacing
+import pumpkin.eventos.games.battleroyale.BattleRoyale
+import pumpkin.eventos.games.parkour.Parkour
 import java.util.concurrent.TimeUnit
 
 class EventManager(private val plugin: PumpkinEventos) {
@@ -105,7 +107,9 @@ class EventManager(private val plugin: PumpkinEventos) {
                         // Modos que NECESITAN estar en el centro para una fase previa de lobby/votación
                         if (game is pumpkin.eventos.games.skywars.Skywars || 
                             game is pumpkin.eventos.games.miniwalls.MiniWalls || 
-                            game is pumpkin.eventos.games.sumo.Sumo) {
+                            game is pumpkin.eventos.games.sumo.Sumo ||
+                            game is BattleRoyale ||
+                            game is Parkour) {
                             p.teleportAsync(actualSpawn)
                         } else if (game !is PillarsOfFortune && game !is JalarCuerda && game !is IceBoatRacing) {
                             // Si hay spawns en la arena, se reparten circularmente; si no, usan el actualSpawn

@@ -264,7 +264,42 @@ tutorials:
     - "<gray>»</gray> <white><#FF3131>¡No pueden salirse de su parcela!</#FF3131></white>"
     - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
 
+  battleroyale:
+    - "<newline><#FF3131><bold>━━━━━━━ BATTLE ROYALE ━━━━━━━</bold></#FF3131>"
+    - ""
+    - "<gray>»</gray> <white>Saquea cofres por el mapa para equiparte.</white>"
+    - "<gray>»</gray> <white>La <#FF3131>zona segura</>#FF3131> se irá cerrando con el tiempo.</white>"
+    - "<gray>»</gray> <white>Los cofres se rellenan a los <#FFCC00>5 min</#FFCC00> y <#FFCC00>8 min</#FFCC00>.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡El último en pie gana!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  battleroyale_duos:
+    - "<newline><#FF3131><bold>━━━━━ BATTLE ROYALE DÚOS ━━━━━</bold></#FF3131>"
+    - ""
+    - "<gray>»</gray> <white>Selecciona tu equipo antes de que empiece.</white>"
+    - "<gray>»</gray> <white>Saqueen cofres juntos y protéjanse.</white>"
+    - "<gray>»</gray> <white>La zona segura se cierra progresivamente.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡No pueden golpearse entre compañeros!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  parkour:
+    - "<newline><#39FF14><bold>━━━━━━━━━━ PARKOUR ━━━━━━━━━━</bold></#39FF14>"
+    - ""
+    - "<gray>»</gray> <white>Corre a través de los checkpoints lo más rápido posible.</white>"
+    - "<gray>»</gray> <white>Usa el <#39FF14>Ojo de Ender</#39FF14> para ocultar a otros jugadores.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Los primeros 5 en terminar ganan puntos!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
+  parkour_duos:
+    - "<newline><#39FF14><bold>━━━━━━ PARKOUR DÚOS ━━━━━━</bold></#39FF14>"
+    - ""
+    - "<gray>»</gray> <white>Corre junto a tu compañero <#00FFFF>encadenado</#00FFFF> por el parkour.</white>"
+    - "<gray>»</gray> <white>El <#FFCC00>líder del equipo</#FFCC00> puede pedir regresar a un checkpoint.</white>"
+    - "<gray>»</gray> <white><#FF3131>¡Los primeros 5 equipos en terminar ganan puntos!</#FF3131></white>"
+    - "<dark_gray>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</dark_gray><newline>"
+
 # ==========================================
+
 # LOBBY — MENSAJES
 # ==========================================
 lobby:
@@ -531,3 +566,96 @@ miniwalls_gui:
   team_selected_lore: "<#39FF14>✔ Seleccionado</#39FF14>"
   team_click_lore: "<yellow>Clic para seleccionar</yellow>"
   wither_name: "<team_color><b>NEXO <team_name></b>"
+
+# ==========================================
+# BATTLE ROYALE — TODOS LOS MENSAJES
+# ==========================================
+battleroyale:
+  # Nombres que aparecen en la votación y scoreboards
+  display_solo: "<#FF3131>Battle Royale</#FF3131>"
+  display_duos: "<#FF3131>Battle Royale Dúos</#FF3131>"
+
+  # Actionbars de preparación
+  actionbar:
+    team_select: "<yellow>Selección de equipos: <b>%time%s</b></yellow>"
+    voting: "<#00FFFF>Vota el tipo de cofre: <b>%time%s</b></#00FFFF>"
+    outside_border: "<#FF3131><b>⚠ ¡Estás fuera de la zona! (-%damage% ❤/s)</b></#FF3131>"
+
+  # Broadcasts globales
+  broadcast:
+    start: "\n<#FF3131><b>⚔ BATTLE ROYALE HA COMENZADO</b></#FF3131> <white>» Modo: %modo% | Cofres: %tier%\n"
+    border_shrink: "\n<#FF3131><b>⚠ LA ZONA SE ESTÁ CERRANDO</b></#FF3131> <white>» %fase% — %size% bloques de radio.\n"
+    refill1: "\n<#39FF14><b>♻ REFILL #1</b></#39FF14> <white>» ¡Los cofres han sido rellenados!\n"
+    refill2: "\n<#FFCC00><b>♻ REFILL #2 (FINAL)</b></#FFCC00> <white>» ¡Última oportunidad de lootearse!\n"
+    winner: "\n<#FF3131><b>BATTLE ROYALE</b></#FF3131> <white>» ¡<yellow>%player%</yellow> ha ganado%kills%!\n"
+
+  # Mensajes de jugador
+  kill_message: "<#FF3131>⚔ <b>¡Eliminaste a <yellow>%victim%</yellow>! (+1 kill)</b></#FF3131>"
+  teammate_assigned: "<green>Tu compañero es: <yellow>%player%</yellow></green>"
+  team_joined: "<green>Te has unido al Equipo %team%.</green>"
+  voted_chest: "<green>Votaste por: %tier%</green>"
+  team_select_hint: "<yellow>Tienes %time%s para elegir equipo.</yellow>"
+
+  # Menú de votación de cofres
+  menu:
+    chest_vote_title: "§8Votar Tipo de Cofre"
+    chest_vote_lore: "<gray>Clic para votar por este tipo.</gray>"
+    team_select_title: "§8Seleccionar Equipo"
+    team_full: "<red>Lleno</red>"
+    team_join: "<green>Clic para unirte</green>"
+
+# ==========================================
+# PARKOUR — TODOS LOS MENSAJES
+# ==========================================
+parkour:
+  # Nombres en votación/scoreboard
+  display_solo: "<#39FF14>Parkour</#39FF14>"
+  display_duos: "<#39FF14>Parkour Dúos</#39FF14>"
+
+  # Actionbars de fase
+  actionbar:
+    team_select: "<yellow>Selección de equipos: <b>%time%s</b></yellow>"
+    prestart: "<#39FF14>El Parkour comienza en: <b>%time%s</b></#39FF14>"
+
+  # Hints
+  team_select_hint: "<yellow>Tienes %time%s para elegir equipo con la Pólvora ardiente.</yellow>"
+
+  # Checkpoints
+  checkpoint_reached: "<#39FF14>✔ Checkpoint <b>%cp%/%total%</b> alcanzado!</#39FF14>"
+  checkpoint_teleported: "<yellow>⟵ Regresaste al checkpoint #%cp%.</yellow>"
+  checkpoint_rejected: "<yellow>✘ Rechazaste la solicitud de tu líder.</yellow>"
+  checkpoint_rejected_notify: "<yellow>%player% rechazó tu solicitud de regresar.</yellow>"
+  checkpoint_request_message: "<#39FF14>%leader% quiere regresar al checkpoint.</#39FF14> <gray>(revisa tu menú)</gray>"
+
+  # Equipos
+  teammate_assigned: "<green>Tu compañero es: <yellow>%player%</yellow></green>"
+  team_joined: "<green>Te uniste al Equipo <b>%team%</b>.</green>"
+  only_leader_can_request: "<red>Solo el líder del equipo puede solicitar regresar.</red>"
+
+  # Ocultar jugadores
+  players_hidden: "<gray>👁 Jugadores ocultados. Usa el item de nuevo para mostrarlos.</gray>"
+  players_visible: "<green>👁 Jugadores visibles nuevamente.</green>"
+
+  # Chain (lode.gg)
+  chain_connected: "<#00FFFF>🔗 ¡Están encadenados con <b>%partner%</b>! Corran juntos.</#00FFFF>"
+  chain_disconnected: "<gray>🔗 Cadena desconectada.</gray>"
+
+  # Broadcasts globales
+  broadcast:
+    finish: "\n<#39FF14>🏁 <b>%player%</b></#39FF14> <white>terminó el parkour en <b>#%pos%</b> (+%pts% pts)\n"
+    no_winner: "\n<gray>Nadie terminó el parkour a tiempo.\n"
+
+  # Nombres de ítems
+  item:
+    hide_players: "<gray>👁 Ocultar/Mostrar jugadores</gray>"
+    checkpoint_return: "<yellow>🔄 Pedir regresar al checkpoint</yellow>"
+
+  # Menús GUI
+  menu:
+    team_select_title: "§8Seleccionar Equipo"
+    team_full: "<red>Lleno</red>"
+    team_join: "<green>Clic para unirte</green>"
+    checkpoint_request_title: "§8Solicitud de Checkpoint"
+    checkpoint_accept: "<#39FF14><b>✔ Aceptar</b></#39FF14>"
+    checkpoint_accept_lore: "<gray>%leader% quiere regresar al checkpoint.</gray>"
+    checkpoint_reject: "<red><b>✖ Rechazar</b></red>"

@@ -1,0 +1,23 @@
+title: "<dark_gray>⚑ <white><b>Selecciona tu Equipo</b></white> <dark_gray>⚑"
+rows: 4
+
+fill_item:
+  material: "BLACK_STAINED_GLASS_PANE"
+
+info_item:
+  slot: 31
+  material: "PAPER"
+  name: "<aqua><b>ℹ Información</b></aqua>"
+  lore:
+    - "<gray>Elige un equipo antes de que empiece el juego."
+    - "<gray>Si no eliges, serás asignado automáticamente."
+
+teams:
+  RED:
+    slot: 10
+  BLUE:
+    slot: 12
+  YELLOW:
+    slot: 14
+  GREEN:
+    slot: 16

@@ -204,6 +204,11 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
                         plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
                             val boat = targetWorld.spawnEntity(loc, EntityType.CHERRY_BOAT) as Boat
                             boat.addPassenger(p)
+
+                            // OpenBoatUtils Support
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendTenStepInterpolation(plugin, p, true)
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendExclusiveMode(plugin, p, pumpkin.eventos.utils.OpenBoatUtilsManager.MODE_RALLY)
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendCollisionMode(plugin, p, pumpkin.eventos.utils.OpenBoatUtilsManager.COLLISION_NO_BOATS_OR_PLAYERS)
                         }, 5L)
                     }
                 }
@@ -302,6 +307,10 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
             p.vehicle?.remove()
             p.inventory.clear()
             p.gameMode = GameMode.ADVENTURE
+            
+            // OpenBoatUtils Support Reset
+            pumpkin.eventos.utils.OpenBoatUtilsManager.sendReset(plugin, p)
+            
             p.teleportAsync(lobby)
         }
     }

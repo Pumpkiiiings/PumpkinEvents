@@ -1,5 +1,5 @@
 name: PumpkinEventos
-version: '3.2.8'
+version: '${version}'
 main: pumpkin.eventos.PumpkinEventos
 api-version: '1.21'
 author: Pumpkingz
@@ -51,11 +51,32 @@ commands:
   pvpvote:
     description: Votar por PvP (si/no).
     usage: /pvpvote <si|no>
+  # --- COMANDOS DE EXTRAS ---
+  extras:
+    description: Comando para forzar desastres o iniciar votaciones de extras.
+    permission: pumpkin.evento.extras
+    usage: /extras <start|startall|vote>
+  evote:
+    description: Comando interno para votar por un desastre.
+    usage: /evote <desastre>
 
 permissions:
   pumpkin.admin:
-    description: Acceso total.
+    description: Acceso total al core de eventos.
     default: op
   pumpkin.command.gamemode:
     description: Permite usar comandos de modo de juego.
+    default: op
+  # Permisos específicos para Staff/Hosts
+  pumpkin.evento.iniciar:
+    description: Permite iniciar y detener juegos.
+    default: op
+  pumpkin.evento.votacion:
+    description: Permite lanzar la votación de minijuegos.
+    default: op
+  pumpkin.evento.ruleta:
+    description: Permite usar la ruleta de selección de juegos.
+    default: op
+  pumpkin.evento.extras:
+    description: Permite gestionar desastres y extras.
     default: op

@@ -126,7 +126,8 @@ class BuildBattle(
 
         plotAssignedPlayers.forEachIndexed { idx, group ->
             val spawn = plotSpawns.getOrNull(idx % plotSpawns.size.coerceAtLeast(1)) ?: return@forEachIndexed
-            val loc = spawn.clone().apply { this.world = world }
+            // El spawn guardado es el bloque de oro (suelo). Teleportamos 1 bloque arriba para que el jugador parezca encima.
+            val loc = spawn.clone().apply { this.world = world; y += 1.0 }
             group.forEach { p ->
                 playerPlot[p.uniqueId] = idx
                 plotVotes[idx] = 0

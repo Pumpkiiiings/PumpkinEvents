@@ -19,7 +19,7 @@ plugins {
 }
 
 group = "pumpkin.eventos"
-version = "3.3.8"
+version = "3.3.9"
 
 java {
     toolchain {

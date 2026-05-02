@@ -236,8 +236,9 @@ object ArenaCommands {
                                 for (z in center.blockZ - radio..center.blockZ + radio) {
                                     val block = world.getBlockAt(x, y, z)
                                     if (block.type == org.bukkit.Material.GOLD_BLOCK) {
-                                        // Guardar el centro exacto del bloque (+0.5) para que los jugadores aparezcan centrados
-                                        val loc = block.location.clone().add(0.5, 1.0, 0.5)
+                                        // Guardar la coordenada exacta del bloque de oro (el suelo)
+                                        // El +1 para el teleport se hace en iniciarBuild
+                                        val loc = block.location.clone().add(0.5, 0.0, 0.5)
                                         session.spawns.add(loc)
                                         foundCount++
                                     }

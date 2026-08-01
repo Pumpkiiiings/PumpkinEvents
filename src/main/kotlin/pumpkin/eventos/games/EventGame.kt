@@ -1,5 +1,6 @@
 package pumpkin.eventos.games
 
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import org.bukkit.GameMode
 import org.bukkit.GameRule
 import org.bukkit.Sound
@@ -16,6 +17,13 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
     val spectators = mutableListOf<Player>()
     /** Resultado de la votación de PvP al inicio del juego */
     var pvpEnabled = true
+
+    /**
+     * Tareas recurrentes creadas por [start] que deben morir con la partida.
+     * Sin esto se acumulaba una tarea de votación de pociones por cada partida
+     * jugada, y todas se reactivaban a la vez en la siguiente.
+     */
+    private val gameTasks = mutableListOf<ScheduledTask>()
 
     abstract fun onStart()
     abstract fun onStop()
@@ -59,14 +67,20 @@ abstract class EventGame(val plugin: PumpkinEventos, val id: String, val display
         // Timer de votación de pociones cada 2 minutos
         if (plugin.config.getBoolean("potion_vote.enabled", true)) {
             val intervalSec = plugin.config.getInt("potion_vote.interval_seconds", 120).toLong()
-            plugin.server.asyncScheduler.runAtFixedRate(plugin, { _ ->
-                if (isRunning) plugin.potionVoteManager.startVoting()
+            gameTasks += plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                if (!isRunning) { task.cancel(); return@runAtFixedRate }
+                plugin.potionVoteManager.startVoting()
             }, intervalSec, intervalSec, java.util.concurrent.TimeUnit.SECONDS)
         }
     }
 
     fun stop() {
+        if (!isRunning) return
         isRunning = false
+
+        gameTasks.forEach { runCatching { it.cancel() } }
+        gameTasks.clear()
+
         onStop()
         currentArena = null
         gameWorld = null

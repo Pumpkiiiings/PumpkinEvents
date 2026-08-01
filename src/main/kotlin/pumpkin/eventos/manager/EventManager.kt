@@ -11,7 +11,6 @@ import pumpkin.eventos.games.jalarcuerda.JalarCuerda
 import pumpkin.eventos.games.iceboat.IceBoatRacing
 import pumpkin.eventos.games.battleroyale.BattleRoyale
 import pumpkin.eventos.games.parkour.Parkour
-import java.util.concurrent.TimeUnit
 
 class EventManager(private val plugin: PumpkinEventos) {
 
@@ -43,7 +42,9 @@ class EventManager(private val plugin: PumpkinEventos) {
 
         Bukkit.broadcast(mm.parse(builder.toString()))
         Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f) }
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ -> endVoting() }, 30, TimeUnit.SECONDS)
+        // 30s = 600 ticks. En el hilo global porque encadena con startCountdown,
+        // que toca entidades y acaba cargando el mundo de la arena.
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> endVoting() }, 600L)
     }
 
     private fun endVoting() {
@@ -56,7 +57,9 @@ class EventManager(private val plugin: PumpkinEventos) {
 
     fun startCountdown(game: EventGame) {
         var timeLeft = 10
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        // showTitle/playSound tocan entidades: deben correr en el hilo global,
+        // no en el pool async. globalRegionScheduler exige delay inicial >= 1 tick.
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (timeLeft <= 0) {
                 task.cancel()
                 prepareMapAndStart(game)
@@ -69,7 +72,7 @@ class EventManager(private val plugin: PumpkinEventos) {
             Bukkit.getOnlinePlayers().forEach { p -> p.showTitle(title); p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 1f) }
             Bukkit.broadcast(plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_chat"), Placeholder.parsed("time", timeLeft.toString()), Placeholder.parsed("game", game.displayName)))
             timeLeft--
-        }, 0, 1, TimeUnit.SECONDS)
+        }, 1L, 20L)
     }
 
     private fun prepareMapAndStart(game: EventGame) {

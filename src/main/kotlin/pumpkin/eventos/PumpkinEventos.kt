@@ -132,12 +132,17 @@ class PumpkinEventos : JavaPlugin() {
         componentLogger.info(mm.deserialize("<#FF5500>━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━</#FF5500>"))
 
         // --- 2. CARGA DE CONFIGURACIÓN ---
-        try {
-            saveDefaultConfig()
-            saveResource("chat-format.yml", false)
-            saveResource("messages.yml", false)
-            saveResource("scoreboards.yml", false)
-        } catch (e: Exception) {}
+        // Cada recurso se copia por separado: si uno falla, los demás igual se
+        // extraen. Un fallo aquí deja el plugin sin textos, así que se registra
+        // en consola en vez de tragarse la excepción.
+        runCatching { saveDefaultConfig() }.onFailure {
+            componentLogger.error("No se pudo extraer config.yml — se usarán los valores por defecto.", it)
+        }
+        listOf("chat-format.yml", "messages.yml", "scoreboards.yml").forEach { recurso ->
+            runCatching { saveResource(recurso, false) }.onFailure {
+                componentLogger.error("No se pudo extraer $recurso — los textos asociados saldrán vacíos.", it)
+            }
+        }
 
         // --- 3. INICIALIZACIÓN DE MANAGERS ---
         messageManager = MessageManager()

@@ -38,9 +38,16 @@ object ArenaCommands {
     )
 
     private fun msg(sender: CommandSender, plugin: PumpkinEventos, path: String, vararg resolvers: net.kyori.adventure.text.minimessage.tag.resolver.TagResolver) {
-        val prefix = plugin.languageManager.get("prefix")
-        val raw = plugin.languageManager.get(path).replace("<prefix>", prefix)
-        sender.sendMessage(plugin.messageManager.parse(raw, *resolvers))
+        plugin.languageManager.send(sender, path, *resolvers)
+    }
+
+    private fun activeSession(
+        player: Player,
+        plugin: PumpkinEventos,
+        missingPath: String = "commands.arena.not_creating"
+    ): ArenaSetupSession? = plugin.arenaManager.activeSetups[player.uniqueId] ?: run {
+        msg(player, plugin, missingPath)
+        null
     }
 
     fun build(plugin: PumpkinEventos): com.mojang.brigadier.tree.LiteralCommandNode<io.papermc.paper.command.brigadier.CommandSourceStack> {
@@ -154,8 +161,7 @@ object ArenaCommands {
             // --- SETCENTER ---
             .then(Commands.literal("setcenter").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.center = sender.location
                 msg(sender, plugin, "commands.arena.center_set", Placeholder.parsed("map", session.name))
                 1
@@ -163,8 +169,7 @@ object ArenaCommands {
             // --- SETGRADAS ---
             .then(Commands.literal("setgradas").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.gradas = sender.location
                 msg(sender, plugin, "commands.arena.gradas_set", Placeholder.parsed("map", session.name))
                 1
@@ -172,8 +177,7 @@ object ArenaCommands {
             // --- SETDUELOA ---
             .then(Commands.literal("setdueloa").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.dueloA = sender.location
                 msg(sender, plugin, "commands.arena.dueloa_set", Placeholder.parsed("map", session.name))
                 1
@@ -181,8 +185,7 @@ object ArenaCommands {
             // --- SETDUELOB ---
             .then(Commands.literal("setduelob").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.dueloB = sender.location
                 msg(sender, plugin, "commands.arena.duelob_set", Placeholder.parsed("map", session.name))
                 1
@@ -190,8 +193,7 @@ object ArenaCommands {
             // --- ADDSPAWN ---
             .then(Commands.literal("addspawn").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.spawns.add(sender.location)
                 msg(sender, plugin, "commands.arena.spawn_added",
                     Placeholder.parsed("map", session.name),
@@ -203,8 +205,7 @@ object ArenaCommands {
             // La detección en juego detecta si el jugador está a <=2 bloques del checkpoint (área 2x2).
             .then(Commands.literal("addchair").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 // Usamos la ubicación de los pies del jugador como centro del checkpoint
                 session.chairs.add(sender.location)
                 msg(sender, plugin, "commands.arena.chair_added",
@@ -218,10 +219,9 @@ object ArenaCommands {
                 .then(Commands.argument("radio", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 1000))
                     .executes { ctx ->
                         val sender = ctx.source.sender as? Player ?: return@executes 0
-                        val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                        if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                        val session = activeSession(sender, plugin) ?: return@executes 0
                         if (!session.type.contains("buildbattle", ignoreCase = true)) {
-                            sender.sendMessage(plugin.messageManager.parse("<red>Este comando es solo para arenas de Build Battle.</red>"))
+                            plugin.languageManager.send(sender, "commands.arena.buildbattle_only")
                             return@executes 0
                         }
                         
@@ -246,9 +246,9 @@ object ArenaCommands {
                             }
                         }
                         
-                        sender.sendMessage(plugin.messageManager.parse("<green>✔ Escaneo completado en radio de $radio bloques.</green>"))
-                        sender.sendMessage(plugin.messageManager.parse("<yellow>Se detectaron y añadieron <b>$foundCount</b> parcelas nuevas.</yellow>"))
-                        sender.sendMessage(plugin.messageManager.parse("<yellow>Total de parcelas registradas: <b>${session.spawns.size}</b>.</yellow>"))
+                        plugin.languageManager.send(sender, "commands.arena.scan_completed", Placeholder.unparsed("radius", radio.toString()))
+                        plugin.languageManager.send(sender, "commands.arena.scan_found", Placeholder.unparsed("count", foundCount.toString()))
+                        plugin.languageManager.send(sender, "commands.arena.scan_total", Placeholder.unparsed("count", session.spawns.size.toString()))
                         1
                     }
                 )
@@ -256,8 +256,7 @@ object ArenaCommands {
             // --- SAVE ---
             .then(Commands.literal("save").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.no_creation_pending"); return@executes 0 }
+                val session = activeSession(sender, plugin, "commands.arena.no_creation_pending") ?: return@executes 0
                 if (session.spawns.isEmpty()) { msg(sender, plugin, "commands.arena.no_spawns"); return@executes 0 }
                 plugin.arenaManager.saveSetupSession(session)
                 plugin.arenaManager.activeSetups.remove(sender.uniqueId)

@@ -11,6 +11,7 @@ import org.bukkit.World
 import pumpkin.eventos.PumpkinEventos
 import java.io.File
 import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * [PUMPKIN EVENTOS CORE]
@@ -20,6 +21,8 @@ class MapManager(private val plugin: PumpkinEventos) {
 
     private val asp = AdvancedSlimePaperAPI.instance()
     private val fileLoader: SlimeLoader
+    private val activeWorlds = ConcurrentHashMap.newKeySet<World>()
+    private val unloadingWorlds = ConcurrentHashMap.newKeySet<World>()
 
     init {
         val slimeFolder = File(plugin.dataFolder, "slime_worlds")
@@ -98,6 +101,7 @@ class MapManager(private val plugin: PumpkinEventos) {
                         }
 
                         plugin.componentLogger.info(plugin.messageManager.parse("<green>[MapManager] Mundo instanciado correctamente: ${bukkitWorld.name}</green>"))
+                        activeWorlds.add(bukkitWorld)
                         future.complete(bukkitWorld)
 
                     } catch (e: Exception) {
@@ -117,22 +121,30 @@ class MapManager(private val plugin: PumpkinEventos) {
 
     fun unloadWorld(world: World?) {
         if (world == null) return
+        if (!activeWorlds.contains(world) || !unloadingWorlds.add(world)) return
 
         plugin.server.globalRegionScheduler.execute(plugin) {
-            world.players.forEach { p ->
+            val teleports = world.players.map { p ->
                 val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
                 p.teleportAsync(lobby)
             }
 
-            val success = Bukkit.unloadWorld(world, false)
-
-            if (success) {
-                plugin.componentLogger.info(plugin.messageManager.parse("<gray>[MapManager] Mundo temporal '${world.name}' descargado y borrado de la RAM.</gray>"))
-            } else {
-                plugin.componentLogger.warn(plugin.messageManager.parse("<yellow>[MapManager] No se pudo descargar el mundo '${world.name}'. ¿Hay jugadores dentro?</yellow>"))
+            CompletableFuture.allOf(*teleports.toTypedArray()).whenComplete { _, _ ->
+                plugin.server.globalRegionScheduler.execute(plugin) {
+                    val success = Bukkit.unloadWorld(world, false)
+                    unloadingWorlds.remove(world)
+                    if (success) {
+                        activeWorlds.remove(world)
+                        plugin.componentLogger.info(plugin.messageManager.parse("<gray>[MapManager] Mundo temporal '${world.name}' descargado y borrado de la RAM.</gray>"))
+                    } else {
+                        plugin.componentLogger.warn(plugin.messageManager.parse("<yellow>[MapManager] No se pudo descargar el mundo '${world.name}'. ¿Hay jugadores dentro?</yellow>"))
+                    }
+                }
             }
         }
     }
 
-    fun shutdown() { }
+    fun shutdown() {
+        activeWorlds.toList().forEach { unloadWorld(it) }
+    }
 }

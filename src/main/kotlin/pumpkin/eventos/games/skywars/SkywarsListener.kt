@@ -28,10 +28,6 @@ class SkywarsListener(private val plugin: PumpkinEventos) : Listener {
     private val lastDamager = mutableMapOf<Player, Pair<Player, Long>>()
     private val muertesProcesadas = mutableSetOf<Player>()
 
-    init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
-    }
-
     // --- ⚔️ SISTEMA AVANZADO DE KILLS Y RASTREO ⚔️ ---
 
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)

@@ -117,7 +117,8 @@ object EventoCommand {
                 val game = plugin.eventManager.currentGame
                 if (game != null && game.isRunning) {
                     game.stop()
-                    plugin.eventManager.currentGame = null
+                    sendMsg(ctx.source.sender, plugin, "commands.stop.stopped")
+                } else if (plugin.eventManager.cancelPending()) {
                     sendMsg(ctx.source.sender, plugin, "commands.stop.stopped")
                 } else {
                     sendMsg(ctx.source.sender, plugin, "commands.stop.no_event")
@@ -155,7 +156,7 @@ object EventoCommand {
             .requires { it.sender.hasPermission("pumpkin.admin") || it.sender.hasPermission("pumpkin.evento.ruleta") }
             .executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                if (plugin.eventManager.currentGame != null || plugin.eventManager.isVoting) {
+                if (plugin.eventManager.isBusy) {
                     sendMsg(sender, plugin, "commands.ruleta.already_active")
                     return@executes 0
                 }
@@ -171,10 +172,10 @@ object EventoCommand {
                 val em = plugin.eventManager
                 if (em.narrators.contains(p.uniqueId)) {
                     em.narrators.remove(p.uniqueId)
-                    p.sendMessage(plugin.messageManager.parse("<red>Modo narrador desactivado. Participarás en el siguiente evento.</red>"))
+                    plugin.languageManager.send(p, "commands.narrator.disabled")
                 } else {
                     em.narrators.add(p.uniqueId)
-                    p.sendMessage(plugin.messageManager.parse("<green>Modo narrador activado. Serás espectador en el mapa en el siguiente evento.</green>"))
+                    plugin.languageManager.send(p, "commands.narrator.enabled")
                 }
                 1
             }
@@ -240,7 +241,10 @@ object EventoCommand {
             game.mode = if (modo.lowercase() == "manual") SimonMode.MANUAL else SimonMode.AUTOMATICO
             if (game.mode == SimonMode.MANUAL) game.streamer = streamerTarget ?: (sender as? Player)
         }
-        plugin.eventManager.startCountdown(game)
+        if (!plugin.eventManager.startCountdown(game)) {
+            sendMsg(sender, plugin, "commands.start.already_active")
+            return
+        }
         sendMsg(sender, plugin, "commands.start.starting",
             Placeholder.parsed("game", game.displayName),
             Placeholder.parsed("mode", modo))
@@ -252,6 +256,10 @@ object EventoCommand {
             sender.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("commands.ruleta.no_games")))
             return
         }
+        if (!plugin.eventManager.beginSelection()) {
+            sendMsg(sender, plugin, "commands.ruleta.already_active")
+            return
+        }
 
         var spins = 0
         val maxSpins = 30
@@ -259,9 +267,8 @@ object EventoCommand {
         fun spin(delay: Long) {
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 val game = games.random()
-                val titleStr = "<yellow>▶</yellow> <aqua><bold>${game.displayName}</bold></aqua> <yellow>◀</yellow>"
                 val title = Title.title(
-                    plugin.messageManager.parse(titleStr),
+                    plugin.languageManager.component("commands.ruleta.spinning", Placeholder.parsed("game", game.displayName)),
                     net.kyori.adventure.text.Component.empty(),
                     Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)
                 )
@@ -281,7 +288,7 @@ object EventoCommand {
                 } else {
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                         val winnerTitle = Title.title(
-                            plugin.messageManager.parse("<green>▶</green> <gold><bold>${game.displayName}</bold></gold> <green>◀</green>"),
+                            plugin.languageManager.component("commands.ruleta.selected", Placeholder.parsed("game", game.displayName)),
                             plugin.messageManager.parse(plugin.languageManager.get("event_manager.countdown_subtitle").replace("<game>", game.displayName)),
                             Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(4), Duration.ofSeconds(1))
                         )
@@ -291,7 +298,7 @@ object EventoCommand {
                         }
                         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                             if (game is SimonDice) game.mode = SimonMode.AUTOMATICO
-                            plugin.eventManager.startCountdown(game)
+                            plugin.eventManager.startCountdownAfterSelection(game)
                         }, 60L)
                     }, 10L)
                 }

@@ -34,10 +34,6 @@ class SkywarsTntFireballListener(private val plugin: PumpkinEventos) : Listener 
     // Mapa para gestionar los cooldowns de la Fireball
     private val fireballCooldowns = mutableMapOf<UUID, Long>()
 
-    init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
-    }
-
     // ─── HELPER: ¿es el juego válido? ─────────────────────────────
 
     private fun isPlayerInValidGame(player: Player): Boolean {

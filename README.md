@@ -10,6 +10,8 @@
 
 **Pumpkin Eventos** es un Core de Minijuegos y Eventos de alto rendimiento para **Paper 1.21.4**. Desarrollado en Kotlin, está construido para soportar cientos de jugadores gracias a su procesamiento por *chunks* y al uso de los *RegionSchedulers* modernos.
 
+> El objetivo actual es Paper convencional. Folia no está habilitado todavía porque varios minijuegos conservan lógica global compartida.
+
 ---
 
 ## ✨ Características Principales
@@ -110,11 +112,11 @@ Prefijo `/evento` (Alias: `/eventos`, `/ev`).
 **Requeridas** (`depend` — el plugin no arranca sin ellas):
 - **[LuckPerms](https://luckperms.net/)** — rangos, pesos del Tablist y chat format.
 - **[GSit](https://www.spigotmc.org/resources/gsit.62325/)** — usado por Sillas Musicales y Ruleta Rusa.
+- **[AdvancedSlimePaper (ASP)](https://github.com/InfernalSuite/AdvancedSlimePaper)** — carga e instanciación de todos los mapas.
 
 **Opcionales** (`softdepend`):
-- **[AdvancedSlimePaper (ASP)](https://github.com/InfernalSuite/AdvancedSlimePaper)** — instanciación de mundos en memoria.
 - **[PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)** — registra `%eventos_team%`.
-- **LibsDisguises** — disfraces en Hide & Seek.
+- **LibsDisguises** — habilita Hide & Seek; ese modo no se registra si falta la dependencia.
 
 Incluidas en el jar vía shadow: Kotlin stdlib, kotlinx-coroutines, PacketEvents, Triumph-GUI.
 

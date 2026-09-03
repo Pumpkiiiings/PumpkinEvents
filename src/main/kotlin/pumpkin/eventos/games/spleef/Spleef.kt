@@ -37,8 +37,7 @@ class Spleef(plugin: PumpkinEventos) : EventGame(plugin, "spleef", "<#E0FFFF>Spl
             p.inventory.clear()
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 timer--
@@ -71,7 +70,7 @@ class Spleef(plugin: PumpkinEventos) : EventGame(plugin, "spleef", "<#E0FFFF>Spl
                 toEliminate.forEach { p: Player -> eliminate(p) }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun darPala(p: Player) {
@@ -116,27 +115,13 @@ class Spleef(plugin: PumpkinEventos) : EventGame(plugin, "spleef", "<#E0FFFF>Spl
         val winner = players.firstOrNull() ?: return
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#E0FFFF><b>SPLEEF CLÁSICO</b></#E0FFFF> <white>» <light_purple>${winner.name}</light_purple> ha ganado el evento!<newline>"))
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         boosterManager.stop()
 
-        // Dejamos de escuchar eventos para no causar memory leaks
-        HandlerList.unregisterAll(this)
-
-        plugin.eventManager.currentGame = null
-
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        val todos = players + spectators
-        todos.forEach { p: Player ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

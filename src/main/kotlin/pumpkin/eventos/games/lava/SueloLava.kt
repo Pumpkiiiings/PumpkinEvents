@@ -13,6 +13,7 @@ import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.EventGame
+import java.time.Duration
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
@@ -107,8 +108,7 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
                 p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
             }
 
-            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-                if (!isRunning) { task.cancel(); return@runAtFixedRate }
+            runAtFixedRate( { task ->
 
                 if (phase == SlPhase.PLAYING || phase == SlPhase.DEATHMATCH) {
                     arrowTimer++
@@ -163,8 +163,12 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
                         plugin.server.broadcast(mm.parse("<#00FF00><b>¡EMPATE!</b></#00FF00> <white>El tiempo se agotó y la lava no pudo consumir a todos.</white>"))
                         plugin.server.globalRegionScheduler.run(plugin) { _ ->
                             players.forEach { p ->
-                                plugin.puntajeManager.addPoints(p, 10, "Sobrevivir al Empate")
-                                p.sendTitle("¡EMPATE!", "Sobreviviste a la lava", 10, 70, 20)
+                                plugin.puntajeManager.addPoints(p, 10, plugin.languageManager.get("common.points.reasons.lava_draw"))
+                                p.showTitle(Title.title(
+                                    plugin.languageManager.component("common.titles.lava_draw.main"),
+                                    plugin.languageManager.component("common.titles.lava_draw.subtitle"),
+                                    Title.Times.times(Duration.ofMillis(500), Duration.ofMillis(3500), Duration.ofSeconds(1))
+                                ))
                                 plugin.server.broadcast(mm.parse("<#00FFFF>🏆 <yellow>${p.name}</yellow> <gray>sobrevivió a El Suelo es Lava!</gray></#00FFFF>"))
                             }
                             stop()
@@ -202,7 +206,7 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
                     task.cancel()
                 }
 
-            }, 1, 1, TimeUnit.SECONDS)
+            }, 20L, 20L)
 
         }, 10L)
     }
@@ -212,8 +216,7 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
     }
 
     private fun startRisingLava(world: World) {
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
             if (currentLavaY > maxY) { task.cancel(); return@runAtFixedRate }
 
             val rawRising = plugin.languageManager.get("suelolava.actionbar.rising")
@@ -226,7 +229,7 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
             fillLavaLayer(world, currentLavaY)
             currentLavaY++
 
-        }, lavaSpeedSeconds, lavaSpeedSeconds, TimeUnit.SECONDS)
+        }, lavaSpeedSeconds * 20L, lavaSpeedSeconds * 20L)
     }
 
     private fun fillLavaLayer(world: World, y: Int) {
@@ -300,11 +303,7 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
     }
 
     override fun onStop() {
-        plugin.eventManager.currentGame = null
         gameWorld?.let { borderManager.stop(it) }
-
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
 
         chaosBossBar?.let { bar ->
             plugin.server.onlinePlayers.forEach { it.hideBossBar(bar) }
@@ -312,12 +311,6 @@ class SueloLava(plugin: PumpkinEventos) : EventGame(plugin, "suelolava", "<#FF45
         chaosBossBar = null
         openedChests.clear()
 
-        val todos = players + spectators
-        todos.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

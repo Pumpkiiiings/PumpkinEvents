@@ -2,6 +2,7 @@ package pumpkin.eventos.commands
 
 import io.papermc.paper.command.brigadier.Commands
 import io.papermc.paper.command.brigadier.CommandSourceStack
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.entity.Player
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.* // Importa todos los triggers
@@ -41,13 +42,13 @@ object ExtrasCommand {
                             val sender = ctx.source.sender
 
                             if (game == null || !game.isRunning) {
-                                sender.sendMessage(plugin.messageManager.parse("<red>No hay un juego activo.</red>"))
+                                plugin.languageManager.send(sender, "extras_command.no_active")
                                 return@executes 1
                             }
 
                             val desastre = com.mojang.brigadier.arguments.StringArgumentType.getString(ctx, "desastre").lowercase()
 
-                            sender.sendMessage(plugin.messageManager.parse("<green>Forzando desastre: $desastre</green>"))
+                            plugin.languageManager.send(sender, "extras_command.forcing", Placeholder.unparsed("extra", desastre))
                             when (desastre) {
                                 "lava" -> game.triggerLava(plugin)
                                 "storm" -> game.triggerStorm(plugin)
@@ -56,7 +57,7 @@ object ExtrasCommand {
                                 "acidrain" -> game.triggerAcidRain(plugin)
                                 "zerogravity" -> game.triggerZeroGravity(plugin)
                                 "antlife" -> game.triggerAntLife(plugin)
-                                else -> sender.sendMessage(plugin.messageManager.parse("<red>Desastre desconocido.</red>"))
+                                else -> plugin.languageManager.send(sender, "extras_command.unknown")
                             }
                             1
                         }
@@ -70,11 +71,11 @@ object ExtrasCommand {
                         val sender = ctx.source.sender
 
                         if (game == null || !game.isRunning) {
-                            sender.sendMessage(plugin.messageManager.parse("<red>No hay un juego activo.</red>"))
+                            plugin.languageManager.send(sender, "extras_command.no_active")
                             return@executes 1
                         }
 
-                        sender.sendMessage(plugin.messageManager.parse("<dark_red><b>¡INICIANDO EL APOCALIPSIS!</b></dark_red>"))
+                        plugin.languageManager.send(sender, "extras_command.apocalypse")
 
                         game.triggerLava(plugin)
                         game.triggerStorm(plugin)

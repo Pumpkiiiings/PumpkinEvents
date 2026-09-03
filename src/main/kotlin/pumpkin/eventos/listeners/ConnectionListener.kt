@@ -14,9 +14,7 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
     @EventHandler
     fun onJoin(e: PlayerJoinEvent) {
         val p = e.player
-        val prefix = plugin.languageManager.get("prefix")
-        val rawMsg = plugin.languageManager.get("connection.join").replace("<prefix>", prefix)
-        e.joinMessage(plugin.messageManager.parse(rawMsg, Placeholder.parsed("player", p.name)))
+        e.joinMessage(plugin.languageManager.component("connection.join", Placeholder.unparsed("player", p.name)))
 
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
@@ -30,11 +28,11 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
             if (hpNexo > 0 && game.players.contains(p)) {
                 // Nexo vivo → lanzar cuenta regresiva real de respawn
                 p.gameMode = GameMode.SPECTATOR
-                p.sendMessage(plugin.messageManager.parse("<#FFFF00>¡Reconectado! Tu nexo está vivo, reaparecerás en 5 segundos.</#FFFF00>"))
+                plugin.languageManager.send(p, "connection.miniwalls_reconnected")
 
                 val spawn = game.teamSpawns[team]
                 var secondsLeft = 5
-                plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+                plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
                     if (!game.isRunning || !game.players.contains(p)) {
                         task.cancel()
                         return@runAtFixedRate
@@ -53,8 +51,10 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
                         return@runAtFixedRate
                     }
                     val title = net.kyori.adventure.title.Title.title(
-                        plugin.messageManager.parse("<yellow><b>¡RECONECTADO!</b></yellow>"),
-                        plugin.messageManager.parse("<white>Reaparecerás en <yellow><b>$secondsLeft</b></yellow> segundo${if (secondsLeft == 1) "" else "s"}</white>"),
+                        plugin.languageManager.component("connection.reconnect_title"),
+                        plugin.languageManager.component("connection.reconnect_subtitle",
+                            Placeholder.unparsed("time", secondsLeft.toString()),
+                            Placeholder.unparsed("unit", if (secondsLeft == 1) "segundo" else "segundos")),
                         net.kyori.adventure.title.Title.Times.times(
                             java.time.Duration.ZERO,
                             java.time.Duration.ofMillis(1100),
@@ -63,14 +63,14 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
                     )
                     plugin.server.globalRegionScheduler.run(plugin) { _ -> p.showTitle(title) }
                     secondsLeft--
-                }, 0L, 1L, java.util.concurrent.TimeUnit.SECONDS)
+                }, 1L, 20L)
 
             } else if (!game.spectators.contains(p)) {
                 // Nexo destruido o ya eliminado → poner como espectador definitivo
                 game.players.remove(p)
                 game.spectators.add(p)
                 p.gameMode = GameMode.SPECTATOR
-                p.sendMessage(plugin.messageManager.parse("<red>Tu nexo fue destruido mientras no estabas. Ahora eres espectador.</red>"))
+                plugin.languageManager.send(p, "connection.nexus_destroyed")
             } else {
                 // Ya era espectador, solo asegurarse del modo de juego
                 p.gameMode = GameMode.SPECTATOR
@@ -90,7 +90,7 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
             p.inventory.clear()
             val loc = game.currentArena?.centerLocation?.clone()?.apply { world = game.gameWorld } ?: p.world.spawnLocation
             p.teleportAsync(loc)
-            p.sendMessage(plugin.messageManager.parse("<red>Te desconectaste y fuiste descalificado. Ahora eres espectador.</red>"))
+            plugin.languageManager.send(p, "connection.disqualified_self")
         } else {
             // Sigue siendo jugador activo (ej. se desconectó brevemente), solo asegurar modo
             p.gameMode = GameMode.SURVIVAL
@@ -100,9 +100,7 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
     @EventHandler
     fun onQuit(e: PlayerQuitEvent) {
         val p = e.player
-        val prefix = plugin.languageManager.get("prefix")
-        val rawMsg = plugin.languageManager.get("connection.quit").replace("<prefix>", prefix)
-        e.quitMessage(plugin.messageManager.parse(rawMsg, Placeholder.parsed("player", p.name)))
+        e.quitMessage(plugin.languageManager.component("connection.quit", Placeholder.unparsed("player", p.name)))
 
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
@@ -111,14 +109,14 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
             if (game is MiniWalls) {
                 // En MiniWalls no sacamos al jugador para que pueda reconectarse
                 // Solo avisamos al broadcast
-                plugin.server.broadcast(plugin.messageManager.parse("<yellow><b>${p.name}</b> se ha desconectado. Reconéctate pronto o serás eliminado.</yellow>"))
+                plugin.languageManager.broadcast("connection.miniwalls_disconnected", Placeholder.unparsed("player", p.name))
                 return
             }
 
             // DESCALIFICAR EN TODOS LOS DEMÁS
             game.players.remove(p)
             if (!game.spectators.contains(p)) game.spectators.add(p)
-            plugin.server.broadcast(plugin.messageManager.parse("<red><b>${p.name}</b> se ha desconectado y ha sido descalificado.</red>"))
+            plugin.languageManager.broadcast("connection.disqualified_broadcast", Placeholder.unparsed("player", p.name))
 
             // Solo terminar el juego si realmente queda ≤1 jugador activo
             if (game.players.size <= 1 && game.isRunning) {

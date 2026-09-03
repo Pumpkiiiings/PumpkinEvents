@@ -91,8 +91,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         }, 10L)
 
         // LOOP PRINCIPAL
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             // -- FASE DE PREPARACIÓN --
             if (isPreparation) {
@@ -159,7 +158,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
                 val center = currentArena?.centerLocation
                 val cx = center?.x ?: 0.0
                 val cz = center?.z ?: 0.0
-                plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     borderManager.start(world, cx, cz, delaySeconds = 0L)
                 }
             }
@@ -350,7 +349,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
         val winner = players.firstOrNull() ?: return
         val rawWin = plugin.languageManager.get("pillars.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
@@ -367,17 +366,7 @@ class PillarsOfFortune(plugin: PumpkinEventos) : EventGame(plugin, "pillars", "<
     override fun onStop() {
         removeCages()
         gameWorld?.let { borderManager.stop(it) }
-        plugin.eventManager.currentGame = null
 
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        val todos = players + spectators
-        todos.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

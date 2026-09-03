@@ -45,6 +45,14 @@ class RuletaRusaListener(private val plugin: PumpkinEventos) : Listener {
         if (!game.isRunning || e.hand != EquipmentSlot.HAND) return
         if (player != game.ultimaVictima) return
 
+        if ((e.action == org.bukkit.event.block.Action.RIGHT_CLICK_AIR ||
+             e.action == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) &&
+            e.item?.type == Material.SPYGLASS) {
+            e.isCancelled = true
+            game.inspeccionarCamara(player)
+            return
+        }
+
         // Clic izquierdo — recarga manual
         if ((e.action == org.bukkit.event.block.Action.LEFT_CLICK_AIR ||
              e.action == org.bukkit.event.block.Action.LEFT_CLICK_BLOCK) &&

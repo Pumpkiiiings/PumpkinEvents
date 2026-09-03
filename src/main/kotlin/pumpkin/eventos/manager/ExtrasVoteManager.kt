@@ -2,10 +2,11 @@ package pumpkin.eventos.manager
 
 import org.bukkit.Sound
 import org.bukkit.entity.Player
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.* // Importa todo de extras
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 class ExtrasVoteManager(private val plugin: PumpkinEventos) {
 
@@ -13,6 +14,8 @@ class ExtrasVoteManager(private val plugin: PumpkinEventos) {
     private val voted = mutableSetOf<UUID>()
     var isVoting = false
         private set
+    private var votingGame: EventGame? = null
+    private var voteTask: ScheduledTask? = null
 
     // LISTA ACTUALIZADA
     private val availableExtras = listOf("lava", "storm", "anvils", "geoffrey", "acidrain", "zerogravity", "antlife")
@@ -26,6 +29,7 @@ class ExtrasVoteManager(private val plugin: PumpkinEventos) {
         if (!allowedGames.contains(game.id)) return
 
         isVoting = true
+        votingGame = game
         votes.clear()
         voted.clear()
 
@@ -39,7 +43,8 @@ class ExtrasVoteManager(private val plugin: PumpkinEventos) {
 
         val duration = plugin.config.getInt("extras_vote.duration_seconds", 15)
 
-        val sb = StringBuilder("<newline><#FF0055><b>⚠ ¡DESASTRE INMINENTE!</b></#FF0055>\n<white>Vota el próximo desastre dando clic:</white>\n")
+        val lang = plugin.languageManager
+        val sb = StringBuilder(lang.get("extras_vote.header"))
         votes.keys.forEach { id ->
             val emoji = when(id) {
                 "lava" -> "🌋"
@@ -51,49 +56,64 @@ class ExtrasVoteManager(private val plugin: PumpkinEventos) {
                 "antlife" -> "🐜"
                 else -> "❓"
             }
-            sb.append("<click:run_command:'/evote $id'><hover:show_text:'<green>Clic para votar por $id'><gray>  » $emoji <yellow><b>${id.uppercase()}</b></yellow></hover></click>\n")
+            sb.append(lang.get("extras_vote.item")
+                .replace("<id>", id)
+                .replace("<emoji>", emoji)
+                .replace("<name>", id.uppercase()))
+                .append('\n')
         }
-        sb.append("<gray><i>Tienen $duration segundos para votar...</i></gray><newline>")
+        sb.append(lang.get("extras_vote.footer").replace("<time>", duration.toString()))
 
         val parsedMsg = plugin.messageManager.parse(sb.toString())
         plugin.server.broadcast(parsedMsg)
 
         plugin.server.onlinePlayers.forEach { it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 0.5f, 1f) }
 
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ -> endVoting() }, duration.toLong(), TimeUnit.SECONDS)
+        voteTask = plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> endVoting() }, duration.toLong() * 20L)
     }
 
     fun registerVote(player: Player, extraId: String) {
-        if (!isVoting) { player.sendMessage(plugin.messageManager.parse("<red>No hay ninguna votación de desastre activa.</red>")); return }
+        if (!isVoting) { plugin.languageManager.send(player, "extras_vote.no_active"); return }
         if (voted.contains(player.uniqueId)) {
-            player.sendMessage(plugin.messageManager.parse("<red>Ya has votado por un desastre.</red>"))
+            plugin.languageManager.send(player, "extras_vote.already_voted")
             return
         }
         if (!votes.containsKey(extraId)) return
 
         votes[extraId] = (votes[extraId] ?: 0) + 1
         voted.add(player.uniqueId)
-        player.sendMessage(plugin.messageManager.parse("<green>✔ Votaste por que inicie el desastre: <b>${extraId.uppercase()}</b></green>"))
+        plugin.languageManager.send(player, "extras_vote.voted", Placeholder.unparsed("extra", extraId.uppercase()))
     }
 
     private fun endVoting() {
         isVoting = false
-        val game = plugin.eventManager.currentGame ?: return
+        val game = votingGame ?: return
+        votingGame = null
+        voteTask = null
+        if (plugin.eventManager.currentGame !== game || !game.isRunning) return
 
         val winner = votes.maxByOrNull { it.value }?.key ?: votes.keys.randomOrNull() ?: return
 
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF0055><b>💥 EL DESASTRE ELEGIDO ES: ${winner.uppercase()}</b></#FF0055><newline>"))
+        plugin.languageManager.broadcast("extras_vote.result", Placeholder.unparsed("extra", winner.uppercase()))
 
-        plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            when (winner) {
-                "lava" -> game.triggerLava(plugin)
-                "storm" -> game.triggerStorm(plugin)
-                "anvils" -> game.triggerAnvils(plugin)
-                "geoffrey" -> game.triggerGeoffrey(plugin)
-                "acidrain" -> game.triggerAcidRain(plugin)
-                "zerogravity" -> game.triggerZeroGravity(plugin)
-                "antlife" -> game.triggerAntLife(plugin)
-            }
+        when (winner) {
+            "lava" -> game.triggerLava(plugin)
+            "storm" -> game.triggerStorm(plugin)
+            "anvils" -> game.triggerAnvils(plugin)
+            "geoffrey" -> game.triggerGeoffrey(plugin)
+            "acidrain" -> game.triggerAcidRain(plugin)
+            "zerogravity" -> game.triggerZeroGravity(plugin)
+            "antlife" -> game.triggerAntLife(plugin)
         }
+    }
+
+    fun cancelFor(game: EventGame) {
+        if (votingGame !== game) return
+        voteTask?.cancel()
+        voteTask = null
+        votingGame = null
+        isVoting = false
+        votes.clear()
+        voted.clear()
     }
 }

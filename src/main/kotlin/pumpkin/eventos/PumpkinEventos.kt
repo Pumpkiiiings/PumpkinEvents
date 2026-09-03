@@ -187,7 +187,11 @@ class PumpkinEventos : JavaPlugin() {
         eventManager.registerGame(RuletaRusa(this))
         eventManager.registerGame(Cristales(this))
         eventManager.registerGame(JalarCuerda(this))
-        eventManager.registerGame(HideAndSeek(this))
+        if (server.pluginManager.isPluginEnabled("LibsDisguises")) {
+            eventManager.registerGame(HideAndSeek(this))
+        } else {
+            componentLogger.warn("[PumpkinEventos] LibsDisguises no está instalado; Hide & Seek queda deshabilitado.")
+        }
         eventManager.registerGame(RobaLaCorona(this))
         eventManager.registerGame(Skywars(this, false))
         eventManager.registerGame(Skywars(this, true))
@@ -243,7 +247,9 @@ class PumpkinEventos : JavaPlugin() {
         pm.registerEvents(RuletaRusaListener(this), this)     // RuletaRusa
         pm.registerEvents(CristalesListener(this), this)      // Cristales
         pm.registerEvents(JalarCuerdaListener(this), this)    // JalarCuerda
-        pm.registerEvents(HideAndSeekListener(this), this)    // HideAndSeek
+        if (server.pluginManager.isPluginEnabled("LibsDisguises")) {
+            pm.registerEvents(HideAndSeekListener(this), this) // HideAndSeek
+        }
         pm.registerEvents(RobaLaCoronaListener(this), this)   // RobaLaCorona
         pm.registerEvents(SimonDiceGameListener(this), this)  // SimonDice (damage/drop)
         pm.registerEvents(SkywarsListener(this), this)        // Skywars
@@ -288,6 +294,7 @@ class PumpkinEventos : JavaPlugin() {
         }
         if (::arenaManager.isInitialized) arenaManager.shutdown()
         if (::mapManager.isInitialized) mapManager.shutdown()
+        if (::puntajeManager.isInitialized) puntajeManager.shutdown()
 
         PacketEvents.getAPI().terminate()
     }

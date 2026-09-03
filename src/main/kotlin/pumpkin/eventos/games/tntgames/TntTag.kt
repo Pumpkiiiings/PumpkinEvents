@@ -37,8 +37,7 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
             }
         }, 10L)
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             timer--
 
@@ -101,13 +100,13 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
                     val center = currentArena?.centerLocation
                     val cx = center?.x ?: 0.0
                     val cz = center?.z ?: 0.0
-                    plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                    plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         borderManager.start(world, cx, cz, delaySeconds = 0L)
                     }
                 }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun handlePunch(attacker: Player, victim: Player) {
@@ -168,23 +167,13 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
 
         val rawWin = plugin.languageManager.get("tnttag.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         gameWorld?.let { borderManager.stop(it) }
-        plugin.eventManager.currentGame = null
 
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        val todos = players + spectators
-
-        todos.forEach { p ->
-            p.isGlowing = false
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = org.bukkit.GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(beforeReset = { it.isGlowing = false })
     }
 }

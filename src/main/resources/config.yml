@@ -157,6 +157,7 @@ pvp_vote:
   luzroja: false
   sillas: false
   ruletarusa: false
+
   cristales: false
   jalarcuerda: false
   skywars_solos: false
@@ -164,6 +165,11 @@ pvp_vote:
   iceboat: false
   miniwalls: false
   corona: false
+
+ruletarusa:
+  decision_seconds: 12
+  inspection_accuracy: 0.70
+  passes_per_player: 1
 
 # ==========================================
 # BUILD BATTLE

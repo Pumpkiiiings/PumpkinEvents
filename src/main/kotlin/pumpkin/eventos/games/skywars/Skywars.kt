@@ -12,6 +12,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.support.TeamAssignmentService
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -92,8 +93,7 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
             iniciarVotacion(targetWorld, arena.spawnPoints)
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             when (phase) {
                 SwPhase.TEAM_SELECT -> {
@@ -152,23 +152,17 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
                 }
                 SwPhase.ENDED -> task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun agruparEquipos() {
-        val unassigned = players.filter { !playerTeam.containsKey(it) }.toMutableList()
-        var teamIdCounter = playerTeam.values.maxOrNull() ?: 0
-
-        while (unassigned.isNotEmpty()) {
-            teamIdCounter++
-            val p1 = unassigned.removeAt(0)
-            playerTeam[p1] = teamIdCounter
-
-            if (unassigned.isNotEmpty()) {
-                val p2 = unassigned.removeAt(0)
-                playerTeam[p2] = teamIdCounter
-                p1.sendMessage(plugin.messageManager.parse("<green>Tu compañero es: <yellow>${p2.name}"))
-                p2.sendMessage(plugin.messageManager.parse("<green>Tu compañero es: <yellow>${p1.name}"))
+        val firstTeamId = (playerTeam.values.maxOrNull() ?: 0) + 1
+        TeamAssignmentService.pair(players.filterNot(playerTeam::containsKey), firstTeamId).forEach { assignment ->
+            assignment.members.forEach { playerTeam[it] = assignment.teamId }
+            if (assignment.members.size == 2) {
+                val (p1, p2) = assignment.members
+                plugin.languageManager.send(p1, "common.teams.teammate_assigned", Placeholder.unparsed("player", p2.name))
+                plugin.languageManager.send(p2, "common.teams.teammate_assigned", Placeholder.unparsed("player", p1.name))
             }
         }
     }
@@ -294,12 +288,6 @@ class Skywars(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(plugin, i
     override fun onStop() {
         phase = SwPhase.ENDED
         limpiarHologramas()
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

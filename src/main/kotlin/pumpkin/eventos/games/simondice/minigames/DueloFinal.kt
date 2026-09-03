@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice.minigames
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -21,7 +22,7 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
     fun iniciarTorneo(game: SimonDice) {
         val mm = plugin.messageManager
         if (game.players.size < 2) {
-            plugin.server.broadcast(mm.parse("<red>❌ <b>ERROR:</b> <white>No hay suficientes guerreros vivos para el duelo."))
+            plugin.languageManager.broadcast("simon_game.duel.insufficient")
             return
         }
         this.gameInstance = game
@@ -57,7 +58,7 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
         for (i in 2 until vivos.size) {
             val espectador = vivos[i]
             if (gradaLoc != null) espectador.teleportAsync(gradaLoc)
-            espectador.sendMessage(mm.parse("<#00FFFF>🍿 <b>GRADAS:</b> <white>Espera tu turno para luchar..."))
+            plugin.languageManager.send(espectador, "simon_game.duel.stands")
         }
 
         // --- PREPARAR LUCHADORES ---
@@ -67,7 +68,9 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
         darKitDuelo(l1)
         darKitDuelo(l2)
 
-        val title = Title.title(mm.parse("<#FF3131>⚔️ <b>¡A LUCHAR!</b> ⚔️"), mm.parse("<white>${l1.name} <red>vs <white>${l2.name}"))
+        val title = Title.title(
+            plugin.languageManager.component("simon_game.duel.title_main"),
+            plugin.languageManager.component("simon_game.duel.title_subtitle", Placeholder.unparsed("first", l1.name), Placeholder.unparsed("second", l2.name)))
         game.players.forEach { it.showTitle(title) }
 
         game.actionText = "⚔️ ${l1.name} vs ${l2.name}"
@@ -82,7 +85,7 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
         p.inventory.boots = ItemStack(Material.DIAMOND_BOOTS)
         p.inventory.addItem(ItemStack(Material.DIAMOND_SWORD))
         p.inventory.addItem(ItemStack(Material.GOLDEN_APPLE, 16))
-        p.sendMessage(plugin.messageManager.parse("<#39FF14>🛡️ <b>EQUIPAMIENTO:</b> <white>Recibiste el kit de gladiador."))
+        plugin.languageManager.send(p, "simon_game.duel.kit")
     }
 
     @EventHandler
@@ -98,7 +101,7 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
 
             val ganadorRonda = if (muerto == luchador1) luchador2 else luchador1
             if (ganadorRonda != null) {
-                plugin.server.broadcast(plugin.messageManager.parse("<#CCFF00>⭐ <b>${ganadorRonda.name}</b> <white>ha ganado el combate."))
+                plugin.languageManager.broadcast("simon_game.duel.round_winner", Placeholder.unparsed("player", ganadorRonda.name))
                 ganadorRonda.inventory.clear()
             }
 

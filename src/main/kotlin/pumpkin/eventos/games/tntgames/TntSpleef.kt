@@ -28,8 +28,7 @@ class TntSpleef(plugin: PumpkinEventos) : EventGame(plugin,"tntspleef", "<#FF313
             p.inventory.clear()
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 timer--
@@ -60,7 +59,7 @@ class TntSpleef(plugin: PumpkinEventos) : EventGame(plugin,"tntspleef", "<#FF313
                 toEliminate.forEach { eliminate(it) }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun darArco(p: Player) {
@@ -80,20 +79,13 @@ class TntSpleef(plugin: PumpkinEventos) : EventGame(plugin,"tntspleef", "<#FF313
         val winner = players.firstOrNull() ?: return
         plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF3131><b>TNT SPLEEF</b></#FF3131> <white>» <light_purple>${winner.name}</light_purple> ha ganado el evento!<newline>"))
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         boosterManager.stop()
-        plugin.eventManager.currentGame = null
 
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

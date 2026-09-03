@@ -9,7 +9,6 @@ import org.bukkit.scoreboard.DisplaySlot
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.hooks.LuckPermsHook
 import java.util.*
-import java.util.concurrent.TimeUnit
 
 class BoardManager(private val plugin: PumpkinEventos) {
 
@@ -22,7 +21,7 @@ class BoardManager(private val plugin: PumpkinEventos) {
     fun startTasks() {
         reload()
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { _ ->
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { _ ->
             val onlinePlayers = Bukkit.getOnlinePlayers().toList()
             if (onlinePlayers.isEmpty()) return@runAtFixedRate
 
@@ -141,7 +140,7 @@ class BoardManager(private val plugin: PumpkinEventos) {
                     }
                 }, null)
             }
-        }, 0, 1, TimeUnit.SECONDS)
+        }, 1L, 20L)
     }
 
     fun reload() {

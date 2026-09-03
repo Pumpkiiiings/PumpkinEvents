@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.parkour
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import dev.triumphteam.gui.builder.item.ItemBuilder
 import dev.triumphteam.gui.guis.Gui
 import net.kyori.adventure.text.Component
@@ -13,6 +14,7 @@ import org.bukkit.block.data.BlockData
 import org.bukkit.entity.Player
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.support.TeamAssignmentService
 import java.util.concurrent.TimeUnit
 import kotlin.math.max
 import kotlin.math.min
@@ -124,8 +126,7 @@ class Parkour(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(
         }, 10L)
 
         // ── Timer ─────────────────────────────────────────────────────────────
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             when (phase) {
 
@@ -191,7 +192,7 @@ class Parkour(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(
 
                 ParkourPhase.ENDED -> task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -199,7 +200,7 @@ class Parkour(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(
     // ─────────────────────────────────────────────────────────────────────────
     private fun iniciarTareaCheckpoints() {
         val halfSize = plugin.config.getDouble("parkour.checkpoint_radius", 1.0)
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (phase == ParkourPhase.ENDED || !isRunning) { task.cancel(); return@runAtFixedRate }
             if (phase != ParkourPhase.PLAYING) return@runAtFixedRate
 
@@ -526,26 +527,18 @@ class Parkour(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(
     //  Agrupación de equipos (dúos)
     // ─────────────────────────────────────────────────────────────────────────
     private fun agruparEquipos() {
-        val unassigned = players.filter { !playerTeam.containsKey(it) }.toMutableList()
-        var counter = (playerTeam.values.maxOrNull() ?: 0)
-
-        while (unassigned.isNotEmpty()) {
-            counter++
-            val p1 = unassigned.removeAt(0)
-            playerTeam[p1] = counter
-            teamLeader[counter] = p1
-            teamMembers.getOrPut(counter) { mutableListOf() }.add(p1)
-
-            if (unassigned.isNotEmpty()) {
-                val p2 = unassigned.removeAt(0)
-                playerTeam[p2] = counter
-                teamMembers[counter]!!.add(p2)
-                val msg = plugin.languageManager.get("parkour.teammate_assigned")
-                    .ifBlank { "<green>Tu compañero es: <yellow>%player%</yellow></green>" }
-                p1.sendMessage(plugin.messageManager.parse(msg.replace("%player%", p2.name)))
-                p2.sendMessage(plugin.messageManager.parse(msg.replace("%player%", p1.name)))
+        val firstTeamId = (playerTeam.values.maxOrNull() ?: 0) + 1
+        TeamAssignmentService.pair(players.filterNot(playerTeam::containsKey), firstTeamId).forEach { assignment ->
+            val leader = assignment.members.first()
+            teamLeader[assignment.teamId] = leader
+            teamMembers[assignment.teamId] = assignment.members.toMutableList()
+            assignment.members.forEach { playerTeam[it] = assignment.teamId }
+            if (assignment.members.size == 2) {
+                val partner = assignment.members[1]
+                plugin.languageManager.send(leader, "common.teams.teammate_assigned", Placeholder.unparsed("player", partner.name))
+                plugin.languageManager.send(partner, "common.teams.teammate_assigned", Placeholder.unparsed("player", leader.name))
             }
-            teamCheckpoint[counter] = 0
+            teamCheckpoint[assignment.teamId] = 0
         }
     }
 
@@ -596,15 +589,8 @@ class Parkour(plugin: PumpkinEventos, val isDuos: Boolean) : EventGame(
     override fun onStop() {
         phase = ParkourPhase.ENDED
         removeWall()
-        plugin.eventManager.currentGame = null
 
         players.forEach { p -> unchainPlayer(p) }
-
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

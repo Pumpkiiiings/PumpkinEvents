@@ -2,6 +2,7 @@ name: PumpkinEventos
 version: '${version}'
 main: pumpkin.eventos.PumpkinEventos
 api-version: '1.21'
+folia-supported: false
 author: Pumpkingz
 description: Core avanzado de eventos para Pumpkin Network. Soporta TNT Games, Simon Dice y El Suelo es Lava.
 
@@ -9,9 +10,10 @@ description: Core avanzado de eventos para Pumpkin Network. Soporta TNT Games, S
 depend:
   - LuckPerms
   - GSit
+  - AdvancedSlimePaper
 softdepend:
   - PlaceholderAPI
-  - AdvancedSlimePaper
+  - LibsDisguises
 
 commands:
   evento:

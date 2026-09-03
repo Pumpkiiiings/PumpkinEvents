@@ -1,5 +1,6 @@
 package pumpkin.eventos.commands
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.GameMode
 import org.bukkit.Sound
 import org.bukkit.command.Command
@@ -28,13 +29,13 @@ class SpectateCommand(private val plugin: PumpkinEventos) : CommandExecutor, Tab
 
         // 1. Validar que hay un evento activo
         if (game == null || !game.isRunning) {
-            sender.sendMessage(plugin.messageManager.parse("<red>❌ No hay ningún evento activo para espectear.</red>"))
+            plugin.languageManager.send(sender, "commands.espectear.no_active")
             return true
         }
 
         // 2. Seguridad: Si el jugador está VIVO en el evento, no puede espectar (para evitar que se salga del juego)
         if (game.players.contains(sender)) {
-            sender.sendMessage(plugin.messageManager.parse("<red>❌ ¡Estás participando en el evento! No puedes espectar hasta morir.</red>"))
+            plugin.languageManager.send(sender, "commands.espectear.still_playing")
             return true
         }
 
@@ -42,7 +43,7 @@ class SpectateCommand(private val plugin: PumpkinEventos) : CommandExecutor, Tab
         val target = game.players.randomOrNull()
 
         if (target == null) {
-            sender.sendMessage(plugin.messageManager.parse("<red>❌ No hay jugadores vivos en este momento.</red>"))
+            plugin.languageManager.send(sender, "commands.espectear.no_players")
             return true
         }
 
@@ -55,7 +56,7 @@ class SpectateCommand(private val plugin: PumpkinEventos) : CommandExecutor, Tab
         }
 
         sender.teleportAsync(target.location).thenAccept {
-            sender.sendMessage(plugin.messageManager.parse("<#00FFFF>👀 <b>MODO ESPECTADOR:</b> <white>Especteando a <yellow>${target.name}</yellow>"))
+            plugin.languageManager.send(sender, "commands.espectear.watching", Placeholder.unparsed("player", target.name))
             sender.playSound(sender.location, Sound.ENTITY_ENDERMAN_TELEPORT, 1f, 1f)
         }
 
@@ -74,7 +75,7 @@ class SpectateCommand(private val plugin: PumpkinEventos) : CommandExecutor, Tab
         if (game.isRunning && game.spectators.contains(p) && !p.hasPermission("pumpkin.admin")) {
             if (e.newGameMode != GameMode.SPECTATOR) {
                 e.isCancelled = true
-                p.sendMessage(plugin.messageManager.parse("<red>⚠️ No puedes cambiar tu modo de juego mientras espectas el evento.</red>"))
+                plugin.languageManager.send(p, "commands.espectear.gamemode_locked")
             }
         }
     }

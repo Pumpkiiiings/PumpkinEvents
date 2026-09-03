@@ -72,19 +72,15 @@ object GamemodeCommand {
 
     private fun executeGM(sender: CommandSender, target: Player?, modeStr: String, plugin: PumpkinEventos) {
         val lang = plugin.languageManager
-        val mm = plugin.messageManager
-        val prefix = lang.get("prefix")
 
         val mode = modesMap[modeStr.lowercase()]
         if (mode == null) {
-            val msg = lang.get("gamemode.invalid").replace("<prefix>", prefix)
-            sender.sendMessage(mm.parse(msg, Placeholder.parsed("mode", modeStr)))
+            lang.send(sender, "gamemode.invalid", Placeholder.unparsed("mode", modeStr))
             return
         }
 
         if (target == null) {
-            val msg = lang.get("gamemode.player_not_found").replace("<prefix>", prefix)
-            sender.sendMessage(mm.parse(msg, Placeholder.parsed("target", "Desconocido")))
+            lang.send(sender, "gamemode.player_not_found", Placeholder.unparsed("target", "Desconocido"))
             return
         }
 
@@ -92,14 +88,10 @@ object GamemodeCommand {
         val modeName = mode.name.lowercase()
 
         if (sender == target) {
-            val msg = lang.get("gamemode.changed_self").replace("<prefix>", prefix)
-            sender.sendMessage(mm.parse(msg, Placeholder.parsed("mode", modeName)))
+            lang.send(sender, "gamemode.changed_self", Placeholder.unparsed("mode", modeName))
         } else {
-            val msgOther = lang.get("gamemode.changed_other").replace("<prefix>", prefix)
-            sender.sendMessage(mm.parse(msgOther, Placeholder.parsed("target", target.name), Placeholder.parsed("mode", modeName)))
-
-            val msgBy = lang.get("gamemode.changed_by_other").replace("<prefix>", prefix)
-            target.sendMessage(mm.parse(msgBy, Placeholder.parsed("sender", sender.name), Placeholder.parsed("mode", modeName)))
+            lang.send(sender, "gamemode.changed_other", Placeholder.unparsed("target", target.name), Placeholder.unparsed("mode", modeName))
+            lang.send(target, "gamemode.changed_by_other", Placeholder.unparsed("sender", sender.name), Placeholder.unparsed("mode", modeName))
         }
     }
 }

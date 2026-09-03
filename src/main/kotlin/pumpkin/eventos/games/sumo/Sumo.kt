@@ -158,8 +158,7 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
     }
 
     private fun iniciarDetectorCaidas() {
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
             if (!rondaActiva) return@runAtFixedRate
 
             val l1 = luchador1
@@ -214,27 +213,14 @@ class Sumo(plugin: PumpkinEventos) : EventGame(plugin, "sumo", "<#FF9900>Sumo 1v
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
         winner.world.spawnParticle(org.bukkit.Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         rondaActiva = false
-        plugin.eventManager.currentGame = null
 
-        HandlerList.unregisterAll(this)
-
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        val todos = players + spectators
-
-        todos.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 
     fun isLuchador(p: Player): Boolean {

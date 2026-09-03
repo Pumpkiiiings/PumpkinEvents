@@ -42,8 +42,7 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
         gameSecondsElapsed = 0
         blocksToRemove.clear()
 
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 timer--
@@ -76,7 +75,7 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
                 val center = currentArena?.centerLocation
                 val cx = center?.x ?: 0.0
                 val cz = center?.z ?: 0.0
-                plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     borderManager.start(world, cx, cz, delaySeconds = 0L)
                 }
             }
@@ -84,8 +83,7 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
         }, 20L, 20L)
 
         // Escáner de bloques bajo los pies (Se ejecuta cada 1 TICK para no fallar saltos)
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
             if (isPreparation) return@runAtFixedRate // ¡Protección para que no se caiga en preparación!
 
             for (player in players) {
@@ -180,28 +178,15 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
         val rawWin = plugin.languageManager.get("tntrun.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         boosterManager.stop()
         gameWorld?.let { borderManager.stop(it) }
-        plugin.eventManager.currentGame = null
         blocksToRemove.clear()
 
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) {
-            lobby = plugin.server.worlds[0].spawnLocation
-        }
-
-        val todos = players + spectators
-
-        todos.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = org.bukkit.GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

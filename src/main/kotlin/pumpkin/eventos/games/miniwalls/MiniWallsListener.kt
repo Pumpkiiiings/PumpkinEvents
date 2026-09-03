@@ -1,5 +1,7 @@
 package pumpkin.eventos.games.miniwalls
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+import net.kyori.adventure.title.Title
 import org.bukkit.Material
 import org.bukkit.Particle
 import org.bukkit.Sound
@@ -16,6 +18,7 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.PlayerDeathEvent
 import org.bukkit.event.player.PlayerInteractEvent
 import pumpkin.eventos.PumpkinEventos
+import java.time.Duration
 
 class MiniWallsListener(private val plugin: PumpkinEventos, private val game: MiniWalls) : Listener {
 
@@ -94,7 +97,14 @@ class MiniWallsListener(private val plugin: PumpkinEventos, private val game: Mi
                     )
                 } else {
                     game.players.filter { game.playerTeam[it] == teamDefensor }.forEach {
-                        it.sendTitle("§c§l¡NEXO ATACADO!", "§fQuedan $nuevoHp HP", 5, 40, 10)
+                        it.showTitle(Title.title(
+                            plugin.languageManager.component("common.titles.nexus_attacked.main"),
+                            plugin.languageManager.component(
+                                "common.titles.nexus_attacked.subtitle",
+                                Placeholder.unparsed("hp", nuevoHp.toString())
+                            ),
+                            Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(2), Duration.ofMillis(500))
+                        ))
                         it.playSound(it.location, Sound.ENTITY_ENDER_DRAGON_HURT, 1f, 0.5f)
                     }
                     e.player.sendMessage(plugin.messageManager.parse("<green>🗡 ¡Le has bajado 2 de vida al nexo! <gray>(Espera 5s para volver a pegarle)</gray></green>"))

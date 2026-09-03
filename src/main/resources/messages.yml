@@ -3,6 +3,31 @@
 # ==========================================
 prefix: "<#FF5500><bold>⚡ EVENTOS</bold></#FF5500> <dark_gray>»</dark_gray> "
 
+common:
+  teams:
+    teammate_assigned: "<green>Tu compañero es: <yellow><player></yellow></green>"
+  points:
+    earned: "<#39FF14>+<amount> Puntos</#39FF14> <gray>(<reason>)</gray>"
+    reasons:
+      survival_two_minutes: "Sobrevivir 2 minutos"
+      victory: "¡Victoria conseguida!"
+      lava_draw: "Sobrevivir al empate"
+  titles:
+    corona_king:
+      main: "<gold><bold>👑 ERES EL REY</bold></gold>"
+      subtitle: "<white>¡Suma puntos huyendo!</white>"
+    iceboat_checkpoint:
+      subtitle: "<green>✔ Checkpoint <checkpoint>/<total></green>"
+    iceboat_lap:
+      main: "<aqua><bold>VUELTA <lap></bold></aqua>"
+      subtitle: "<white>¡Sigue corriendo!</white>"
+    lava_draw:
+      main: "<green><bold>¡EMPATE!</bold></green>"
+      subtitle: "<white>Sobreviviste a la lava</white>"
+    nexus_attacked:
+      main: "<red><bold>¡NEXO ATACADO!</bold></red>"
+      subtitle: "<white>Quedan <hp> HP</white>"
+
 commands:
   help:
     - ""
@@ -18,6 +43,9 @@ commands:
   setup:
     lobby_set: "<prefix><#39FF14>✔</#39FF14> <white>Lobby principal establecido.</white>"
     waiting_set: "<prefix><#00FFFF>⏳</#00FFFF> <white>Spawn de espera configurado.</white>"
+  narrator:
+    enabled: "<green>Modo narrador activado. Serás espectador en el mapa en el siguiente evento.</green>"
+    disabled: "<red>Modo narrador desactivado. Participarás en el siguiente evento.</red>"
   arena:
     already_exists: "<prefix><#FF3131>¡Ya existe un mapa llamado <map>!</#FF3131>"
     creation_started:
@@ -33,6 +61,10 @@ commands:
     spawn_added: "<prefix><#39FF14>🚩</#39FF14> <white>Spawn #<count> añadido a <#CCFF00><map></#CCFF00></white>"
     no_creation_pending: "<prefix><#FF3131>No tienes ninguna creación pendiente.</#FF3131>"
     no_spawns: "<prefix><#FF3131>¡Error! Debes añadir al menos 1 spawn con <#00FFFF>/evento arena addspawn</#00FFFF></#FF3131>"
+    buildbattle_only: "<red>Este comando es solo para arenas de Build Battle.</red>"
+    scan_completed: "<green>✔ Escaneo completado en radio de <radius> bloques.</green>"
+    scan_found: "<yellow>Se detectaron y añadieron <b><count></b> parcelas nuevas.</yellow>"
+    scan_total: "<yellow>Total de parcelas registradas: <b><count></b>.</yellow>"
     saved: "<prefix><#39FF14>✔</#39FF14> <white>¡El mapa <#CCFF00><map></#CCFF00> ha sido guardado exitosamente!</white>"
     cancelled: "<prefix><#FF3131>Modo creación cancelado.</#FF3131>"
     help:
@@ -62,8 +94,11 @@ commands:
   ruleta:
     no_games: "<red>No hay juegos registrados en el core.</red>"
     already_active: "<red>¡Ya hay un evento en curso o una votación activa!</red>"
+    spinning: "<yellow>▶</yellow> <aqua><bold><game></bold></aqua> <yellow>◀</yellow>"
+    selected: "<green>▶</green> <gold><bold><game></bold></gold> <green>◀</green>"
   start:
     not_found: "<prefix><#FF3131>Juego no encontrado.</#FF3131>"
+    already_active: "<prefix><#FF3131>Ya hay una votación, cuenta regresiva, carga o evento activo.</#FF3131>"
     starting: "<prefix><#39FF14>Iniciando evento <game> en modo <mode>...</#39FF14>"
     countdown: "<prefix><#39FF14>Iniciando cuenta regresiva para <game>...</#39FF14>"
   stop:
@@ -72,14 +107,48 @@ commands:
   revive:
     success: "<prefix><#39FF14>🍖</#39FF14> <white><player> ha sido revivido.</white>"
   espectear:
+    no_active: "<red>❌ No hay ningún evento activo para espectear.</red>"
+    still_playing: "<red>❌ ¡Estás participando en el evento! No puedes espectar hasta morir.</red>"
+    no_players: "<red>❌ No hay jugadores vivos en este momento.</red>"
+    watching: "<#00FFFF>👀 <b>MODO ESPECTADOR:</b> <white>Especteando a <yellow><player></yellow>"
+    gamemode_locked: "<red>⚠️ No puedes cambiar tu modo de juego mientras espectas el evento.</red>"
     instruction:
       - ""
+  puntaje:
+    own: "<#39FF14>🏆 Tus puntos:</#39FF14> <white><points></white>"
+    top_title: "<#BF00FF><bold>⭐ TOP 10 PUNTAJES ⭐</bold></#BF00FF>"
+    top_empty: "<gray>Aún no hay puntajes registrados.</gray>"
+    top_entry: "<yellow><rank>.</yellow> <aqua><player></aqua> <gray>-</gray> <#39FF14><points> pts</#39FF14>"
+    holo_created: "<#39FF14>✔</#39FF14> <white>Holograma de puntajes creado/movido a tu posición.</white>"
+    holo_usage: "<red>Uso: /puntaje holo <property> <valor></red>"
+    invalid_value: "<red>Valor inválido. Usa: <values></red>"
+    invalid_background: "<red>Usa formato Hex ARGB (Ej: #80000000)</red>"
+    unknown_property: "<red>Propiedad desconocida.</red>"
+    property_updated: "<#39FF14>✔</#39FF14> <white>Propiedad <yellow><property></yellow> actualizada a <yellow><value></yellow>.</white>"
+    holo_removed: "<#FF3131>✘</#FF3131> <white>Holograma de puntajes eliminado correctamente.</white>"
+    all_cleared: "<red>Todos los puntajes han sido reiniciados a 0.</red>"
+    add_usage: "<red>Uso: /puntaje add <jugador> <cantidad></red>"
+    added: "<#39FF14>Se añadieron <amount> puntos a <player>.</#39FF14>"
+    remove_usage: "<red>Uso: /puntaje remove <jugador> <cantidad></red>"
+    removed: "<#FF3131>Se quitaron <amount> puntos a <player>.</#FF3131>"
+    clear_usage: "<red>Uso: /puntaje clear <jugador></red>"
+    cleared: "<green>Puntaje de <player> reiniciado a 0.</green>"
+    player_not_found: "<red>Jugador no encontrado.</red>"
+    target: "<#39FF14>🏆 Puntos de <player>:</#39FF14> <white><points></white>"
+    target_unregistered: "<red>Ese jugador no tiene puntaje registrado.</red>"
+
+extras_command:
+  no_active: "<red>No hay un juego activo.</red>"
+  forcing: "<green>Forzando desastre: <extra></green>"
+  unknown: "<red>Desastre desconocido.</red>"
+  apocalypse: "<dark_red><b>¡INICIANDO EL APOCALIPSIS!</b></dark_red>"
       - "<#FF3131><b>☠ ¡HAS SIDO ELIMINADO!</b></#FF3131>"
       - "<white>Pero no te vayas aún... puedes seguir viendo la partida.</white>"
       - "<click:run_command:'/espectear'><hover:show_text:'<gray>Haz clic para volver al mapa como fantasma'><#00FFFF><b>[CLIC AQUÍ PARA ESPECTEAR]</b></#00FFFF></hover></click>"
       - ""
 
 vote:
+  usage: "<prefix><red>Uso correcto: /votar <juego></red>"
   no_active: "<#FF3131>¡No hay ninguna votación activa en este momento!</#FF3131>"
   already_voted: "<#FF3131>¡Ya has emitido tu voto! ¡Espera los resultados!</#FF3131>"
   not_found: "<#FF3131>¡Ese modo de juego no existe!</#FF3131>"
@@ -338,34 +407,6 @@ tntrun:
   broadcast:
     winner: "<newline><yellow><b>TNT RUN</b></yellow> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
 
-tnttag:
-  actionbar:
-    preparation: "<white>La TNT se repartirá en: <aqua><bold><time></bold>s"
-    explosion: "<white>Explosión en: <red><bold><time></bold>s"
-  title:
-    has_tnt_main: "<red><b>¡TIENES LA TNT!</b></red>"
-    has_tnt_sub: "<white>¡Golpea a alguien!"
-  broadcast:
-    winner: "<newline><yellow><b>TNT TAG</b></yellow> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
-
-pillars:
-  actionbar:
-    starting: "<white>El juego inicia en: <aqua><bold><time></bold>s"
-    started: "<red><b>¡QUE EMPIECE LA BATALLA!</b></red>"
-  broadcast:
-    winner: "<newline><aqua><b>PILLARS OF FORTUNE</b></aqua> <white>» <color:#67FF00><player></color> ha ganado el evento!<newline>"
-
-suelolava:
-  title:
-    preparation_main: "<#FF4500><bold>¡Sube rápido!</bold>"
-    preparation_sub: "<white>La lava comenzará a subir en 15s"
-  actionbar:
-    preparation: "<white>La lava sube en: <#FF4500><bold><time></bold>s"
-    rising: "<#FF4500>▲ La lava está en la altura: <b><y></b> ▲"
-  broadcast:
-    started: "<newline><#FF4500><b>¡LA LAVA ESTÁ SUBIENDO!</b></#FF4500> <white>¡Busca la altura máxima!<newline>"
-    winner: "<newline><#FF4500><b>EL SUELO ES LAVA</b></#FF4500> <white>» <color:#67FF00><player></color> es el único sobreviviente!<newline>"
-
 sumo:
   round_winner: "<newline><#39FF14>⭐ <bold><winner></bold> ha tirado a <loser>!</#39FF14><newline>"
   broadcast:
@@ -382,6 +423,34 @@ ruletarusa:
   actionbar:
     spin: "<yellow><b>¡LA RULETA ESTÁ GIRANDO!</b></yellow>"
     turn: "<#FF3131><b>¡ES EL TURNO DE <player>!</b></#FF3131>"
+    timer: "<red><b>00:<time></b></red> <dark_gray>|</dark_gray> <yellow>Riesgo: <risk>%</yellow>"
+  title:
+    chosen_main: "<#FF3131><bold><player></bold></#FF3131>"
+    chosen_subtitle: "<white>¡Es el turno del destino!</white>"
+    spinning_main: "<yellow><player></yellow>"
+    spinning_subtitle: "<gray>Sorteando...</gray>"
+    decision_main: "<red>¡Tienes el arma!</red>"
+    decision_normal: "<white><#FF3131><b>Click Der</b></#FF3131> Dispara <gray>(<risk>%)</gray> | <yellow><b>Q</b></yellow> Pasa (<passes>) | <aqua><b>Catalejo</b></aqua> Inspecciona</white>"
+    decision_forced: "<white><#FF3131><b>Click Der</b></#FF3131> Dispara | <gray>No puedes pasar esta arma</gray></white>"
+  item:
+    shotgun: "<#FF5500><b>Escopeta Recortada (50% Muerte)</b></#FF5500>"
+    empty_revolver: "<#AAAAAA><b>Revólver Vacío</b></#AAAAAA>"
+    bullet: "<yellow><b>Bala Solitaria</b></yellow>"
+    revolver: "<#FF3131><b>Revólver del Destino</b></#FF3131>"
+    loaded_revolver: "<#FF3131><b>Revólver Cargado</b></#FF3131>"
+    inspect: "<aqua><b>Catalejo de Inspección</b></aqua>"
+  message:
+    shotgun: "<newline><red><b>¡El revólver se encasquilló!</b></red> <white>Te han dado una escopeta con <red>50%</red> de riesgo.</white><newline>"
+    manual_reload: "<newline><yellow><b>¡RECARGA MANUAL!</b></yellow> <white>Haz <b>Clic Izquierdo</b> con la bala antes de disparar.</white><newline>"
+    timeout: "<red><b>¡TIEMPO AGOTADO!</b></red> <white><player> no tomó una decisión.</white>"
+    manually_loaded: "<green>Has cargado la bala. ¡Ahora dispara con Click Derecho!</green>"
+    fired_unloaded: "<red><b>¡ARMA SIN CARGAR!</b></red> <white><player> intentó disparar sin introducir la bala.</white>"
+    passed: "<yellow><b><player></b></yellow> <white>pasó la misma cámara al siguiente jugador. El riesgo se conserva.</white>"
+    pass_unavailable: "<red>Ya gastaste tu único pase o esta arma no permite pasar.</red>"
+    inspect_unavailable: "<red>Ya usaste tu inspección o esta arma no puede inspeccionarse.</red>"
+    inspect_safe: "<aqua>🔍 La inspección sugiere que la cámara está <green>vacía</green> (la pista puede fallar).</aqua>"
+    inspect_danger: "<aqua>🔍 La inspección sugiere <red>peligro</red> en la cámara actual (la pista puede fallar).</aqua>"
+    risk_reward: "Desafiar un riesgo de <risk>%"
   broadcast:
     saved: "<newline><#39FF14><b>¡<player> TUVO SUERTE!</b></#39FF14> <white>La recámara estaba vacía.</white><newline>"
     died: "<newline><#FF3131><b>¡BAM!</b></#FF3131> <white><player> no sobrevivió a la ruleta.</white><newline>"
@@ -422,6 +491,7 @@ potion_vote:
   result: "<gold><b>✔ Efecto elegido: <effect></b> — ¡Aplicado a todos los jugadores!</gold>"
   no_game: "<red>No hay ningún juego activo para votar.</red>"
   already_voted: "<yellow>⚠ Ya has votado en esta ronda.</yellow>"
+  voted: "<green>✔ Votaste por: <effect></green>"
   options:
     speed: "<#39FF14>Velocidad II</#39FF14>"
     jump: "<#00FFFF>Salto III</#00FFFF>"
@@ -441,6 +511,15 @@ pvp_vote:
   result_no: "<red><b>✘ El PvP ha sido DESACTIVADO por votación. ¡Modo pacífico!</b></red>"
   already_voted: "<yellow>⚠ Ya has votado en esta ronda de PvP.</yellow>"
   no_game: "<red>No hay ningún juego activo para votar.</red>"
+
+extras_vote:
+  header: "<newline><#FF0055><b>⚠ ¡DESASTRE INMINENTE!</b></#FF0055><newline><white>Vota el próximo desastre dando clic:</white><newline>"
+  item: "<click:run_command:'/evote <id>'><hover:show_text:'<green>Clic para votar por <id>'><gray>  » <emoji> <yellow><b><name></b></yellow></hover></click>"
+  footer: "<gray><i>Tienen <time> segundos para votar...</i></gray><newline>"
+  no_active: "<red>No hay ninguna votación de desastre activa.</red>"
+  already_voted: "<red>Ya has votado por un desastre.</red>"
+  voted: "<green>✔ Votaste por que inicie el desastre: <b><extra></b></green>"
+  result: "<newline><#FF0055><b>💥 EL DESASTRE ELEGIDO ES: <extra></b></#FF0055><newline>"
 
 # ==========================================
 # TNT TAG — MENSAJES ESPECIALES
@@ -505,6 +584,92 @@ gamemode:
 connection:
   join: "<prefix><#CCFF00><player></#CCFF00> <#39FF14>se ha unido al evento!</#39FF14>"
   quit: "<prefix><#CCFF00><player></#CCFF00> <#FF3131>ha abandonado el evento.</#FF3131>"
+  miniwalls_reconnected: "<#FFFF00>¡Reconectado! Tu nexo está vivo, reaparecerás en 5 segundos.</#FFFF00>"
+  reconnect_title: "<yellow><b>¡RECONECTADO!</b></yellow>"
+  reconnect_subtitle: "<white>Reaparecerás en <yellow><b><time></b></yellow> <unit></white>"
+  nexus_destroyed: "<red>Tu nexo fue destruido mientras no estabas. Ahora eres espectador.</red>"
+  disqualified_self: "<red>Te desconectaste y fuiste descalificado. Ahora eres espectador.</red>"
+  miniwalls_disconnected: "<yellow><b><player></b> se ha desconectado. Reconéctate pronto o serás eliminado.</yellow>"
+  disqualified_broadcast: "<red><b><player></b> se ha desconectado y ha sido descalificado.</red>"
+
+menu:
+  not_found: "<red>Error: Menú '<menu>' no encontrado.</red>"
+  voted: "<green>✔ Has votado por: <b><option></b></green>"
+
+combat:
+  heal_on_kill: "<#FF1493>❤ <b>+<hearts> Corazones</b></#FF1493>"
+
+simon_chat:
+  hidden_answer: "<obfuscated><#39FF14>HIDDEN_ANSWER</#39FF14></obfuscated>"
+  incorrect_answer: "<red>❌ <b>RESPUESTA INCORRECTA.</b> Simón no olvida...</red>"
+
+simon_game:
+  bossbar: "⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white><order></white> <dark_gray>|</dark_gray> <green>⭐ Vivos: <alive></green>"
+  item:
+    command_star: "<gold><b>⭐ ESTRELLA DE MANDO ⭐</b></gold>"
+  message:
+    command_kit: "<green>⭐ ¡Kit de mando entregado! Clic derecho para abrir el menú de órdenes.</green>"
+    hot_potato_start: "<newline><#FF4500><b>¡MINIJUEGO DE SIMÓN: LA PAPA CALIENTE!</b></#FF4500><newline>"
+    order: "<newline><yellow><b>¡SIMÓN DICE!</b></yellow> <white>» <order><newline>"
+    saved: "<green>✔ <b>¡SALVADO!</b></green> <white>Misión completada.</white>"
+    stopped_obeying: "<red>⚠️ <b>¡PARA!</b></red> <white>Has dejado de cumplir la orden. ¡Mueres si no sigues!</white>"
+    eliminated: "<red>☠</red> <yellow><player></yellow> <white>fue pulverizado por <green><executioner></green>.</white>"
+    winner: "<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <color:#67FF00><player></color> es el ganador definitivo!<newline>"
+  title:
+    waiting_main: "<countdown>"
+    waiting_subtitle: "<white>Simón está por dar la orden..."
+    new_order_main: "<#39FF14><b>¡NUEVA ORDEN!</b></#39FF14>"
+    follow_main: "<countdown>"
+    follow_subtitle: "<white>¡Sigue la orden!</white>"
+    timeout_main: "<red><b>¡TIEMPO AGOTADO!</b></red>"
+    timeout_subtitle: "<white>La guadaña está pasando...</white>"
+    eliminated_main: "<red><bold>☠ ¡ELIMINADO! ☠</bold></red>"
+    eliminated_subtitle: "<dark_red>Tu alma ha sido reclamada...</dark_red>"
+  menu:
+    in_development: "<red>Minijuego en desarrollo...</red>"
+    combo_disabled: "<red>⌘ <b>COMBO:</b> <white>Constructor desactivado.</red>"
+    combo_enabled: "<#BF00FF>⌘ <b>COMBO:</b> <white>Constructor activo. Haz click en los retos...</white>"
+    combo_empty: "<red>⚠️ <b>AVISO:</b> Combo vacío.</red>"
+    inventories_cleared: "<#00FFFF>✨ <b>LIMPIEZA:</b> <white>Inventarios vaciados.</white>"
+    combo_duplicate: "<red>⚠️ Esta orden ya está en el combo.</red>"
+    combo_full: "<red>⚠️ Máximo 4 órdenes por combo.</red>"
+    combo_added: "<#39FF14>⌘ Añadido: <white><action> <gray>(<size>/4)</gray>"
+  listener:
+    item_stolen: "<red>¡Te han robado el ítem a base de golpes!</red>"
+    phrase_ready: "<#00FFFF>✎ <b>FRASE LISTA:</b> <white><phrase>"
+    math_unsupported: "<red>Operación matemática desde el menú no soportada en esta versión.</red>"
+  frozen:
+    red_team: "<#FF3131>🔥 <b>EQUIPO ROJO:</b> <white>¡Congela a los azules golpeándolos!"
+    blue_team: "<#00FFFF>❄️ <b>EQUIPO AZUL:</b> <white>¡Huye! Descongela a tus aliados golpeándolos."
+    title_main: "<#00FFFF><bold>❄️ ¡CONGELADOS! ❄️"
+    title_subtitle: "<white>¡Corre por tu vida!"
+    countdown_main: "<countdown>"
+    countdown_subtitle: "<white>¡El tiempo se agota!"
+    frozen: "<#00FFFF>🫊 <b>¡CONGELADO!</b> <white>Espera a que un aliado te rescate."
+    rescued: "<#39FF14>✨ <b>¡RESCATADO!</b> <white>Vuelves al juego."
+    rescuer: "<#39FF14>🤝 <b>¡BUEN TRABAJO!</b> <white>Has salvado a <player>"
+    winner_main: "<winner>"
+    winner_subtitle: "<gray>Preparando ejecución..."
+  potato:
+    insufficient: "<red>❌ <bold>ERROR:</bold> <white>No hay suficientes jugadores para la Papa Caliente."
+    title_main: "<red>🥔 <bold>PAPA CALIENTE</bold> 🔥"
+    title_subtitle: "<white>¡Golpea a alguien para pasarla!"
+    countdown_main: "<red><bold>⏳ <time>"
+    countdown_subtitle: "<white>¡La papa va a explotar!"
+    item: "<dark_red><bold>🥔 PAPA CALIENTE 🔥"
+    received: "<red>⚠️ <b>¡TIENES LA PAPA!</b> <white>Pásala rápido golpeando a otro."
+    escaped: "<aqua>💨 <b>¡TE LIBRASTE!</b> <white>¡Corre!"
+    passed: "<#FF5F1F>🔥 <b><attacker></b> <gray>le pasó la papa a <white><victim>"
+    drop_blocked: "<red>❌ <b>¡PROHIBIDO!</b> <white>No puedes tirar la papa, ¡pásala!"
+    boom_main: "<red>💣 <b>¡BOOM!</b> 💣"
+    boom_subtitle: "<white><player> explotó con la papa."
+  duel:
+    insufficient: "<red>❌ <b>ERROR:</b> <white>No hay suficientes guerreros vivos para el duelo."
+    stands: "<#00FFFF>🍿 <b>GRADAS:</b> <white>Espera tu turno para luchar..."
+    title_main: "<#FF3131>⚔️ <b>¡A LUCHAR!</b> ⚔️"
+    title_subtitle: "<white><first> <red>vs <white><second>"
+    kit: "<#39FF14>🛡️ <b>EQUIPAMIENTO:</b> <white>Recibiste el kit de gladiador."
+    round_winner: "<#CCFF00>⭐ <b><player></b> <white>ha ganado el combate."
 
 hologram:
   title: "<#FF5500><bold>⚡ TOP PUNTAJES ⚡</bold></#FF5500>"
@@ -520,6 +685,9 @@ hologram:
     - ""
     - "&#29FF00&l[ CLIC PARA SIGUIENTE PÁGINA ]"
     - "&r&#FFE600mc.liric.xyz"
+  loading: "<yellow>Cargando estadísticas...</yellow>"
+  next_page: "<green>Página siguiente ➔</green>"
+  previous_page: "<red>⬅ Página anterior</red>"
 
 # ==========================================
 # HIDE AND SEEK — MENSAJES
@@ -591,7 +759,7 @@ battleroyale:
 
   # Mensajes de jugador
   kill_message: "<#FF3131>⚔ <b>¡Eliminaste a <yellow>%victim%</yellow>! (+1 kill)</b></#FF3131>"
-  teammate_assigned: "<green>Tu compañero es: <yellow>%player%</yellow></green>"
+  teammate_assigned: "<green>Tu compañero es: <yellow><player></yellow></green>"
   team_joined: "<green>Te has unido al Equipo %team%.</green>"
   voted_chest: "<green>Votaste por: %tier%</green>"
   team_select_hint: "<yellow>Tienes %time%s para elegir equipo.</yellow>"
@@ -628,7 +796,7 @@ parkour:
   checkpoint_request_message: "<#39FF14>%leader% quiere regresar al checkpoint.</#39FF14> <gray>(revisa tu menú)</gray>"
 
   # Equipos
-  teammate_assigned: "<green>Tu compañero es: <yellow>%player%</yellow></green>"
+  teammate_assigned: "<green>Tu compañero es: <yellow><player></yellow></green>"
   team_joined: "<green>Te uniste al Equipo <b>%team%</b>.</green>"
   only_leader_can_request: "<red>Solo el líder del equipo puede solicitar regresar.</red>"
 
@@ -659,3 +827,51 @@ parkour:
     checkpoint_accept: "<#39FF14><b>✔ Aceptar</b></#39FF14>"
     checkpoint_accept_lore: "<gray>%leader% quiere regresar al checkpoint.</gray>"
     checkpoint_reject: "<red><b>✖ Rechazar</b></red>"
+
+# ==========================================
+# BUILD BATTLE
+# ==========================================
+buildbattle:
+  item:
+    team_selector: "<#FF9900><b>🚩 Seleccionar Equipo</b></#FF9900>"
+    wand: "<#00FFFF><b>✏ Varita de Selección</b></#00FFFF>"
+    wand_lore:
+      - "<gray>Clic Izq en bloque → Pos1"
+      - "<gray>Clic Der en bloque → Pos2"
+      - "<gray>Clic Der al aire con bloque → Rellenar"
+      - "<dark_gray>Radio parcela: ±<radius> bloques"
+    vote_yes: "<green><b>👍 Votar Positivo</b></green>"
+    vote_no: "<red><b>👎 Votar Negativo</b></red>"
+  team:
+    hint: "<yellow>Tienes 15 segundos para elegir equipo.</yellow>"
+    actionbar: "<yellow>Selección de equipos: <b><time>s</b></yellow>"
+    menu_title: "<dark_gray>Selecciona Equipo</dark_gray>"
+    item: "<yellow>Equipo <team></yellow>"
+    joined: "<green>Te has unido al Equipo <team>.</green>"
+    full: "<red>Lleno</red>"
+    join_available: "<green>Click para unirte</green>"
+    member: "<gray>- <player>"
+  build:
+    player_start: "<#FF9900><b>¡Construye en tu parcela!</b></#FF9900> <white>Tienes <yellow>5 minutos</yellow>.</white>"
+    broadcast_start: "<newline><#FF9900><b>🏗 BUILD BATTLE</b></#FF9900> <white>» ¡Comiencen a construir! Tienen <yellow>5 minutos</yellow>.<newline>"
+    actionbar: "<#FF9900>⏳ Construcción: <b><time></b></#FF9900>"
+    time_warning: "<yellow>⏰ Quedan <b><time>s</b> para construir.</yellow>"
+  vote:
+    unknown_plot: "Parcela #<plot>"
+    start: "<newline><#FF9900><b>VOTACIÓN</b></#FF9900> <white>» ¡Voten la construcción de <yellow><builder></yellow>!<newline>"
+    actionbar: "<#FF9900>🗳 Votando parcela de <b><builder></b> — <white><time>s</white>"
+    already_voted: "<red>¡Ya votaste en esta ronda!</red>"
+    own_build: "<red>¡No puedes votar por tu propia construcción!</red>"
+    positive: "<green>✔ Votaste positivo.</green>"
+    negative: "<red>✘ Votaste negativo.</red>"
+    winner: "<newline><#FF9900><b>BUILD BATTLE</b></#FF9900> <white>» ¡<yellow><player></yellow> ganó con <green><votes> votos</green>!<newline>"
+  selection:
+    pos1: "<#00FFFF>Pos1 establecida: <white>(<x>, <y>, <z>)"
+    pos2: "<red>Pos2 establecida: <white>(<x>, <y>, <z>)"
+    no_material: "<red>Pon un bloque en tu mano principal o secundaria para rellenar.</red>"
+    missing_positions: "<red>¡Selecciona Pos1 y Pos2 primero!</red>"
+    too_large: "<red>¡La selección es demasiado grande! (máx. 32768 bloques)</red>"
+    outside_plot: "<red>La selección está fuera de tu parcela.</red>"
+    filled: "<green>✔ Relleno completado: <white><count> bloques de <yellow><material>"
+    break_outside: "<red>¡No puedes romper bloques fuera de tu parcela!</red>"
+    place_outside: "<red>¡No puedes colocar bloques fuera de tu parcela!</red>"

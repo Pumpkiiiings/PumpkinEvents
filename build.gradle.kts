@@ -63,6 +63,9 @@ dependencies {
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
     compileOnly(files("libs/LibsDisguises.jar"))
+
+    testImplementation(kotlin("test-junit5"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks {
@@ -102,5 +105,9 @@ tasks {
 
     build {
         dependsOn(shadowJar)
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }

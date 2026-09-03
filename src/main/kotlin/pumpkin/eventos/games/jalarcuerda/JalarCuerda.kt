@@ -109,8 +109,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
             }
 
             // RELOJ PRINCIPAL
-            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-                if (!isRunning) { task.cancel(); return@runAtFixedRate }
+            runAtFixedRate( { task ->
 
                 if (isPreparation) {
                     if (prepTimer > 0) {
@@ -143,13 +142,13 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                     plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
                 }
 
-            }, 1, 1, TimeUnit.SECONDS)
+            }, 20L, 20L)
 
         }, 10L)
     }
 
     private fun iniciarMotorRitmo() {
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (!isRunning || isPreparation) { task.cancel(); return@runAtFixedRate }
 
             players.forEach { p ->
@@ -170,7 +169,7 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
                     enviarTituloRitmo(p, data.cursorPos)
                 }
             }
-        }, 1L, 50L, TimeUnit.MILLISECONDS)
+        }, 1L, 1L)
     }
 
     private fun enviarTituloRitmo(p: Player, pos: Int) {
@@ -285,15 +284,6 @@ class JalarCuerda(plugin: PumpkinEventos) : EventGame(plugin, "jalarcuerda", "<#
     override fun onStop() {
         // AQUÍ ESTABA EL ERROR. ELIMINAMOS "HandlerList.unregisterAll(this)"
         // Así los eventos siguen vivos para la próxima partida.
-
-        plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

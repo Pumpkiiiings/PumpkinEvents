@@ -53,19 +53,19 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
     init {
         if (!file.exists()) plugin.saveResource("arenas.yml", false)
-        loadArenasAsync()
+        loadArenas()
     }
 
-    private fun loadArenasAsync() {
-        ioScope.launch {
-            synchronized(fileLock) { config = YamlConfiguration.loadConfiguration(file) }
+    private fun loadArenas() {
+        synchronized(fileLock) { config = YamlConfiguration.loadConfiguration(file) }
 
-            mainLobby = loadSafeLocation("lobbies.main")
-            waitingSpawn = loadSafeLocation("lobbies.waiting")
+        mainLobby = loadSafeLocation("lobbies.main")
+        waitingSpawn = loadSafeLocation("lobbies.waiting")
 
-            val section = config.getConfigurationSection("arenas") ?: return@launch
-            val tempArenas = mutableMapOf<String, Arena>()
+        val section = config.getConfigurationSection("arenas")
+        val tempArenas = mutableMapOf<String, Arena>()
 
+        if (section != null) {
             for (key in section.getKeys(false)) {
                 val path = "arenas.$key."
                 val type = config.getString("${path}type", "desconocido")!!
@@ -85,11 +85,11 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
                 tempArenas[key] = arena
             }
-
-            arenas.clear()
-            arenas.putAll(tempArenas)
-            plugin.componentLogger.info(mm.deserialize("<green>[Arenas] ${arenas.size} mapas cargados. Lobbies listos.</green>"))
         }
+
+        arenas.clear()
+        arenas.putAll(tempArenas)
+        plugin.componentLogger.info(mm.deserialize("<green>[Arenas] ${arenas.size} mapas cargados. Lobbies listos.</green>"))
     }
 
     fun setMainLobbyLoc(loc: Location) {
@@ -190,7 +190,13 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
     fun getArena(name: String): Arena? = arenas[name]
     fun getAvailableArenas(): List<Arena> = arenas.values.toList()
-    fun shutdown() = ioScope.cancel()
+    fun shutdown() {
+        synchronized(fileLock) {
+            runCatching { config.save(file) }
+                .onFailure { plugin.componentLogger.error("No se pudo completar el guardado final de arenas.", it) }
+        }
+        ioScope.cancel()
+    }
 
     /**
      * Duplica una arena existente con nuevo nombre y tipo.

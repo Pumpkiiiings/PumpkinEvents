@@ -1,5 +1,6 @@
 package pumpkin.eventos.listeners
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Material
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
@@ -155,7 +156,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
                         killer.health = (killer.health + kit.healOnKill).coerceAtMost(killer.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: 20.0)
                         killer.playSound(killer.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
                         val hearts = (kit.healOnKill / 2).toInt()
-                        killer.sendMessage(mm.parse("<#FF1493>❤ <b>+$hearts Corazones</b></#FF1493>"))
+                        plugin.languageManager.send(killer, "combat.heal_on_kill", Placeholder.unparsed("hearts", hearts.toString()))
                     }
                 }
 

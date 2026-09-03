@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.battleroyale
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
 import org.bukkit.GameRule
@@ -13,6 +14,7 @@ import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.support.TeamAssignmentService
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -139,8 +141,7 @@ class BattleRoyale(plugin: PumpkinEventos, val isDuos: Boolean)
         }
 
         // ── Timer principal ───────────────────────────────────────────────────
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             when (phase) {
 
@@ -252,27 +253,20 @@ class BattleRoyale(plugin: PumpkinEventos, val isDuos: Boolean)
 
                 BRPhase.ENDED -> task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     // ─────────────────────────────────────────────────────────────────────────
     //  Agrupación automática de equipos sin asignar
     // ─────────────────────────────────────────────────────────────────────────
     private fun agruparEquipos() {
-        val unassigned = players.filter { !playerTeam.containsKey(it) }.toMutableList()
-        var counter = (playerTeam.values.maxOrNull() ?: 0)
-
-        while (unassigned.isNotEmpty()) {
-            counter++
-            val p1 = unassigned.removeAt(0)
-            playerTeam[p1] = counter
-            if (unassigned.isNotEmpty()) {
-                val p2 = unassigned.removeAt(0)
-                playerTeam[p2] = counter
-                val msg = plugin.languageManager.get("battleroyale.teammate_assigned")
-                    .ifBlank { "<green>Tu compañero es: <yellow>%player%</yellow></green>" }
-                p1.sendMessage(plugin.messageManager.parse(msg.replace("%player%", p2.name)))
-                p2.sendMessage(plugin.messageManager.parse(msg.replace("%player%", p1.name)))
+        val firstTeamId = (playerTeam.values.maxOrNull() ?: 0) + 1
+        TeamAssignmentService.pair(players.filterNot(playerTeam::containsKey), firstTeamId).forEach { assignment ->
+            assignment.members.forEach { playerTeam[it] = assignment.teamId }
+            if (assignment.members.size == 2) {
+                val (p1, p2) = assignment.members
+                plugin.languageManager.send(p1, "common.teams.teammate_assigned", Placeholder.unparsed("player", p2.name))
+                plugin.languageManager.send(p2, "common.teams.teammate_assigned", Placeholder.unparsed("player", p1.name))
             }
         }
     }
@@ -412,20 +406,12 @@ class BattleRoyale(plugin: PumpkinEventos, val isDuos: Boolean)
     override fun onStop() {
         phase = BRPhase.ENDED
         limpiarHologramas()
-        plugin.eventManager.currentGame = null
 
         gameWorld?.let { w ->
             w.worldBorder.size = 29999984.0
             w.worldBorder.damageAmount = 0.0
         }
 
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.isGlowing = false
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(beforeReset = { it.isGlowing = false })
     }
 }

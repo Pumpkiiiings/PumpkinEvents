@@ -163,8 +163,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<gradi
         val targetWorld = gameWorld ?: return
         var tickNexo = 0
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (phase == MwPhase.PLAYING) {
                 tickNexo++
@@ -218,7 +217,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<gradi
                 }
                 MwPhase.DRAW, MwPhase.ENDED -> task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun nexoAura() {
@@ -488,7 +487,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<gradi
             player.playSound(player.location, Sound.ENTITY_LIGHTNING_BOLT_THUNDER, 1f, 1.5f)
 
             var secondsLeft = respawnSeconds
-            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+            runAtFixedRate( { task ->
                 if (!isRunning || !players.contains(player)) {
                     task.cancel()
                     return@runAtFixedRate
@@ -523,7 +522,7 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<gradi
                 }
 
                 secondsLeft--
-            }, 0L, 1L, java.util.concurrent.TimeUnit.SECONDS)
+            }, 1L, 20L)
         } else {
             players.remove(player)
             spectators.add(player)
@@ -588,14 +587,6 @@ class MiniWalls(plugin: PumpkinEventos) : EventGame(plugin, "miniwalls", "<gradi
 
         val sb = Bukkit.getScoreboardManager().mainScoreboard
         MwTeam.values().forEach { sb.getTeam("MW_${it.name}")?.unregister() }
-
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

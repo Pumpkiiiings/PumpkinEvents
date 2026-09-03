@@ -70,8 +70,10 @@ class ArenaManager(private val plugin: PumpkinEventos) {
                 val path = "arenas.$key."
                 val type = config.getString("${path}type", "desconocido")!!
                 val arena = Arena(key, type)
+                arena.worldProvider = config.getString("${path}provider", "slime")!!.lowercase()
 
                 arena.slimeWorldName = config.getString("${path}slimeWorld", key)
+                arena.arenaApiTemplateId = config.getString("${path}arenaApiTemplate")
                 arena.centerLocation = loadSafeLocation("${path}centerLocation")
 
                 arena.gradas = loadSafeLocation("${path}gradas")
@@ -120,6 +122,7 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
         synchronized(fileLock) {
             config.set("arenas.${session.name}.type", session.type)
+            config.set("arenas.${session.name}.provider", arena.worldProvider)
             config.set("arenas.${session.name}.slimeWorld", session.name)
         }
 
@@ -206,7 +209,9 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         val source = arenas[sourceName] ?: return false
 
         val newArena = Arena(newName, newType)
+        newArena.worldProvider = source.worldProvider
         newArena.slimeWorldName = newName // El mundo nuevo llevará el nuevo nombre
+        newArena.arenaApiTemplateId = source.arenaApiTemplateId
         newArena.centerLocation = source.centerLocation?.clone()
         newArena.gradas = source.gradas?.clone()
         newArena.dueloA = source.dueloA?.clone()
@@ -218,7 +223,9 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
         synchronized(fileLock) {
             config.set("arenas.$newName.type", newType)
+            config.set("arenas.$newName.provider", newArena.worldProvider)
             config.set("arenas.$newName.slimeWorld", newName)
+            config.set("arenas.$newName.arenaApiTemplate", newArena.arenaApiTemplateId)
         }
 
         if (newArena.centerLocation != null) saveSafeLocation("arenas.$newName.centerLocation", newArena.centerLocation!!)

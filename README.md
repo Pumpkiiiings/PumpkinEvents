@@ -115,6 +115,7 @@ Prefijo `/evento` (Alias: `/eventos`, `/ev`).
 - **[AdvancedSlimePaper (ASP)](https://github.com/InfernalSuite/AdvancedSlimePaper)** — carga e instanciación de todos los mapas.
 
 **Opcionales** (`softdepend`):
+- **ArenaAPI** — permite crear arenas temporales desde esquemáticos `.schem`. Las arenas sin esta configuración siguen usando AdvancedSlimePaper.
 - **[PlaceholderAPI](https://www.spigotmc.org/resources/placeholderapi.6245/)** — registra `%eventos_team%`.
 - **LibsDisguises** — habilita Hide & Seek; ese modo no se registra si falta la dependencia.
 
@@ -126,6 +127,23 @@ Incluidas en el jar vía shadow: Kotlin stdlib, kotlinx-coroutines, PacketEvents
 3. Coloca tus plantillas de mapas `.slime` en `plugins/PumpkinEventos/slime_worlds`.
 4. Configura el Lobby principal con `/evento setup lobby`.
 5. Crea las arenas con `/evento arena create`.
+
+### Arenas con ArenaAPI
+
+1. Instala `ArenaAPI.jar` junto con WorldEdit y define el template en `plugins/ArenaAPI/config.yml`.
+2. Añade la arena en `plugins/PumpkinEventos/arenas.yml`. El `type` debe coincidir con el id del minijuego y `arenaApiTemplate` con el id del template de ArenaAPI.
+
+```yml
+arenas:
+  ruleta_schem:
+    type: ruletarusa
+    provider: arenaapi
+    arenaApiTemplate: ruleta_rusa
+    centerLocation: { world: world, x: 0.5, y: 65.0, z: 0.5, yaw: 0.0, pitch: 0.0 }
+    spawnPoints: {}
+```
+
+PumpkinEvents aplica las reglas específicas de cada minijuego después de que ArenaAPI deja listo el mundo y, al finalizar, le delega a ArenaAPI la destrucción de la instancia. `provider: slime` (o no definir `provider`) conserva el comportamiento anterior basado en `.slime`.
 
 ---
 

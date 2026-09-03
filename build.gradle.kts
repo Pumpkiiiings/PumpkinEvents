@@ -63,6 +63,9 @@ dependencies {
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
     compileOnly(files("libs/LibsDisguises.jar"))
+    // Contrato opcional para mundos desechables basados en esquemáticos.
+    // El JAR no se empaqueta: ArenaAPI debe instalarse como plugin separado.
+    compileOnly(files("libs/ArenaAPI.jar"))
 
     testImplementation(kotlin("test-junit5"))
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")

@@ -5,10 +5,14 @@ import com.infernalsuite.asp.api.loaders.SlimeLoader
 import com.infernalsuite.asp.api.world.properties.SlimeProperties
 import com.infernalsuite.asp.api.world.properties.SlimePropertyMap
 import com.infernalsuite.asp.loaders.file.FileLoader
+import dev.arenaapi.api.ArenaInstance
+import dev.arenaapi.api.ArenaProvider
+import dev.arenaapi.api.ArenaRequest
 import org.bukkit.Bukkit
 import org.bukkit.GameRule
 import org.bukkit.World
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.arena.Arena
 import java.io.File
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ConcurrentHashMap
@@ -23,6 +27,8 @@ class MapManager(private val plugin: PumpkinEventos) {
     private val fileLoader: SlimeLoader
     private val activeWorlds = ConcurrentHashMap.newKeySet<World>()
     private val unloadingWorlds = ConcurrentHashMap.newKeySet<World>()
+    /** Mundos que pertenecen a ArenaAPI; su ciclo de vida lo controla el proveedor. */
+    private val arenaApiInstances = ConcurrentHashMap<World, ArenaInstance>()
 
     init {
         val slimeFolder = File(plugin.dataFolder, "slime_worlds")
@@ -119,8 +125,69 @@ class MapManager(private val plugin: PumpkinEventos) {
         return future
     }
 
+    /**
+     * Selecciona el proveedor configurado por arena. Las arenas de Slime no
+     * cambian de comportamiento; las de ArenaAPI se crean desde su template.
+     */
+    fun loadArenaWorld(arena: Arena, customGameRules: Map<GameRule<*>, Any> = emptyMap()): CompletableFuture<World?> {
+        if (!arena.worldProvider.equals("arenaapi", ignoreCase = true)) {
+            val slimeTemplate = arena.slimeWorldName ?: return CompletableFuture.completedFuture(null)
+            return loadArenaWorld(slimeTemplate, customGameRules)
+        }
+
+        val templateId = arena.arenaApiTemplateId?.takeIf { it.isNotBlank() }
+            ?: return CompletableFuture.failedFuture(
+                IllegalStateException("La arena '${arena.id}' usa ArenaAPI pero no define arenaApiTemplate")
+            )
+        if (!plugin.server.pluginManager.isPluginEnabled("ArenaAPI")) {
+            return CompletableFuture.failedFuture(IllegalStateException("ArenaAPI no está instalado o habilitado"))
+        }
+
+        val future = CompletableFuture<World?>()
+        val api = runCatching { ArenaProvider.get() }.getOrElse { error ->
+            future.completeExceptionally(error)
+            return future
+        }
+        api.create(ArenaRequest(templateId, mapOf("owner" to plugin.name, "arena" to arena.id)))
+            .whenComplete { instance, error ->
+                if (error != null) {
+                    future.completeExceptionally(error)
+                    return@whenComplete
+                }
+                val world = instance.world().orElse(null)
+                if (world == null) {
+                    future.completeExceptionally(IllegalStateException("ArenaAPI creó '${templateId}' sin mundo Bukkit"))
+                    return@whenComplete
+                }
+                plugin.server.globalRegionScheduler.execute(plugin) {
+                    try {
+                        applyCustomGameRules(world, customGameRules)
+                        arenaApiInstances[world] = instance
+                        future.complete(world)
+                    } catch (failure: Throwable) {
+                        instance.destroy()
+                        future.completeExceptionally(failure)
+                    }
+                }
+            }
+        return future
+    }
+
+    private fun applyCustomGameRules(world: World, customGameRules: Map<GameRule<*>, Any>) {
+        for ((rule, value) in customGameRules) {
+            @Suppress("UNCHECKED_CAST")
+            world.setGameRule(rule as GameRule<Any>, value)
+        }
+    }
+
     fun unloadWorld(world: World?) {
         if (world == null) return
+        arenaApiInstances.remove(world)?.let { instance ->
+            instance.destroy().whenComplete { _, error ->
+                if (error != null) plugin.componentLogger.error("No se pudo destruir la instancia ArenaAPI ${instance.id()}", error)
+            }
+            return
+        }
         if (!activeWorlds.contains(world) || !unloadingWorlds.add(world)) return
 
         plugin.server.globalRegionScheduler.execute(plugin) {
@@ -145,6 +212,7 @@ class MapManager(private val plugin: PumpkinEventos) {
     }
 
     fun shutdown() {
+        arenaApiInstances.keys.toList().forEach { unloadWorld(it) }
         activeWorlds.toList().forEach { unloadWorld(it) }
     }
 }

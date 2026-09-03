@@ -12,6 +12,7 @@ depend:
   - GSit
   - AdvancedSlimePaper
 softdepend:
+  - ArenaAPI
   - PlaceholderAPI
   - LibsDisguises
 

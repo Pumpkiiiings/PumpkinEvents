@@ -150,7 +150,7 @@ class EventManager(private val plugin: PumpkinEventos) {
             .filter { it.type.equals(game.id, ignoreCase = true) }
             .randomOrNull()
 
-        if (arenaTemplate?.slimeWorldName == null) {
+        if (arenaTemplate == null) {
             Bukkit.broadcast(plugin.messageManager.parse(
                 "${lang.get("event_manager.map_error_no_arena")} <gray>(Falta crear un mapa de tipo '${game.id}')</gray>"
             ))
@@ -158,7 +158,7 @@ class EventManager(private val plugin: PumpkinEventos) {
             return
         }
 
-        plugin.mapManager.loadArenaWorld(arenaTemplate.slimeWorldName!!, game.getCustomGameRules())
+        plugin.mapManager.loadArenaWorld(arenaTemplate, game.getCustomGameRules())
             .whenComplete { world, error ->
                 if (error != null || world == null) {
                     plugin.server.globalRegionScheduler.execute(plugin) {

@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import io.papermc.paper.event.player.AsyncChatEvent
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer
 import org.bukkit.Material
@@ -142,7 +143,7 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
                     drop.velocity = attacker.location.direction.multiply(0.5)
                     drop.setGlowing(true)
 
-                    victim.sendMessage(plugin.messageManager.parse("<red>¡Te han robado el ítem a base de golpes!</red>"))
+                    plugin.languageManager.send(victim, "simon_game.listener.item_stolen")
                     victim.playSound(victim.location, Sound.ITEM_SHIELD_BREAK, 1f, 1f)
                     game.hitCounter[victim.uniqueId] = 0
                 } else {
@@ -189,12 +190,12 @@ class SimonListener(private val plugin: PumpkinEventos) : Listener {
                 when (tipo) {
                     "FRASE" -> {
                         game.targetPhrase = mensaje
-                        p.sendMessage(plugin.messageManager.parse("<#00FFFF>✎ <b>FRASE LISTA:</b> <white>$mensaje"))
+                        plugin.languageManager.send(p, "simon_game.listener.phrase_ready", Placeholder.unparsed("phrase", mensaje))
                         game.startChallenge(listOf("FRASE"), "✎ DIGAN: <white>$mensaje", 15)
                     }
                     "MATES" -> {
                         // En el futuro puedes añadir un evaluador, aquí harcodeo para el menú manual
-                        p.sendMessage(plugin.messageManager.parse("<red>Operación matemática desde el menú no soportada en esta versión.</red>"))
+                        plugin.languageManager.send(p, "simon_game.listener.math_unsupported")
                     }
                 }
             }

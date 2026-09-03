@@ -6,9 +6,10 @@ import org.bukkit.Sound
 import org.bukkit.entity.Player
 import org.bukkit.potion.PotionEffect
 import org.bukkit.potion.PotionEffectType
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.EventGame
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 /**
  * Gestiona la votación de efectos de poción que ocurre cada 2 minutos durante los juegos.
@@ -19,6 +20,8 @@ class PotionVoteManager(private val plugin: PumpkinEventos) {
     private val voted = mutableSetOf<UUID>()
     var isVoting = false
         private set
+    private var votingGame: EventGame? = null
+    private var voteTask: ScheduledTask? = null
 
     private val effectTypes = mapOf(
         "speed" to PotionEffectType.SPEED,
@@ -41,6 +44,7 @@ class PotionVoteManager(private val plugin: PumpkinEventos) {
         if (!plugin.config.getBoolean("potion_vote.enabled", true)) return
 
         isVoting = true
+        votingGame = plugin.eventManager.currentGame
         votes.clear()
         voted.clear()
         effectTypes.keys.forEach { votes[it] = 0 }
@@ -63,20 +67,20 @@ class PotionVoteManager(private val plugin: PumpkinEventos) {
         Bukkit.broadcast(mm.parse(sb.toString()))
         Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f) }
 
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ -> endVoting() }, duration.toLong(), TimeUnit.SECONDS)
+        voteTask = plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> endVoting() }, duration.toLong() * 20L)
     }
 
     fun registerVote(player: Player, efectoId: String) {
-        if (!isVoting) { player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("potion_vote.no_game"))); return }
+        if (!isVoting) { plugin.languageManager.send(player, "potion_vote.no_game"); return }
         if (voted.contains(player.uniqueId)) {
-            player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("potion_vote.already_voted")))
+            plugin.languageManager.send(player, "potion_vote.already_voted")
             return
         }
         if (!votes.containsKey(efectoId)) return
         votes[efectoId] = (votes[efectoId] ?: 0) + 1
         voted.add(player.uniqueId)
         val name = plugin.languageManager.get("potion_vote.options.$efectoId")
-        player.sendMessage(plugin.messageManager.parse("<green>✔ Votaste por: $name</green>"))
+        plugin.languageManager.send(player, "potion_vote.voted", Placeholder.component("effect", plugin.languageManager.component("potion_vote.options.$efectoId")))
     }
 
     private fun endVoting() {
@@ -86,16 +90,27 @@ class PotionVoteManager(private val plugin: PumpkinEventos) {
         val amplifier = effectAmplifiers[winner] ?: 0
         val durationTicks = plugin.config.getInt("potion_vote.effect_duration_seconds", 60) * 20
 
-        val game = plugin.eventManager.currentGame ?: return
-        plugin.server.globalRegionScheduler.run(plugin) { _ ->
-            game.players.forEach { p ->
-                p.addPotionEffect(PotionEffect(effectType, durationTicks, amplifier, false, true, true))
-                p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f)
-            }
-            val effectName = plugin.languageManager.get("potion_vote.options.$winner")
-            Bukkit.broadcast(plugin.messageManager.parse(
-                plugin.languageManager.get("potion_vote.result").replace("<effect>", effectName)
-            ))
+        val game = votingGame ?: return
+        votingGame = null
+        voteTask = null
+        if (plugin.eventManager.currentGame !== game || !game.isRunning) return
+        game.players.forEach { p ->
+            p.addPotionEffect(PotionEffect(effectType, durationTicks, amplifier, false, true, true))
+            p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 0.7f, 1.2f)
         }
+        val effectName = plugin.languageManager.get("potion_vote.options.$winner")
+        Bukkit.broadcast(plugin.messageManager.parse(
+            plugin.languageManager.get("potion_vote.result").replace("<effect>", effectName)
+        ))
+    }
+
+    fun cancelFor(game: EventGame) {
+        if (votingGame !== game) return
+        voteTask?.cancel()
+        voteTask = null
+        votingGame = null
+        isVoting = false
+        votes.clear()
+        voted.clear()
     }
 }

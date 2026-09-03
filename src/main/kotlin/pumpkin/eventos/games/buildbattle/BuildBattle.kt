@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.buildbattle
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.GameMode
 import org.bukkit.GameRule
@@ -10,6 +11,7 @@ import org.bukkit.entity.Player
 import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
+import pumpkin.eventos.games.support.TeamAssignmentService
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -79,41 +81,38 @@ class BuildBattle(
                 p.inventory.clear()
                 val selector = ItemStack(Material.BLAZE_POWDER).apply {
                     itemMeta = itemMeta?.apply {
-                        displayName(plugin.messageManager.parse("<#FF9900><b>🚩 Seleccionar Equipo</b></#FF9900>"))
+                        displayName(plugin.languageManager.component("buildbattle.item.team_selector"))
                     }
                 }
                 p.inventory.setItem(4, selector)
-                p.sendMessage(plugin.messageManager.parse("<yellow>Tienes 15 segundos para elegir equipo.</yellow>"))
+                plugin.languageManager.send(p, "buildbattle.team.hint")
             }
         }, 10L)
 
         var countdown = 15
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
             countdown--
-            players.forEach { it.sendActionBar(plugin.messageManager.parse("<yellow>Selección de equipos: <b>${countdown}s</b></yellow>")) }
+            players.forEach { it.sendActionBar(plugin.languageManager.component("buildbattle.team.actionbar", Placeholder.unparsed("time", countdown.toString()))) }
             if (countdown <= 0) {
                 task.cancel()
                 agruparEquipos()
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> iniciarBuild(world) }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun agruparEquipos() {
-        val unassigned = players.filter { !playerTeam.containsKey(it) }.toMutableList()
-        var teamId = playerTeam.values.maxOrNull() ?: 0
-        while (unassigned.isNotEmpty()) {
-            teamId++
-            val p1 = unassigned.removeAt(0)
-            playerTeam[p1] = teamId
-            if (unassigned.isNotEmpty()) {
-                val p2 = unassigned.removeAt(0)
-                playerTeam[p2] = teamId
-                p1.sendMessage(plugin.messageManager.parse("<green>Tu compañero es: <yellow>${p2.name}"))
-                p2.sendMessage(plugin.messageManager.parse("<green>Tu compañero es: <yellow>${p1.name}"))
-            }
+        val firstTeamId = (playerTeam.values.maxOrNull() ?: 0) + 1
+        TeamAssignmentService.pair(players.filterNot(playerTeam::containsKey), firstTeamId).forEach { assignment ->
+            assignment.members.forEach { playerTeam[it] = assignment.teamId }
+            notifyTeammates(assignment.members)
         }
+    }
+
+    private fun notifyTeammates(members: List<Player>) {
+        if (members.size != 2) return
+        plugin.languageManager.send(members[0], "common.teams.teammate_assigned", Placeholder.unparsed("player", members[1].name))
+        plugin.languageManager.send(members[1], "common.teams.teammate_assigned", Placeholder.unparsed("player", members[0].name))
     }
 
     private fun iniciarBuild(world: org.bukkit.World) {
@@ -126,7 +125,8 @@ class BuildBattle(
 
         plotAssignedPlayers.forEachIndexed { idx, group ->
             val spawn = plotSpawns.getOrNull(idx % plotSpawns.size.coerceAtLeast(1)) ?: return@forEachIndexed
-            val loc = spawn.clone().apply { this.world = world }
+            // El spawn guardado es el bloque de oro (suelo). Teleportamos 1 bloque arriba para que el jugador parezca encima.
+            val loc = spawn.clone().apply { this.world = world; y += 1.0 }
             group.forEach { p ->
                 playerPlot[p.uniqueId] = idx
                 plotVotes[idx] = 0
@@ -134,31 +134,32 @@ class BuildBattle(
                     p.gameMode = GameMode.CREATIVE
                     p.inventory.clear()
                     darPalo(p)
-                    p.sendMessage(plugin.messageManager.parse("<#FF9900><b>¡Construye en tu parcela!</b></#FF9900> <white>Tienes <yellow>5 minutos</yellow>.</white>"))
+                    plugin.languageManager.send(p, "buildbattle.build.player_start")
                 }
             }
         }
 
-        plugin.server.broadcast(plugin.messageManager.parse("\n<#FF9900><b>🏗 BUILD BATTLE</b></#FF9900> <white>» ¡Comiencen a construir! Tienen <yellow>5 minutos</yellow>.\n"))
+        plugin.languageManager.broadcast("buildbattle.build.broadcast_start")
 
         // Timer de construcción
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (!isRunning || phase != BbPhase.BUILD) { task.cancel(); return@runAtFixedRate }
             buildTimer--
 
             val min = buildTimer / 60
             val sec = buildTimer % 60
-            players.forEach { it.sendActionBar(plugin.messageManager.parse("<#FF9900>⏳ Construcción: <b>${String.format("%02d:%02d", min, sec)}</b></#FF9900>")) }
+            val time = String.format("%02d:%02d", min, sec)
+            players.forEach { it.sendActionBar(plugin.languageManager.component("buildbattle.build.actionbar", Placeholder.unparsed("time", time))) }
 
             if (buildTimer in listOf(60, 30, 10)) {
-                plugin.server.broadcast(plugin.messageManager.parse("<yellow>⏰ Quedan <b>${buildTimer}s</b> para construir."))
+                plugin.languageManager.broadcast("buildbattle.build.time_warning", Placeholder.unparsed("time", buildTimer.toString()))
             }
 
             if (buildTimer <= 0) {
                 task.cancel()
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> iniciarVotacion() }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     internal fun darPalo(p: Player) {
@@ -166,13 +167,10 @@ class BuildBattle(
         val radius = cfg.getInt("buildbattle.plot_radius", 15)
         val palo = ItemStack(Material.STICK).apply {
             val meta = itemMeta ?: return@apply
-            meta.displayName(plugin.messageManager.parse("<#00FFFF><b>✏ Varita de Selección</b></#00FFFF>"))
-            meta.lore(listOf(
-                plugin.messageManager.parse("<gray>Clic Izq en bloque → Pos1"),
-                plugin.messageManager.parse("<gray>Clic Der en bloque → Pos2"),
-                plugin.messageManager.parse("<gray>Clic Der al aire con bloque → Rellenar"),
-                plugin.messageManager.parse("<dark_gray>Radio parcela: ±$radius bloques")
-            ))
+            meta.displayName(plugin.languageManager.component("buildbattle.item.wand"))
+            meta.lore(plugin.languageManager.getList("buildbattle.item.wand_lore").map {
+                plugin.messageManager.parse(it, Placeholder.unparsed("radius", radius.toString()))
+            })
             val key = org.bukkit.NamespacedKey(plugin, "bb_item")
             meta.persistentDataContainer.set(key, org.bukkit.persistence.PersistentDataType.STRING, "wand")
             itemMeta = meta
@@ -184,13 +182,15 @@ class BuildBattle(
         phase = BbPhase.VOTING
         players.forEach { p ->
             p.gameMode = GameMode.ADVENTURE
+            p.allowFlight = true
+            p.isFlying = true
             p.inventory.clear()
             // Dar items de voto
             val voteYes = ItemStack(Material.LIME_DYE).apply {
-                itemMeta = itemMeta?.apply { displayName(plugin.messageManager.parse("<green><b>👍 Votar Positivo</b></green>")) }
+                itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("buildbattle.item.vote_yes")) }
             }
             val voteNo = ItemStack(Material.RED_DYE).apply {
-                itemMeta = itemMeta?.apply { displayName(plugin.messageManager.parse("<red><b>👎 Votar Negativo</b></red>")) }
+                itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("buildbattle.item.vote_no")) }
             }
             p.inventory.setItem(3, voteYes)
             p.inventory.setItem(5, voteNo)
@@ -219,40 +219,42 @@ class BuildBattle(
             players.forEach { it.teleportAsync(viewLoc) }
         }
 
-        val builder = players.firstOrNull { playerPlot[it.uniqueId] == currentVotePlot }?.name ?: "Parcela #${currentVotePlot + 1}"
-        plugin.server.broadcast(plugin.messageManager.parse("\n<#FF9900><b>VOTACIÓN</b></#FF9900> <white>» ¡Voten la construcción de <yellow>$builder</yellow>!\n"))
+        val builder = players.firstOrNull { playerPlot[it.uniqueId] == currentVotePlot }?.name
+            ?: plugin.languageManager.get("buildbattle.vote.unknown_plot").replace("<plot>", (currentVotePlot + 1).toString())
+        plugin.languageManager.broadcast("buildbattle.vote.start", Placeholder.unparsed("builder", builder))
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (!isRunning || phase != BbPhase.VOTING) { task.cancel(); return@runAtFixedRate }
             voteTimer--
-            players.forEach { it.sendActionBar(plugin.messageManager.parse("<#FF9900>🗳 Votando parcela de <b>$builder</b> — <white>${voteTimer}s</white>")) }
+            players.forEach { it.sendActionBar(plugin.languageManager.component("buildbattle.vote.actionbar",
+                Placeholder.unparsed("builder", builder), Placeholder.unparsed("time", voteTimer.toString()))) }
 
             if (voteTimer <= 0) {
                 task.cancel()
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> votar(plotIdx + 1) }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun registerVote(voter: Player, positive: Boolean) {
         if (phase != BbPhase.VOTING) return
         if (alreadyVoted.contains(voter.uniqueId)) {
-            voter.sendMessage(plugin.messageManager.parse("<red>¡Ya votaste en esta ronda!"))
+            plugin.languageManager.send(voter, "buildbattle.vote.already_voted")
             return
         }
         val builderUUID = playerPlot.entries.firstOrNull { it.value == currentVotePlot }?.key
         if (builderUUID == voter.uniqueId) {
-            voter.sendMessage(plugin.messageManager.parse("<red>¡No puedes votar por tu propia construcción!"))
+            plugin.languageManager.send(voter, "buildbattle.vote.own_build")
             return
         }
         alreadyVoted.add(voter.uniqueId)
         if (positive) {
             plotVotes[currentVotePlot] = (plotVotes[currentVotePlot] ?: 0) + 1
             voter.playSound(voter.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.5f)
-            voter.sendMessage(plugin.messageManager.parse("<green>✔ Votaste positivo."))
+            plugin.languageManager.send(voter, "buildbattle.vote.positive")
         } else {
             voter.playSound(voter.location, Sound.ENTITY_VILLAGER_NO, 1f, 1f)
-            voter.sendMessage(plugin.messageManager.parse("<red>✘ Votaste negativo."))
+            plugin.languageManager.send(voter, "buildbattle.vote.negative")
         }
     }
 
@@ -265,24 +267,19 @@ class BuildBattle(
         } else "Nadie"
 
         val winnerVotes = winner?.value ?: 0
-        plugin.server.broadcast(plugin.messageManager.parse("\n<#FF9900><b>BUILD BATTLE</b></#FF9900> <white>» ¡<yellow>$winnerName</yellow> ganó con <green>$winnerVotes votos</green>!\n"))
+        plugin.languageManager.broadcast("buildbattle.vote.winner",
+            Placeholder.unparsed("player", winnerName), Placeholder.unparsed("votes", winnerVotes.toString()))
 
         val winnerPlayer = players.firstOrNull { it.name == winnerName }
         winnerPlayer?.let {
             it.playSound(it.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-            plugin.puntajeManager.addPoints(it, 15, "¡Victoria en Build Battle!")
+            awardVictory(it, 15)
         }
         stop()
     }
 
     override fun onStop() {
         phase = BbPhase.ENDED
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

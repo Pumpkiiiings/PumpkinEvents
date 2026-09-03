@@ -166,8 +166,7 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
     }
 
     private fun iniciarReloj() {
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 if (prepTimer > 0) {
@@ -226,7 +225,7 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
                 }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     @EventHandler
@@ -341,15 +340,6 @@ class Cristales(plugin: PumpkinEventos) : EventGame(plugin, "cristales", "<#00FF
     }
 
     override fun onStop() {
-        plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

@@ -43,7 +43,7 @@ class FindTheButton(plugin: PumpkinEventos) : EventGame(plugin, "findbutton", "<
             p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1f)
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (!isRunning) {
                 task.cancel()
                 return@runAtFixedRate
@@ -65,7 +65,7 @@ class FindTheButton(plugin: PumpkinEventos) : EventGame(plugin, "findbutton", "<
                 }
                 task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     override fun checkWinner() {
@@ -98,18 +98,8 @@ class FindTheButton(plugin: PumpkinEventos) : EventGame(plugin, "findbutton", "<
     }
 
     override fun onStop() {
-        plugin.eventManager.currentGame = null
         
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-        
-        val todos = players + spectators + winners
-        todos.distinct().forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(allParticipants(winners))
         
         winners.clear()
     }

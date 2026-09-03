@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice.minigames
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -40,20 +41,20 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
                 if (i < cantRojos) {
                     rojos.add(p.uniqueId)
                     p.inventory.helmet = ItemStack(Material.MAGMA_BLOCK)
-                    p.sendMessage(mm.parse("<#FF3131>🔥 <b>EQUIPO ROJO:</b> <white>¡Congela a los azules golpeándolos!"))
+                    plugin.languageManager.send(p, "simon_game.frozen.red_team")
                 } else {
                     azules.add(p.uniqueId)
                     p.inventory.helmet = ItemStack(Material.ICE)
-                    p.sendMessage(mm.parse("<#00FFFF>❄️ <b>EQUIPO AZUL:</b> <white>¡Huye! Descongela a tus aliados golpeándolos."))
+                    plugin.languageManager.send(p, "simon_game.frozen.blue_team")
                 }
             }
         }
 
-        val title = Title.title(mm.parse("<#00FFFF><bold>❄️ ¡CONGELADOS! ❄️"), mm.parse("<white>¡Corre por tu vida!"))
+        val title = Title.title(plugin.languageManager.component("simon_game.frozen.title_main"), plugin.languageManager.component("simon_game.frozen.title_subtitle"))
         game.players.forEach { it.showTitle(title) }
 
         var restante = tiempoSegundos
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!activo || !game.isRunning) {
                 task.cancel()
                 return@runAtFixedRate
@@ -61,7 +62,9 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
 
             if (restante <= 5) {
                 val color = if (restante <= 3) "<red>" else "<yellow>"
-                val aviso = Title.title(mm.parse("$color<bold>⏳ $restante"), mm.parse("<white>¡El tiempo se agota!"))
+                val aviso = Title.title(
+                    plugin.languageManager.component("simon_game.frozen.countdown_main", Placeholder.parsed("countdown", "$color<bold>⏳ $restante")),
+                    plugin.languageManager.component("simon_game.frozen.countdown_subtitle"))
                 game.players.forEach { it.showTitle(aviso); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f) }
             }
 
@@ -73,7 +76,7 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
 
             game.actionText = "❄️ <#00FFFF>Congelados: ${congelados.size}/${azules.size} <gray>|</gray> <white>⏳ ${restante}s"
             restante--
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     @EventHandler
@@ -97,7 +100,7 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
             victima.addPotionEffect(PotionEffect(PotionEffectType.SLOWNESS, 999999, 255, false, false))
             victima.addPotionEffect(PotionEffect(PotionEffectType.JUMP_BOOST, 999999, 200, false, false))
 
-            victima.sendMessage(mm.parse("<#00FFFF>🧊 <b>¡CONGELADO!</b> <white>Espera a que un aliado te rescate."))
+            plugin.languageManager.send(victima, "simon_game.frozen.frozen")
             atacante.playSound(atacante.location, Sound.BLOCK_GLASS_BREAK, 1f, 0.5f)
             victima.playSound(victima.location, Sound.BLOCK_SNOW_BREAK, 1f, 1f)
         }
@@ -109,8 +112,8 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
             victima.removePotionEffect(PotionEffectType.SLOWNESS)
             victima.removePotionEffect(PotionEffectType.JUMP_BOOST)
 
-            victima.sendMessage(mm.parse("<#39FF14>✨ <b>¡RESCATADO!</b> <white>Vuelves al juego."))
-            atacante.sendMessage(mm.parse("<#39FF14>🤝 <b>¡BUEN TRABAJO!</b> <white>Has salvado a ${victima.name}"))
+            plugin.languageManager.send(victima, "simon_game.frozen.rescued")
+            plugin.languageManager.send(atacante, "simon_game.frozen.rescuer", Placeholder.unparsed("player", victima.name))
             victima.playSound(victima.location, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, 1.5f)
         }
     }
@@ -131,7 +134,10 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
             val colorGanador = if (gananRojos) "<#FF3131>" else "<#00FFFF>"
             val nombreGanador = if (gananRojos) "LOS ROJOS 🔥" else "LOS AZULES ❄️"
 
-            val titleFin = Title.title(mm.parse("$colorGanador<bold>¡$nombreGanador GANAN!"), mm.parse("<gray>Preparando ejecución..."))
+            val titleFin = Title.title(
+                plugin.languageManager.component("simon_game.frozen.winner_main", Placeholder.parsed("winner", "$colorGanador<bold>¡$nombreGanador GANAN!")),
+                plugin.languageManager.component("simon_game.frozen.winner_subtitle")
+            )
             game.players.forEach { it.showTitle(titleFin) }
 
             game.actionText = "<red>¡TIEMPO AGOTADO!</red>"

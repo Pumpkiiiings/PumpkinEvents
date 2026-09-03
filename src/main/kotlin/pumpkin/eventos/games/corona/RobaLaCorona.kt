@@ -130,15 +130,18 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
 
         p.inventory.helmet = corona
         p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f)
-        p.sendTitle("§6§l👑 ERES EL REY", "§f¡Suma puntos huyendo!", 5, 40, 10)
+        p.showTitle(Title.title(
+            plugin.languageManager.component("common.titles.corona_king.main"),
+            plugin.languageManager.component("common.titles.corona_king.subtitle"),
+            Title.Times.times(Duration.ofMillis(250), Duration.ofSeconds(2), Duration.ofMillis(500))
+        ))
     }
 
     private fun iniciarReloj() {
         // Variable para contar los 10 segundos
         var ticksPuntos = 0
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             gameTimer--
             ticksPuntos++
@@ -159,7 +162,7 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
                 task.cancel()
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun alGolpear(e: EntityDamageByEntityEvent) {
@@ -216,15 +219,6 @@ class RobaLaCorona(plugin: PumpkinEventos) : EventGame(plugin, "corona", "<#FFD7
             teamCorona?.unregister()
             teamPlebeyos?.unregister()
         } catch (ignored: Exception) {}
-
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
-            p.isGlowing = false
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(beforeReset = { it.isGlowing = false })
     }
 }

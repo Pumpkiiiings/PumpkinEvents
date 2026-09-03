@@ -1,0 +1,12 @@
+lobbies:
+  main: {}
+  waiting: {}
+
+# Una arena puede usar el proveedor histórico `slime` o ArenaAPI.
+# Para ArenaAPI, crea el template en plugins/ArenaAPI/config.yml y usa su id:
+# arenas:
+#   ruleta_schem:
+#     type: ruletarusa
+#     provider: arenaapi
+#     arenaApiTemplate: ruleta_rusa
+arenas: {}

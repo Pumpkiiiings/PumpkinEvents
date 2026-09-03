@@ -3,10 +3,10 @@ package pumpkin.eventos.manager
 import org.bukkit.Bukkit
 import org.bukkit.Sound
 import org.bukkit.entity.Player
+import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.util.UUID
-import java.util.concurrent.TimeUnit
 
 /**
  * Gestiona la votación de PvP al inicio de ciertos modos de juego.
@@ -22,13 +22,14 @@ class PvpVoteManager(private val plugin: PumpkinEventos) {
 
     var pendingGame: EventGame? = null
     private var pvpEnabled = true
+    private var voteTask: ScheduledTask? = null
 
     fun shouldLaunchVote(gameId: String): Boolean {
         return plugin.config.getBoolean("pvp_vote.$gameId", false)
     }
 
-    fun startVoting(game: EventGame, onResult: (Boolean) -> Unit) {
-        if (isVoting) return
+    fun startVoting(game: EventGame, onResult: (Boolean) -> Unit): Boolean {
+        if (isVoting) return false
         isVoting = true
         yesVotes = 0
         noVotes = 0
@@ -46,7 +47,8 @@ class PvpVoteManager(private val plugin: PumpkinEventos) {
         Bukkit.broadcast(mm.parse("$header\n$yes\n$no\n$footer"))
         Bukkit.getOnlinePlayers().forEach { it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1f) }
 
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ ->
+        voteTask = plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            if (pendingGame !== game) return@runDelayed
             val result = yesVotes >= noVotes
             isVoting = false
             pendingGame = null
@@ -55,17 +57,27 @@ class PvpVoteManager(private val plugin: PumpkinEventos) {
             Bukkit.getOnlinePlayers().forEach {
                 it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, if (result) 2f else 0.5f)
             }
-            plugin.server.globalRegionScheduler.run(plugin) { _ -> onResult(result) }
-        }, 10L, TimeUnit.SECONDS)
+            onResult(result)
+        }, 200L)
+        return true
+    }
+
+    fun cancelFor(game: EventGame) {
+        if (pendingGame !== game) return
+        voteTask?.cancel()
+        voteTask = null
+        pendingGame = null
+        isVoting = false
+        voted.clear()
     }
 
     fun registerVote(player: Player, voteSi: Boolean) {
         if (!isVoting) {
-            player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("pvp_vote.no_game")))
+            plugin.languageManager.send(player, "pvp_vote.no_game")
             return
         }
         if (voted.contains(player.uniqueId)) {
-            player.sendMessage(plugin.messageManager.parse(plugin.languageManager.get("pvp_vote.already_voted")))
+            plugin.languageManager.send(player, "pvp_vote.already_voted")
             return
         }
         voted.add(player.uniqueId)

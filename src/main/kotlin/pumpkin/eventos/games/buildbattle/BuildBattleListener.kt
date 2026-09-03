@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.buildbattle
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.NamespacedKey
@@ -39,8 +40,13 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
 
     private fun isInsidePlot(loc: Location, center: Location, radius: Int): Boolean {
         if (loc.world != center.world) return false
-        return abs(loc.blockX - center.blockX) <= radius &&
-               abs(loc.blockZ - center.blockZ) <= radius
+        val height = plugin.config.getInt("buildbattle.plot_height", 15)
+        // Usamos < (estricto) en X/Z para que la capa exterior (las paredes) sea intocable.
+        // Con radius=16 en una parcela 31x31: interior buildable = 29x29, paredes = protegidas.
+        return abs(loc.blockX - center.blockX) < radius &&
+               abs(loc.blockZ - center.blockZ) < radius &&
+               loc.blockY > center.blockY &&
+               loc.blockY < center.blockY + height
     }
 
     // --- Partículas de selección ---
@@ -116,7 +122,8 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
             Action.LEFT_CLICK_BLOCK -> {
                 val loc = e.clickedBlock?.location ?: return
                 pos1[p.uniqueId] = loc
-                p.sendMessage(plugin.messageManager.parse("<#00FFFF>Pos1 establecida: <white>(${loc.blockX}, ${loc.blockY}, ${loc.blockZ})"))
+                plugin.languageManager.send(p, "buildbattle.selection.pos1",
+                    Placeholder.unparsed("x", loc.blockX.toString()), Placeholder.unparsed("y", loc.blockY.toString()), Placeholder.unparsed("z", loc.blockZ.toString()))
                 p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 1.5f)
                 val p2loc = pos2[p.uniqueId]
                 if (p2loc != null) spawnSelectionParticles(p, loc, p2loc)
@@ -124,7 +131,8 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
             Action.RIGHT_CLICK_BLOCK -> {
                 val loc = e.clickedBlock?.location ?: return
                 pos2[p.uniqueId] = loc
-                p.sendMessage(plugin.messageManager.parse("<red>Pos2 establecida: <white>(${loc.blockX}, ${loc.blockY}, ${loc.blockZ})"))
+                plugin.languageManager.send(p, "buildbattle.selection.pos2",
+                    Placeholder.unparsed("x", loc.blockX.toString()), Placeholder.unparsed("y", loc.blockY.toString()), Placeholder.unparsed("z", loc.blockZ.toString()))
                 p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_PLING, 1f, 0.8f)
                 val p1loc = pos1[p.uniqueId]
                 if (p1loc != null) spawnSelectionParticles(p, p1loc, loc)
@@ -135,14 +143,14 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
                     ?: p.inventory.itemInMainHand.type.takeIf { it.isBlock && it != Material.AIR }
 
                 if (fillMat == null) {
-                    p.sendMessage(plugin.messageManager.parse("<red>Pon un bloque en tu mano principal o secundaria para rellenar."))
+                    plugin.languageManager.send(p, "buildbattle.selection.no_material")
                     return
                 }
 
                 val p1loc = pos1[p.uniqueId]
                 val p2loc = pos2[p.uniqueId]
                 if (p1loc == null || p2loc == null) {
-                    p.sendMessage(plugin.messageManager.parse("<red>¡Selecciona Pos1 y Pos2 primero!"))
+                    plugin.languageManager.send(p, "buildbattle.selection.missing_positions")
                     return
                 }
 
@@ -158,7 +166,7 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
 
                 val volume = (maxX - minX + 1) * (maxY - minY + 1) * (maxZ - minZ + 1)
                 if (volume > 32768) {
-                    p.sendMessage(plugin.messageManager.parse("<red>¡La selección es demasiado grande! (máx 32768 bloques)"))
+                    plugin.languageManager.send(p, "buildbattle.selection.too_large")
                     return
                 }
 
@@ -167,7 +175,7 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
                 val center = getPlotCenter(p, game)
                 if (center != null) {
                     if (!isInsidePlot(p1loc, center, radius) || !isInsidePlot(p2loc, center, radius)) {
-                        p.sendMessage(plugin.messageManager.parse("<red>La selección está fuera de tu parcela."))
+                        plugin.languageManager.send(p, "buildbattle.selection.outside_plot")
                         return
                     }
                 }
@@ -178,7 +186,8 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
                         world.getBlockAt(x, y, z).type = fillMat
                     }
                     plugin.server.regionScheduler.run(plugin, p.location) { _ ->
-                        p.sendMessage(plugin.messageManager.parse("<green>✔ Relleno completado: <white>$volume bloques de <yellow>${fillMat.name}"))
+                        plugin.languageManager.send(p, "buildbattle.selection.filled",
+                            Placeholder.unparsed("count", volume.toString()), Placeholder.unparsed("material", fillMat.name))
                         p.playSound(p.location, Sound.BLOCK_ANVIL_USE, 1f, 1.2f)
                     }
                 }
@@ -198,7 +207,7 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
         val center = getPlotCenter(p, game) ?: return
         if (!isInsidePlot(e.block.location, center, radius)) {
             e.isCancelled = true
-            p.sendMessage(plugin.messageManager.parse("<red>¡No puedes romper bloques fuera de tu parcela!"))
+            plugin.languageManager.send(p, "buildbattle.selection.break_outside")
         }
     }
 
@@ -213,7 +222,20 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
         val center = getPlotCenter(p, game) ?: return
         if (!isInsidePlot(e.block.location, center, radius)) {
             e.isCancelled = true
-            p.sendMessage(plugin.messageManager.parse("<red>¡No puedes colocar bloques fuera de tu parcela!"))
+            plugin.languageManager.send(p, "buildbattle.selection.place_outside")
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    fun onPvP(e: org.bukkit.event.entity.EntityDamageByEntityEvent) {
+        val game = game() ?: return
+        if (!game.isRunning) return
+        // PvP completamente desactivado en Build Battle (no se registra ningún hit)
+        if (e.damager is Player || (e.damager is org.bukkit.entity.Projectile &&
+                (e.damager as org.bukkit.entity.Projectile).shooter is Player)) {
+            if (game.players.contains(e.entity) || game.spectators.contains(e.entity)) {
+                e.isCancelled = true
+            }
         }
     }
 
@@ -233,23 +255,25 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
 
     private fun abrirMenuEquipos(p: Player, game: BuildBattle) {
         val gui = dev.triumphteam.gui.guis.Gui.gui()
-            .title(net.kyori.adventure.text.Component.text("§8Selecciona Equipo"))
+            .title(plugin.languageManager.component("buildbattle.team.menu_title"))
             .rows(3).disableAllInteractions().create()
 
         val maxEquipos = (game.players.size / 2) + 1
         for (i in 1..maxEquipos) {
             val teamPlayers = game.players.filter { game.playerTeam[it] == i }
             val icon = if (teamPlayers.size >= 2) Material.RED_STAINED_GLASS_PANE else Material.GREEN_STAINED_GLASS_PANE
-            val status = if (teamPlayers.size >= 2) "<red>Lleno</red>" else "<green>Click para unirte</green>"
-            val lore = mutableListOf(status, "")
-            teamPlayers.forEach { lore.add("<gray>- ${it.name}") }
+            val status = plugin.languageManager.component(if (teamPlayers.size >= 2) "buildbattle.team.full" else "buildbattle.team.join_available")
+            val lore = mutableListOf<net.kyori.adventure.text.Component?>(status, net.kyori.adventure.text.Component.empty())
+            teamPlayers.forEach { member ->
+                lore.add(plugin.languageManager.component("buildbattle.team.member", Placeholder.unparsed("player", member.name)))
+            }
             val item = dev.triumphteam.gui.builder.item.ItemBuilder.from(icon)
-                .name(plugin.messageManager.parse("<yellow>Equipo $i</yellow>"))
-                .lore(lore.map { plugin.messageManager.parse(it) })
+                .name(plugin.languageManager.component("buildbattle.team.item", Placeholder.unparsed("team", i.toString())))
+                .lore(lore)
                 .asGuiItem { _ ->
                     if (teamPlayers.size < 2) {
                         game.playerTeam[p] = i
-                        p.sendMessage(plugin.messageManager.parse("<green>Te has unido al Equipo $i."))
+                        plugin.languageManager.send(p, "buildbattle.team.joined", Placeholder.unparsed("team", i.toString()))
                         p.playSound(p.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
                         gui.close(p)
                     }

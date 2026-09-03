@@ -14,67 +14,114 @@ class ConnectionListener(private val plugin: PumpkinEventos) : Listener {
     @EventHandler
     fun onJoin(e: PlayerJoinEvent) {
         val p = e.player
-        val prefix = plugin.languageManager.get("prefix")
-        val rawMsg = plugin.languageManager.get("connection.join").replace("<prefix>", prefix)
-        e.joinMessage(plugin.messageManager.parse(rawMsg, Placeholder.parsed("player", p.name)))
+        e.joinMessage(plugin.languageManager.component("connection.join", Placeholder.unparsed("player", p.name)))
 
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
 
         // --- CASO MINI-WALLS ---
         if (game is MiniWalls) {
-            val team = game.playerTeam[p]
-            val hpNexo = if (team != null) game.teamNexusHP[team] ?: 0 else 0
+            // Solo actuar si el jugador estaba registrado en un equipo (era participante)
+            val team = game.playerTeam[p] ?: return
+            val hpNexo = game.teamNexusHP[team] ?: 0
 
-            if (team != null && hpNexo > 0) {
-                // Si el nexo sigue vivo, activamos el respawn de 5 segundos
+            if (hpNexo > 0 && game.players.contains(p)) {
+                // Nexo vivo → lanzar cuenta regresiva real de respawn
                 p.gameMode = GameMode.SPECTATOR
-                game.respawnTimers[p.uniqueId] = 5
-                p.sendMessage(plugin.messageManager.parse("<#FFFF00>¡Reconectado! Tu nexo está vivo, reaparecerás en 5 segundos.</#FFFF00>"))
-            } else {
-                // Si no tiene nexo o no estaba en equipo, muere definitivamente
+                plugin.languageManager.send(p, "connection.miniwalls_reconnected")
+
+                val spawn = game.teamSpawns[team]
+                var secondsLeft = 5
+                plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
+                    if (!game.isRunning || !game.players.contains(p)) {
+                        task.cancel()
+                        return@runAtFixedRate
+                    }
+                    if (secondsLeft <= 0) {
+                        task.cancel()
+                        if (spawn != null) {
+                            plugin.server.globalRegionScheduler.run(plugin) { _ ->
+                                p.teleportAsync(spawn).thenRun {
+                                    plugin.server.regionScheduler.runDelayed(plugin, spawn, { _ ->
+                                        if (game.isRunning && game.players.contains(p)) game.equipPlayer(p)
+                                    }, 5L)
+                                }
+                            }
+                        }
+                        return@runAtFixedRate
+                    }
+                    val title = net.kyori.adventure.title.Title.title(
+                        plugin.languageManager.component("connection.reconnect_title"),
+                        plugin.languageManager.component("connection.reconnect_subtitle",
+                            Placeholder.unparsed("time", secondsLeft.toString()),
+                            Placeholder.unparsed("unit", if (secondsLeft == 1) "segundo" else "segundos")),
+                        net.kyori.adventure.title.Title.Times.times(
+                            java.time.Duration.ZERO,
+                            java.time.Duration.ofMillis(1100),
+                            java.time.Duration.ZERO
+                        )
+                    )
+                    plugin.server.globalRegionScheduler.run(plugin) { _ -> p.showTitle(title) }
+                    secondsLeft--
+                }, 1L, 20L)
+
+            } else if (!game.spectators.contains(p)) {
+                // Nexo destruido o ya eliminado → poner como espectador definitivo
                 game.players.remove(p)
-                if (!game.spectators.contains(p)) game.spectators.add(p)
+                game.spectators.add(p)
                 p.gameMode = GameMode.SPECTATOR
-                p.sendMessage(plugin.messageManager.parse("<red>Tu nexo fue destruido mientras no estabas. Ahora eres espectador.</red>"))
+                plugin.languageManager.send(p, "connection.nexus_destroyed")
+            } else {
+                // Ya era espectador, solo asegurarse del modo de juego
+                p.gameMode = GameMode.SPECTATOR
             }
             return
         }
 
-        // --- OTROS JUEGOS (DESCALIFICACIÓN) ---
+        // --- OTROS JUEGOS: solo manejar a quienes YA estaban descalificados o eran espectadores ---
+        // Si el jugador nunca estuvo en este evento, no hacer nada
+        val eraParticipante = game.players.contains(p) || game.spectators.contains(p)
+        if (!eraParticipante) return
+
         if (!game.players.contains(p)) {
-            game.spectators.add(p)
+            // Estaba descalificado (ya está en spectators o fue removido en onQuit)
+            if (!game.spectators.contains(p)) game.spectators.add(p)
             p.gameMode = GameMode.SPECTATOR
             p.inventory.clear()
-            val loc = game.currentArena?.centerLocation ?: p.world.spawnLocation
+            val loc = game.currentArena?.centerLocation?.clone()?.apply { world = game.gameWorld } ?: p.world.spawnLocation
             p.teleportAsync(loc)
-            p.sendMessage(plugin.messageManager.parse("<red>Te desconectaste y fuiste descalificado.</red>"))
+            plugin.languageManager.send(p, "connection.disqualified_self")
+        } else {
+            // Sigue siendo jugador activo (ej. se desconectó brevemente), solo asegurar modo
+            p.gameMode = GameMode.SURVIVAL
         }
     }
 
     @EventHandler
     fun onQuit(e: PlayerQuitEvent) {
         val p = e.player
-        val prefix = plugin.languageManager.get("prefix")
-        val rawMsg = plugin.languageManager.get("connection.quit").replace("<prefix>", prefix)
-        e.quitMessage(plugin.messageManager.parse(rawMsg, Placeholder.parsed("player", p.name)))
+        e.quitMessage(plugin.languageManager.component("connection.quit", Placeholder.unparsed("player", p.name)))
 
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
 
         if (game.players.contains(p)) {
             if (game is MiniWalls) {
-                // En MiniWalls no lo sacamos de la lista para que pueda volver
+                // En MiniWalls no sacamos al jugador para que pueda reconectarse
+                // Solo avisamos al broadcast
+                plugin.languageManager.broadcast("connection.miniwalls_disconnected", Placeholder.unparsed("player", p.name))
                 return
             }
 
             // DESCALIFICAR EN TODOS LOS DEMÁS
             game.players.remove(p)
-            game.spectators.add(p)
-            plugin.server.broadcast(plugin.messageManager.parse("<red><b>${p.name}</b> se ha desconectado y ha sido descalificado.</red>"))
+            if (!game.spectators.contains(p)) game.spectators.add(p)
+            plugin.languageManager.broadcast("connection.disqualified_broadcast", Placeholder.unparsed("player", p.name))
 
-            // Si quedaban 2, el otro gana automáticamente
-            game.checkWinner()
+            // Solo terminar el juego si realmente queda ≤1 jugador activo
+            if (game.players.size <= 1 && game.isRunning) {
+                plugin.server.globalRegionScheduler.run(plugin) { _ -> game.checkWinner() }
+            }
         }
     }
 }

@@ -154,7 +154,7 @@ class HideAndSeekListener(private val plugin: PumpkinEventos) : Listener {
             p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_GROWL, 1f, 1.5f)
             p.sendMessage(plugin.messageManager.parse("<#00FFFF>¡Has activado la visión reveladora!</#00FFFF>"))
 
-            plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+            plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
                 if (!game.isRunning || System.currentTimeMillis() - now > duration) {
                     task.cancel()
                     return@runAtFixedRate
@@ -166,7 +166,7 @@ class HideAndSeekListener(private val plugin: PumpkinEventos) : Listener {
                         p.spawnParticle(Particle.FLAME, loc, 15, 0.4, 0.4, 0.4, 0.0)
                     }
                 }
-            }, 0, 500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            }, 1L, 10L)
         }
     }
 

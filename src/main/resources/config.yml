@@ -98,6 +98,32 @@ suelolava:
     bow_arrows: 3
 
 # ==========================================
+# EXTRAS (Eventos Aleatorios / Desastres)
+# ==========================================
+extras_vote:
+  enabled: true
+  interval_seconds: 180   # Se lanza una votación cada 3 minutos
+  duration_seconds: 15    # Tiempo para que los jugadores voten
+  options:
+    - "lava"
+    - "storm"
+    - "anvils"
+    - "geoffrey"
+    - "acidrain"
+    - "zerogravity"
+    - "antlife"
+
+  # En qué juegos se permite que salga la votación de extras
+  allowed_games:
+    - "tntrun"
+    - "tnttag"
+    - "suelolava"
+    - "pillars"
+    - "miniwalls"
+    - "skywars_solos"
+    - "skywars_duos"
+
+# ==========================================
 # VOTACIÓN DE EFECTOS (cada X segundos durante el juego)
 # ==========================================
 potion_vote:
@@ -131,6 +157,7 @@ pvp_vote:
   luzroja: false
   sillas: false
   ruletarusa: false
+
   cristales: false
   jalarcuerda: false
   skywars_solos: false
@@ -139,11 +166,62 @@ pvp_vote:
   miniwalls: false
   corona: false
 
+ruletarusa:
+  decision_seconds: 12
+  inspection_accuracy: 0.70
+  passes_per_player: 1
+
 # ==========================================
 # BUILD BATTLE
 # ==========================================
 buildbattle:
   plot_radius: 15          # Radio en bloques de cada parcela (cuadrado ±radius)
+  plot_height: 15          # Altura máxima y mínima en bloques de cada parcela (cubo ±height)
   build_time_seconds: 300  # 5 minutos de construcción
   vote_time_seconds: 30    # 30 segundos por parcela en votación
-  
+
+# ==========================================
+# BATTLE ROYALE
+# ==========================================
+battleroyale:
+  timer: 600               # Duración total de la partida en segundos (10 min)
+  border_initial: 500.0    # Tamaño inicial del borde (radio en bloques)
+  team_select_time: 15     # Segundos para elegir equipo (solo dúos)
+  vote_time: 10            # Segundos para votar el tipo de cofre
+
+  # Momentos en los que se rellenan los cofres (segundos restantes)
+  refill1_at: 300          # Primer refill a los 5 min
+  refill2_at: 120          # Segundo refill a los 8 min
+
+  # Fases del borde (NO editar el número de fases, sí los valores)
+  # Cada fase se activa en el segundo indicado en BR_PHASE_TIMESTAMPS (BattleRoyaleEvents.kt)
+  # Para cambiar los valores edita BattleRoyaleEvents.kt → BR_BORDER_PHASES / BR_PHASE_TIMESTAMPS
+
+# ==========================================
+# PARKOUR
+# ==========================================
+parkour:
+  timer: 300                  # Tiempo total en segundos
+  team_select_time: 15        # Segundos de selección de equipo (solo dúos)
+  prestart_time: 10           # Cuenta atrás antes de quitar el muro
+  max_winners: 5              # Jugadores/equipos en el podio
+  cancel_fall_damage: true    # Desactivar daño de caída
+  checkpoint_radius: 1.0      # Área de detección: 1.0 = área 2×2 (±1 bloque en X y Z)
+  wall_material: GLASS        # Material del muro de inicio
+
+  # Puntos por posición (1er lugar, 2do, 3ro, 4to, 5to)
+  points:
+    - 50
+    - 40
+    - 30
+    - 20
+    - 10
+
+  # Chain API (lode.gg) — solo modo dúos
+  # El no-líder queda encadenado al líder al iniciar el juego.
+  # Si lode.gg no está instalado, el sistema se omite sin error.
+  chain:
+    enabled: true
+    max_distance: 5           # Distancia máxima en bloques antes de jalar
+
+

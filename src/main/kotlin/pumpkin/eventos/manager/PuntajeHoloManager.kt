@@ -26,7 +26,6 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
     private var wasEmpty = true // Controla si el mundo no tenía a nadie
 
     init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
         cargarHolograma()
         iniciarTareaActualizacion()
     }
@@ -48,7 +47,7 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
                     if (wasEmpty) {
                         // Alguien entró al mundo: Mostrar "Cargando..."
                         wasEmpty = false
-                        entity.text(plugin.messageManager.parse("<yellow>Cargando estadísticas...</yellow>"))
+                        entity.text(plugin.languageManager.component("hologram.loading"))
 
                         // Retrasamos la carga real 1.5 segundos (30 ticks)
                         plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
@@ -175,7 +174,7 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
             paginaActual++
             actualizarTexto() // Actualiza inmediatamente
             e.player.playSound(e.player.location, org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 1.2f)
-            e.player.sendActionBar(plugin.messageManager.parse("<green>Página siguiente ➔</green>"))
+            e.player.sendActionBar(plugin.languageManager.component(e.player, "hologram.next_page"))
         }
     }
 
@@ -191,7 +190,7 @@ class PuntajeHoloManager(private val plugin: PumpkinEventos) : Listener {
             paginaActual--
             actualizarTexto() // Actualiza inmediatamente
             p.playSound(p.location, org.bukkit.Sound.UI_BUTTON_CLICK, 0.5f, 0.8f)
-            p.sendActionBar(plugin.messageManager.parse("<red>⬅ Página anterior</red>"))
+            p.sendActionBar(plugin.languageManager.component(p, "hologram.previous_page"))
         }
     }
 

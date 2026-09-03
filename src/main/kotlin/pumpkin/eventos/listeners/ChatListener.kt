@@ -42,7 +42,7 @@ class ChatListener(private val plugin: PumpkinEventos) : Listener {
                     msgFiltrado.contains(resultText)
 
             if (esCorrecto) {
-                messageComponent = plugin.messageManager.parse("<obfuscated><#39FF14>HIDDEN_ANSWER</#39FF14></obfuscated>")
+                messageComponent = plugin.languageManager.component("simon_chat.hidden_answer")
 
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     game.markSaved(player)
@@ -51,7 +51,7 @@ class ChatListener(private val plugin: PumpkinEventos) : Listener {
                 if (!game.savedPlayers.contains(player.uniqueId)) {
                     plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         game.failedMathPlayers.add(player.uniqueId)
-                        player.sendMessage(plugin.messageManager.parse("<red>❌ <b>RESPUESTA INCORRECTA.</b> Simón no olvida...</red>"))
+                        plugin.languageManager.send(player, "simon_chat.incorrect_answer")
                         player.playSound(player.location, Sound.ENTITY_VILLAGER_NO, 1f, 1f)
                     }
                 }

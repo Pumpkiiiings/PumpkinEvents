@@ -9,11 +9,6 @@ import org.bukkit.inventory.ItemStack
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.EventGame
-import pumpkin.eventos.games.triggerAnvils
-import pumpkin.eventos.games.triggerGeoffrey
-import pumpkin.eventos.games.triggerLava
-import pumpkin.eventos.games.triggerStorm
-import pumpkin.eventos.games.triggerTornado
 import java.util.concurrent.TimeUnit
 
 class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag</red>") {
@@ -42,8 +37,7 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
             }
         }, 10L)
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             timer--
 
@@ -74,8 +68,11 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
             val bar = plugin.messageManager.parse(rawExp, Placeholder.parsed("time", timer.toString()))
             players.forEach { it.sendActionBar(bar) }
 
+            // --- NUEVO SISTEMA DE DESASTRES POR VOTACIÓN ---
+            // Cuando faltan 15 segundos para que explote, iniciamos la votación (solo si quedan más de 2 vivos)
             if (timer == 15 && players.size > 2) {
-                plugin.server.globalRegionScheduler.run(plugin) { _ -> launchRandomExtra() }
+                // El ExtrasVoteManager respetará el config.yml (solo iniciará si no hay otra activa y el juego está en la lista permitida)
+                plugin.extrasVoteManager.startVoting()
             }
 
             if (timer <= 0) {
@@ -103,23 +100,13 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
                     val center = currentArena?.centerLocation
                     val cx = center?.x ?: 0.0
                     val cz = center?.z ?: 0.0
-                    plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                    plugin.server.globalRegionScheduler.run(plugin) { _ ->
                         borderManager.start(world, cx, cz, delaySeconds = 0L)
                     }
                 }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
-    }
-
-    private fun launchRandomExtra() {
-        when ((1..6).random()) {
-            1 -> triggerLava(plugin)
-            2 -> triggerTornado(plugin)
-            3 -> triggerStorm(plugin)
-            4 -> triggerAnvils(plugin)
-            5 -> triggerGeoffrey(plugin)
-        }
+        }, 20L, 20L)
     }
 
     fun handlePunch(attacker: Player, victim: Player) {
@@ -180,23 +167,13 @@ class TntTag(plugin: PumpkinEventos) : EventGame(plugin, "tnttag", "<red>TNT Tag
 
         val rawWin = plugin.languageManager.get("tnttag.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         gameWorld?.let { borderManager.stop(it) }
-        plugin.eventManager.currentGame = null
 
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-        val todos = players + spectators
-
-        todos.forEach { p ->
-            p.isGlowing = false
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = org.bukkit.GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(beforeReset = { it.isGlowing = false })
     }
 }

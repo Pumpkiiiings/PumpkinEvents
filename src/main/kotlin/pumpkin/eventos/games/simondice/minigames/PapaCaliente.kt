@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice.minigames
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import net.kyori.adventure.title.Title
 import org.bukkit.Material
 import org.bukkit.Particle
@@ -26,7 +27,7 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         val jugadoresValidos = game.players.filter { it != game.streamer }
 
         if (jugadoresValidos.size < 2) {
-            plugin.server.broadcast(plugin.messageManager.parse("<red>❌ <bold>ERROR:</bold> <white>No hay suficientes jugadores para la Papa Caliente."))
+            plugin.languageManager.broadcast("simon_game.potato.insufficient")
             game.activeChallenges.clear() // Desbloquear Simón Dice
             return
         }
@@ -39,13 +40,13 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         darPapa(primero)
 
         val title = Title.title(
-            plugin.messageManager.parse("<red>🥔 <bold>PAPA CALIENTE</bold> 🔥"),
-            plugin.messageManager.parse("<white>¡Golpea a alguien para pasarla!")
+            plugin.languageManager.component("simon_game.potato.title_main"),
+            plugin.languageManager.component("simon_game.potato.title_subtitle")
         )
         game.players.forEach { it.showTitle(title) }
 
         var restante = tiempoSegundos
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!activo || !game.isRunning) {
                 task.cancel()
                 return@runAtFixedRate
@@ -64,7 +65,9 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
             game.displayOrden = "🥔 <#FF5F1F>$nombrePortador <gray>|</gray> <white>⏳ ${restante}s"
 
             if (restante <= 5) {
-                val titleAviso = Title.title(plugin.messageManager.parse("<red><bold>⏳ $restante"), plugin.messageManager.parse("<white>¡La papa va a explotar!"))
+                val titleAviso = Title.title(
+                    plugin.languageManager.component("simon_game.potato.countdown_main", Placeholder.unparsed("time", restante.toString())),
+                    plugin.languageManager.component("simon_game.potato.countdown_subtitle"))
                 game.players.forEach { it.showTitle(titleAviso) }
             }
 
@@ -79,26 +82,26 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
             }
 
             restante--
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun darPapa(p: Player) {
         victimaActual = p.uniqueId
         val papa = ItemStack(Material.POISONOUS_POTATO)
         val meta = papa.itemMeta
-        meta.displayName(plugin.messageManager.parse("<dark_red><bold>🥔 PAPA CALIENTE 🔥"))
+        meta.displayName(plugin.languageManager.component("simon_game.potato.item"))
         papa.itemMeta = meta
 
         p.inventory.addItem(papa)
         p.isGlowing = true
-        p.sendMessage(plugin.messageManager.parse("<red>⚠️ <b>¡TIENES LA PAPA!</b> <white>Pásala rápido golpeando a otro."))
+        plugin.languageManager.send(p, "simon_game.potato.received")
         p.playSound(p.location, Sound.ENTITY_CREEPER_PRIMED, 1f, 1f)
     }
 
     private fun quitarPapa(p: Player) {
         p.inventory.remove(Material.POISONOUS_POTATO)
         p.isGlowing = false
-        p.sendMessage(plugin.messageManager.parse("<aqua>💨 <b>¡TE LIBRASTE!</b> <white>¡Corre!"))
+        plugin.languageManager.send(p, "simon_game.potato.escaped")
     }
 
     @EventHandler
@@ -117,7 +120,8 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
             atacante.playSound(atacante.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.5f)
             victima.playSound(victima.location, Sound.BLOCK_NOTE_BLOCK_BELL, 1f, 0.5f)
 
-            plugin.server.broadcast(plugin.messageManager.parse("<#FF5F1F>🔥 <b>${atacante.name}</b> <gray>le pasó la papa a <white>${victima.name}"))
+            plugin.languageManager.broadcast("simon_game.potato.passed",
+                Placeholder.unparsed("attacker", atacante.name), Placeholder.unparsed("victim", victima.name))
         }
     }
 
@@ -126,7 +130,7 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         if (activo && e.player.uniqueId == victimaActual) {
             if (e.itemDrop.itemStack.type == Material.POISONOUS_POTATO) {
                 e.isCancelled = true
-                e.player.sendMessage(plugin.messageManager.parse("<red>❌ <b>¡PROHIBIDO!</b> <white>No puedes tirar la papa, ¡pásala!"))
+                plugin.languageManager.send(e.player, "simon_game.potato.drop_blocked")
             }
         }
     }
@@ -137,7 +141,9 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
 
         if (perdedor != null && game.players.contains(perdedor)) {
             quitarPapa(perdedor)
-            val titleBoom = Title.title(plugin.messageManager.parse("<red>💣 <b>¡BOOM!</b> 💣"), plugin.messageManager.parse("<white>${perdedor.name} explotó con la papa."))
+            val titleBoom = Title.title(
+                plugin.languageManager.component("simon_game.potato.boom_main"),
+                plugin.languageManager.component("simon_game.potato.boom_subtitle", Placeholder.unparsed("player", perdedor.name)))
             game.players.forEach { it.showTitle(titleBoom) }
 
             // Usamos la animación de muerte oficial

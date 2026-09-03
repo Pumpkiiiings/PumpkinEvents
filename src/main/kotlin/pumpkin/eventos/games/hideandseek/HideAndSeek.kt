@@ -129,8 +129,7 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
 
         }, 10L) // Delay para seguridad del TP
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 prepTimer--
@@ -174,7 +173,7 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
                 task.cancel()
                 return@runAtFixedRate
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun disguisePlayer(player: Player, mobType: DisguiseType) {
@@ -292,16 +291,7 @@ class HideAndSeek(plugin: PumpkinEventos) : EventGame(plugin, "hideandseek", "<#
     override fun checkWinner() { }
 
     override fun onStop() {
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
-            DisguiseAPI.undisguiseToAll(p)
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(beforeReset = { DisguiseAPI.undisguiseToAll(it) })
 
         spawnedDecoys.forEach { it.remove() }
         spawnedDecoys.clear()

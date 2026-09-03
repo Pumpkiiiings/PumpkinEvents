@@ -215,6 +215,71 @@ scoreboard:
     - ""
     - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
 
+  # --- BATTLE ROYALE SOLO ---
+  ingame_battleroyale:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>⚔</#FF3131> <white>Evento:</white> <#FF3131>Battle Royale</#FF3131>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%br_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>🔴</#FF3131> <white>Zona:</white> <#FFCC00>%br_fase%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%br_timer%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Kills:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%br_k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%br_k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%br_k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- BATTLE ROYALE DÚOS ---
+  ingame_battleroyale_duos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>⚔</#FF3131> <white>Evento:</white> <#FF3131>Battle Royale Dúos</#FF3131>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Vivos:</white> <#00FFFF>%br_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF3131>🔴</#FF3131> <white>Zona:</white> <#FFCC00>%br_fase%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%br_timer%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>Top Kills:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%br_k1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%br_k2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%br_k3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- PARKOUR SOLO ---
+  ingame_parkour:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏃</#39FF14> <white>Evento:</white> <#39FF14>Parkour</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Corriendo:</white> <#00FFFF>%pk_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Ganadores:</white> <#FFCC00>%pk_ganadores%/%pk_max_win%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%pk_timer%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>🥇 Podio:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%pk_top1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%pk_top2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%pk_top3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
+  # --- PARKOUR DÚOS ---
+  ingame_parkour_duos:
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏃</#39FF14> <white>Evento:</white> <#39FF14>Parkour Dúos</#39FF14>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>🔗</#00FFFF> <white>Modo:</white> <#FFCC00>%pk_modo%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#FF3131>❤</#FF3131> <white>Corriendo:</white> <#00FFFF>%pk_vivos%</#00FFFF>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#39FF14>🏁</#39FF14> <white>Equipos fin:</white> <#FFCC00>%pk_ganadores%/%pk_max_win%</#FFCC00>"
+    - " <dark_gray>|</dark_gray> <#00FFFF>⏳</#00FFFF> <white>Tiempo:</white> <#39FF14>%pk_timer%</#39FF14>"
+    - ""
+    - " <dark_gray>|</dark_gray> <#FF5500><b>🥇 Top Equipos:</b></#FF5500>"
+    - " <dark_gray>|</dark_gray> <gold>1.</gold> <white>%pk_top1%</white>"
+    - " <dark_gray>|</dark_gray> <gray>2.</gray> <white>%pk_top2%</white>"
+    - " <dark_gray>|</dark_gray> <#CD7F32>3.</#CD7F32> <white>%pk_top3%</white>"
+    - ""
+    - "   <#FFCC00>mc.liric.xyz</#FFCC00>   "
+
 # ==========================================
 # BOSSBARS
 # ==========================================
@@ -236,3 +301,8 @@ bossbar:
   ingame_hideandseek: "<bold>HIDE & SEEK:</bold> <#FF8C00>¡Que no te vean!</#FF8C00> <gray>|</gray> <white>⏳ %time_left%</white>"
   ingame_buildbattle_solo: "<bold>BUILD BATTLE:</bold> <#FF9900>%bb_phase%</#FF9900> <gray>|</gray> <white>⏳ %bb_timer%</white>"
   ingame_buildbattle_teams: "<bold>BUILD BATTLE:</bold> <#FF9900>%bb_phase%</#FF9900> <gray>|</gray> <white>⏳ %bb_timer%</white>"
+  ingame_battleroyale: "<bold>BATTLE ROYALE:</bold> <#FF3131>%br_fase%</#FF3131> <gray>|</gray> <white>⏳ %br_timer% — Vivos: %br_vivos%</white>"
+  ingame_battleroyale_duos: "<bold>BR DÚOS:</bold> <#FF3131>%br_fase%</#FF3131> <gray>|</gray> <white>⏳ %br_timer% — Vivos: %br_vivos%</white>"
+  ingame_parkour: "<bold>PARKOUR:</bold> <#39FF14>🏃 ¡Corre al siguiente checkpoint!</#39FF14> <gray>|</gray> <white>⏳ %pk_timer% — Ganadores: %pk_ganadores%/%pk_max_win%</white>"
+  ingame_parkour_duos: "<bold>PARKOUR DÚOS:</bold> <#39FF14>🔗 ¡Corran juntos al checkpoint!</#39FF14> <gray>|</gray> <white>⏳ %pk_timer% — Equipos: %pk_ganadores%/%pk_max_win%</white>"
+

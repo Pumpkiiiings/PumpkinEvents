@@ -51,9 +51,15 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
     fun reload() {
         menus.clear()
         val menusDir = File(plugin.dataFolder, "menus")
-        if (!menusDir.exists()) {
-            menusDir.mkdirs()
-            plugin.saveResource("menus/menu1.yml", false)
+        if (!menusDir.exists() && !menusDir.mkdirs()) {
+            plugin.componentLogger.warn("[MenuManager] No se pudo crear la carpeta de menús.")
+            return
+        }
+        listOf("miniwalls.yml", "voteskywars.yml").forEach { resourceName ->
+            val target = File(menusDir, resourceName)
+            if (!target.exists()) {
+                plugin.saveResource("menus/$resourceName", false)
+            }
         }
         menusDir.listFiles { f -> f.extension == "yml" }?.forEach { file ->
             try {
@@ -91,7 +97,7 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
 
     fun openMenu(player: Player, menuId: String) {
         val config = menus[menuId] ?: run {
-            player.sendMessage(plugin.messageManager.parse("<red>Error: Menú '$menuId' no encontrado.</red>"))
+            plugin.languageManager.send(player, "menu.not_found", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed("menu", menuId))
             return
         }
 
@@ -166,7 +172,7 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
             action.startsWith("vote:") -> {
                 val option = action.removePrefix("vote:")
                 player.closeInventory()
-                player.sendMessage(plugin.messageManager.parse("<green>✔ Has votado por: <b>$option</b></green>"))
+                plugin.languageManager.send(player, "menu.voted", net.kyori.adventure.text.minimessage.tag.resolver.Placeholder.unparsed("option", option))
                 // Aquí se puede conectar con un sistema de votos específico del juego
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     plugin.server.dispatchCommand(player, "pvote $option")

@@ -28,8 +28,11 @@ import org.joml.Vector3f
 import pumpkin.eventos.PumpkinEventos
 import pumpkin.eventos.games.EventGame
 import java.time.Duration
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 import kotlin.math.atan2
+import kotlin.math.roundToInt
+import kotlin.random.Random
 
 enum class EventoRuleta { NORMAL, RECARGA_MANUAL, ESCOPETA }
 
@@ -41,15 +44,14 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     val jugadoresSentados = mutableMapOf<Player, Location>()
     val camarasTemporales = mutableMapOf<Player, ArmorStand>()
 
-    private val penalizaciones = mutableMapOf<Player, Double>()
-
     private var arrowDisplay: ItemDisplay? = null
     var ultimaVictima: Player? = null
     private var esperandoDecision = false
 
-    // --- MECÁNICA DE REVÓLVER REAL ---
-    private var cilindro = BooleanArray(6) { false } // 6 recámaras
-    private var posicionCilindro = 0
+    private val cylinder = RouletteCylinder()
+    private val passesRemaining = mutableMapOf<UUID, Int>()
+    private val inspectionsRemaining = mutableSetOf<UUID>()
+    private var roundNumber = 0
     private var balaCargadaManualmente = false
 
     private var eventoActual = EventoRuleta.NORMAL
@@ -57,7 +59,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     override fun getExtraPlaceholders(): Map<String, String> {
         return mapOf(
             "%vivos%" to players.size.toString(),
-            "%balas%" to (if (eventoActual == EventoRuleta.ESCOPETA) "50%" else "1/6")
+            "%balas%" to (if (eventoActual == EventoRuleta.ESCOPETA) "50%" else "${riskPercent()}%")
         )
     }
 
@@ -72,6 +74,12 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         camarasTemporales.clear()
         ultimaVictima = null
         esperandoDecision = false
+        roundNumber = 0
+        val configuredPasses = plugin.config.getInt("ruletarusa.passes_per_player", 1).coerceAtLeast(0)
+        passesRemaining.clear()
+        players.forEach { passesRemaining[it.uniqueId] = configuredPasses }
+        inspectionsRemaining.clear()
+        inspectionsRemaining.addAll(players.map { it.uniqueId })
 
         recargarRevolverGlobal()
 
@@ -118,11 +126,10 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     }
 
     private fun recargarRevolverGlobal() {
-        cilindro = BooleanArray(6) { false }
-        val balaPos = (0..5).random()
-        cilindro[balaPos] = true
-        posicionCilindro = 0
+        cylinder.reload()
     }
+
+    private fun riskPercent(): Int = (cylinder.currentRisk * 100.0).roundToInt()
 
     private fun girarRuleta() {
         if (!isRunning) return
@@ -133,7 +140,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
 
         players.forEach { p ->
             p.inventory.clear()
-            p.sendActionBar(mm.parse(lang.get("ruletarusa.actionbar.spin")))
+            p.sendActionBar(lang.component("ruletarusa.actionbar.spin"))
         }
 
         var victima = players.random()
@@ -151,21 +158,21 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
             val angleToPlayer = atan2(dz, dx) - (Math.PI / 2)
             val rotacionFinal = angleToPlayer + (Math.PI * 10)
 
-            arrowDisplay?.interpolationDuration = 60
+            val spinTicks = if (roundNumber++ == 0) 40 else 20
+            arrowDisplay?.interpolationDuration = spinTicks
             val transform = arrowDisplay!!.transformation
             val nuevaRotacion = Quaternionf().rotateX(Math.toRadians(90.0).toFloat()).rotateY(rotacionFinal.toFloat())
             arrowDisplay!!.transformation = Transformation(transform.translation, nuevaRotacion, Vector3f(2f, 2f, 2f), transform.rightRotation)
 
             var ticks = 0
             plugin.server.regionScheduler.runAtFixedRate(plugin, locFlecha, { task ->
-                if (!isRunning) { task.cancel(); return@runAtFixedRate }
 
-                if (ticks >= 60) {
+                if (ticks >= spinTicks) {
                     task.cancel()
                     val timesFinal = Title.Times.times(Duration.ZERO, Duration.ofSeconds(2), Duration.ofMillis(500))
                     val finalTitle = Title.title(
-                        mm.parse("<#FF3131><bold>${victima.name}</bold></#FF3131>"),
-                        mm.parse("<white>¡Es el turno de la suerte!</white>"),
+                        plugin.languageManager.component("ruletarusa.title.chosen_main", Placeholder.unparsed("player", victima.name)),
+                        plugin.languageManager.component("ruletarusa.title.chosen_subtitle"),
                         timesFinal
                     )
                     players.forEach {
@@ -175,7 +182,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
 
                     plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                         cinematicaTension(victima)
-                    }, 40L)
+                    }, 10L)
                     return@runAtFixedRate
                 }
 
@@ -183,7 +190,11 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
                     val randomPlayer = players.random()
                     val timesRapido = Title.Times.times(Duration.ZERO, Duration.ofMillis(500), Duration.ZERO)
                     players.forEach {
-                        it.showTitle(Title.title(mm.parse("<yellow>${randomPlayer.name}</yellow>"), mm.parse("<gray>Sorteando...</gray>"), timesRapido))
+                        it.showTitle(Title.title(
+                            plugin.languageManager.component("ruletarusa.title.spinning_main", Placeholder.unparsed("player", randomPlayer.name)),
+                            plugin.languageManager.component("ruletarusa.title.spinning_subtitle"),
+                            timesRapido
+                        ))
                         it.playSound(it.location, Sound.UI_BUTTON_CLICK, 1f, 1.5f)
                     }
                     locFlecha.world.playSound(locFlecha, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f)
@@ -199,7 +210,7 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         forzarAsientos = false
 
         players.forEach { p ->
-            p.sendActionBar(mm.parse(plugin.languageManager.get("ruletarusa.actionbar.turn"), Placeholder.parsed("player", victima.name)))
+            p.sendActionBar(plugin.languageManager.component("ruletarusa.actionbar.turn", Placeholder.unparsed("player", victima.name)))
         }
 
         val faceLoc = victima.eyeLocation.clone().add(victima.eyeLocation.direction.multiply(1.5))
@@ -237,36 +248,39 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         when {
             chance <= 15 -> {
                 eventoActual = EventoRuleta.ESCOPETA
-                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(mm.parse("<#FF5500><b>Escopeta Recortada (50% Muerte)</b></#FF5500>")) } }
+                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("ruletarusa.item.shotgun")) } }
                 victima.inventory.setItem(4, arma)
-                plugin.server.broadcast(mm.parse("<newline><red><b>¡El revólver se encasquilló!</b></red> <white>Te han dado una escopeta... tienes un <red>50%</red> de probabilidad de volar en pedazos.</white><newline>"))
+                plugin.languageManager.broadcast("ruletarusa.message.shotgun")
             }
             chance in 16..30 -> {
                 eventoActual = EventoRuleta.RECARGA_MANUAL
-                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(mm.parse("<#AAAAAA><b>Revólver Vacío</b></#AAAAAA>")) } }
-                val bala = ItemStack(Material.GUNPOWDER).apply { itemMeta = itemMeta?.apply { displayName(mm.parse("<yellow><b>Bala Solitaria</b></yellow>")) } }
+                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("ruletarusa.item.empty_revolver")) } }
+                val bala = ItemStack(Material.GUNPOWDER).apply { itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("ruletarusa.item.bullet")) } }
                 victima.inventory.setItem(3, bala)
                 victima.inventory.setItem(4, arma)
-                plugin.server.broadcast(mm.parse("<newline><yellow><b>¡RECARGA MANUAL!</b></yellow> <white>¡Debes hacer <b>Clic Izquierdo</b> para recargar antes de disparar!</white><newline>"))
+                plugin.languageManager.broadcast("ruletarusa.message.manual_reload")
             }
             else -> {
                 eventoActual = EventoRuleta.NORMAL
-                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(mm.parse("<#FF3131><b>Revólver del Destino</b></#FF3131>")) } }
+                val arma = ItemStack(Material.IRON_HORSE_ARMOR).apply { itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("ruletarusa.item.revolver")) } }
                 victima.inventory.setItem(4, arma)
+                val inspect = ItemStack(Material.SPYGLASS).apply { itemMeta = itemMeta?.apply { displayName(plugin.languageManager.component("ruletarusa.item.inspect")) } }
+                victima.inventory.setItem(2, inspect)
             }
         }
 
         victima.inventory.heldItemSlot = 4
 
-        val subTexto = if (eventoActual == EventoRuleta.ESCOPETA)
-            "<white><#FF3131><b>Click Der</b></#FF3131> Dispara | <gray>No puedes pasar esta arma</gray></white>"
-        else
-            "<white><#FF3131><b>Click Der</b></#FF3131> Dispara | <yellow><b>Q</b></yellow> Pasa el arma</white>"
-
         val decisionTitle = Title.title(
-            mm.parse("<red>¡Tienes el arma!</red>"),
-            mm.parse(subTexto),
-            Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(6), Duration.ofMillis(200))
+            plugin.languageManager.component("ruletarusa.title.decision_main"),
+            if (eventoActual == EventoRuleta.NORMAL) {
+                plugin.languageManager.component(
+                    "ruletarusa.title.decision_normal",
+                    Placeholder.unparsed("risk", riskPercent().toString()),
+                    Placeholder.unparsed("passes", (passesRemaining[victima.uniqueId] ?: 0).toString())
+                )
+            } else plugin.languageManager.component("ruletarusa.title.decision_forced"),
+            Title.Times.times(Duration.ofMillis(200), Duration.ofSeconds(plugin.config.getInt("ruletarusa.decision_seconds", 12).toLong()), Duration.ofMillis(200))
         )
         victima.showTitle(decisionTitle)
 
@@ -275,14 +289,14 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
     }
 
     private fun iniciarRelojDecision(victima: Player) {
-        var tickTimer = 6 // ¡Solo 6 segundos!
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        var tickTimer = plugin.config.getInt("ruletarusa.decision_seconds", 12).coerceAtLeast(5)
+        runAtFixedRate( { task ->
             if (!isRunning || !esperandoDecision) { task.cancel(); return@runAtFixedRate }
 
             if (tickTimer <= 0) {
                 task.cancel()
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
-                    plugin.server.broadcast(plugin.messageManager.parse("<red><b>¡TIEMPO AGOTADO!</b></red> <white>${victima.name} no se atrevió a disparar y su cabeza explotó por la presión.</white>"))
+                    plugin.languageManager.broadcast("ruletarusa.message.timeout", Placeholder.unparsed("player", victima.name))
                     ejecutarMuerte(victima)
                 }
                 return@runAtFixedRate
@@ -290,11 +304,15 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
 
             players.forEach { p ->
                 p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f)
-                plugin.server.asyncScheduler.runDelayed(plugin, { _ -> p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.6f) }, 200, TimeUnit.MILLISECONDS)
-                p.sendActionBar(plugin.messageManager.parse("<red><b>00:0$tickTimer</b></red>"))
+                plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.6f) }, 4L)
+                p.sendActionBar(plugin.languageManager.component(
+                    "ruletarusa.actionbar.timer",
+                    Placeholder.unparsed("time", tickTimer.toString().padStart(2, '0')),
+                    Placeholder.unparsed("risk", if (eventoActual == EventoRuleta.ESCOPETA) "50" else riskPercent().toString())
+                ))
             }
             tickTimer--
-        }, 0, 1, TimeUnit.SECONDS)
+        }, 1L, 20L)
     }
 
     /** Llamado desde RuletaRusaListener cuando el jugador hace clic izquierdo con la bala */
@@ -303,15 +321,37 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         balaCargadaManualmente = true
         jugador.inventory.remove(org.bukkit.Material.GUNPOWDER)
         jugador.playSound(jugador.location, org.bukkit.Sound.BLOCK_IRON_DOOR_OPEN, 1f, 2f)
-        jugador.sendMessage(plugin.messageManager.parse("<green>Has cargado la bala... ¡Ahora dispara (Click Derecho)!</green>"))
+        plugin.languageManager.send(jugador, "ruletarusa.message.manually_loaded")
         val arma = jugador.inventory.getItem(4)
         arma?.itemMeta = arma?.itemMeta?.apply {
-            displayName(plugin.messageManager.parse("<#FF3131><b>Revólver Cargado</b></#FF3131>"))
+            displayName(plugin.languageManager.component("ruletarusa.item.loaded_revolver"))
         }
+    }
+
+    fun inspeccionarCamara(jugador: Player) {
+        if (!esperandoDecision || jugador != ultimaVictima || eventoActual != EventoRuleta.NORMAL ||
+            !inspectionsRemaining.remove(jugador.uniqueId)) {
+            plugin.languageManager.send(jugador, "ruletarusa.message.inspect_unavailable")
+            return
+        }
+
+        val accuracy = plugin.config.getDouble("ruletarusa.inspection_accuracy", 0.70).coerceIn(0.5, 1.0)
+        val reportsDanger = if (Random.nextDouble() <= accuracy) cylinder.currentChamberLoaded else !cylinder.currentChamberLoaded
+        plugin.languageManager.send(jugador, if (reportsDanger) "ruletarusa.message.inspect_danger" else "ruletarusa.message.inspect_safe")
+        jugador.playSound(jugador.location, Sound.BLOCK_AMETHYST_BLOCK_CHIME, 1f, if (reportsDanger) 0.6f else 1.5f)
+        jugador.inventory.setItem(2, null)
     }
 
     fun procesarEleccion(jugador: Player, decidioDisparar: Boolean) {
         if (!esperandoDecision) return
+        if (!decidioDisparar) {
+            val passes = passesRemaining[jugador.uniqueId] ?: 0
+            if (eventoActual != EventoRuleta.NORMAL || passes <= 0) {
+                plugin.languageManager.send(jugador, "ruletarusa.message.pass_unavailable")
+                return
+            }
+            passesRemaining[jugador.uniqueId] = passes - 1
+        }
         esperandoDecision = false
         jugador.inventory.clear()
         jugador.resetTitle()
@@ -346,39 +386,43 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
 
         if (decidioDisparar) {
             var muere = false
+            var normalRisk = 0
             when (eventoActual) {
                 EventoRuleta.ESCOPETA -> muere = Math.random() < 0.50
                 EventoRuleta.RECARGA_MANUAL -> {
                     if (!balaCargadaManualmente) {
-                        plugin.server.broadcast(plugin.messageManager.parse("<red><b>¡IDIOTA!</b></red> <white>${jugador.name} no cargó el arma y el verdugo lo aniquiló.</white>"))
+                        plugin.languageManager.broadcast("ruletarusa.message.fired_unloaded", Placeholder.unparsed("player", jugador.name))
                         ejecutarMuerte(jugador); return
                     }
                     muere = Math.random() < (1.0 / 6.0)
                 }
                 EventoRuleta.NORMAL -> {
-                    if (cilindro[posicionCilindro]) {
-                        muere = true; recargarRevolverGlobal()
-                    } else {
-                        posicionCilindro++; if (posicionCilindro >= 6) recargarRevolverGlobal()
-                    }
+                    val result = cylinder.pullTrigger()
+                    muere = result.fired
+                    normalRisk = (result.riskBeforeShot * 100.0).roundToInt()
                 }
             }
 
             if (muere) {
-                plugin.server.broadcast(plugin.messageManager.parse(plugin.languageManager.get("ruletarusa.broadcast.died"), Placeholder.parsed("player", jugador.name)))
+                plugin.languageManager.broadcast("ruletarusa.broadcast.died", Placeholder.unparsed("player", jugador.name))
                 ejecutarMuerte(jugador)
             } else {
+                if (eventoActual == EventoRuleta.NORMAL && normalRisk >= 25) {
+                    val reward = (normalRisk / 20).coerceAtLeast(1)
+                    val reason = plugin.languageManager.get("ruletarusa.message.risk_reward").replace("<risk>", normalRisk.toString())
+                    plugin.puntajeManager.addPoints(jugador, reward, reason)
+                }
                 jugador.world.playSound(jugador.location, Sound.UI_BUTTON_CLICK, 1f, 1f)
                 jugador.world.spawnParticle(Particle.SPLASH, jugador.eyeLocation, 30, 0.3, 0.5, 0.3, 0.0)
-                plugin.server.broadcast(plugin.messageManager.parse(plugin.languageManager.get("ruletarusa.broadcast.saved"), Placeholder.parsed("player", jugador.name)))
+                plugin.languageManager.broadcast("ruletarusa.broadcast.saved", Placeholder.unparsed("player", jugador.name))
                 plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> girarRuleta() }, 40L)
             }
         } else {
             // SI DECIDIÓ PASAR (Q)
-            plugin.server.broadcast(plugin.messageManager.parse("<yellow><b>${jugador.name}</b></yellow> <white>fue un cobarde y pasó el arma... La ruleta gira.</white>"))
+            cylinder.pass()
+            plugin.languageManager.broadcast("ruletarusa.message.passed", Placeholder.unparsed("player", jugador.name))
             jugador.world.playSound(jugador.location, Sound.ITEM_ARMOR_EQUIP_CHAIN, 1f, 1f)
-            posicionCilindro++; if (posicionCilindro >= 6) recargarRevolverGlobal()
-            plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> girarRuleta() }, 40L)
+            plugin.server.globalRegionScheduler.runDelayed(plugin, { _ -> girarRuleta() }, 20L)
         }
     }
 
@@ -456,11 +500,10 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
 
     override fun checkWinner() {
         val winner = players.firstOrNull() ?: return
-        val rawWin = plugin.languageManager.get("ruletarusa.broadcast.winner")
-        plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
+        plugin.languageManager.broadcast("ruletarusa.broadcast.winner", Placeholder.unparsed("player", winner.name))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Sobreviviente de Ruleta!")
+        awardVictory(winner, 10)
         stop()
     }
 
@@ -471,17 +514,11 @@ class RuletaRusa(plugin: PumpkinEventos) : EventGame(plugin, "ruletarusa", "<#FF
         arrowDisplay = null
         camarasTemporales.clear()
         jugadoresSentados.clear()
-
-        plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
+        passesRemaining.clear()
+        inspectionsRemaining.clear()
+        returnToLobby(beforeReset = { p ->
             p.leaveVehicle()
             p.removePotionEffect(PotionEffectType.INVISIBILITY)
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        })
     }
 }

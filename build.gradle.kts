@@ -13,14 +13,13 @@ buildscript {
 
 plugins {
     java
-    // Mantenemos tu versión experimental de Kotlin
     kotlin("jvm") version "2.3.20"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("maven-publish")
 }
 
-group = "liric.mistaken"
-version = "3.2.8"
+group = "pumpkin.eventos"
+version = "3.3.9"
 
 java {
     toolchain {
@@ -59,10 +58,17 @@ dependencies {
     compileOnly(files("libs/GSit-3.3.3.jar"))
     compileOnly("net.luckperms:api:5.5")
     compileOnly("me.clip:placeholderapi:2.12.2")
+    compileOnly("com.github.Lodestones:Chain-API:1.0.2")
 
     compileOnly("net.kyori:adventure-text-minimessage:4.26.1")
     compileOnly("org.jetbrains:annotations:26.1.0")
     compileOnly(files("libs/LibsDisguises.jar"))
+    // Contrato opcional para mundos desechables basados en esquemáticos.
+    // El JAR no se empaqueta: ArenaAPI debe instalarse como plugin separado.
+    compileOnly(files("libs/ArenaAPI.jar"))
+
+    testImplementation(kotlin("test-junit5"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 tasks {
@@ -72,20 +78,18 @@ tasks {
         isZip64 = true
         duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 
-        relocate("com.github.retrooper.packetevents", "liric.mistaken.libs.packetevents")
-        relocate("dev.triumphteam.gui", "liric.mistaken.libs.gui")
-        relocate("kotlin", "liric.mistaken.libs.kotlin")
-        relocate("kotlinx", "liric.mistaken.libs.kotlinx")
+        relocate("com.github.retrooper.packetevents", "pumpkin.eventos.libs.packetevents")
+        relocate("dev.triumphteam.gui", "pumpkin.eventos.libs.gui")
+        relocate("kotlin", "pumpkin.eventos.libs.kotlin")
+        relocate("kotlinx", "pumpkin.eventos.libs.kotlinx")
     }
 
     withType<JavaCompile> {
         options.encoding = "UTF-8"
     }
 
-    // 🔥 LA CORRECCIÓN CLAVE: Migración de kotlinOptions a compilerOptions
     withType<KotlinCompile>().configureEach {
         compilerOptions {
-            // Se usa el enum JvmTarget en lugar de Strings
             jvmTarget.set(JvmTarget.JVM_21)
 
             // Opcional: Activar optimizaciones de K2
@@ -94,16 +98,19 @@ tasks {
     }
 
     processResources {
-        val props = mapOf("version" to version)
+        val props = mapOf("version" to project.version.toString())
         inputs.properties(props)
         filteringCharset = "UTF-8"
-        filesMatching("paper-plugin.yml") {
+        filesMatching(listOf("paper-plugin.yml", "plugin.yml")) {
             expand(props)
         }
     }
 
     build {
-        // Asegura que siempre se genere el ShadowJar al compilar
         dependsOn(shadowJar)
+    }
+
+    test {
+        useJUnitPlatform()
     }
 }

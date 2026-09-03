@@ -1,5 +1,6 @@
 package pumpkin.eventos.listeners
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import org.bukkit.Material
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
@@ -22,6 +23,9 @@ import pumpkin.eventos.games.spleef.Spleef
 import pumpkin.eventos.games.miniwalls.MiniWalls
 import pumpkin.eventos.games.hideandseek.HideAndSeek
 import pumpkin.eventos.games.lava.SueloLava
+import pumpkin.eventos.games.battleroyale.BattleRoyale
+import pumpkin.eventos.games.battleroyale.BRPhase
+import pumpkin.eventos.games.buildbattle.BuildBattle
 
 /**
  * Listener global que maneja eventos comunes a todos los juegos:
@@ -38,7 +42,8 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         if (game == null || !game.isRunning) { e.isCancelled = true; return }
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
-        if (game is PillarsOfFortune || game is Spleef || game is Skywars || game is MiniWalls || game is SueloLava) return
+        if (game is BattleRoyale && game.phase != BRPhase.PLAYING) { e.isCancelled = true; return }
+        if (game is PillarsOfFortune || game is Spleef || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale || game is BuildBattle) return
         e.isCancelled = true
     }
 
@@ -54,8 +59,9 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         }
         if (game is PillarsOfFortune && game.isPreparation) { e.isCancelled = true; return }
         if (game is Skywars && game.phase != SwPhase.PLAYING) { e.isCancelled = true; return }
+        if (game is BattleRoyale && game.phase != BRPhase.PLAYING) { e.isCancelled = true; return }
         // Modos con drops vanilla — se permite romper y se mantiene isDropItems = true
-        if (game is PillarsOfFortune || game is Skywars || game is MiniWalls || game is SueloLava) return
+        if (game is PillarsOfFortune || game is Skywars || game is MiniWalls || game is SueloLava || game is BattleRoyale || game is BuildBattle) return
         e.isCancelled = true
     }
 
@@ -63,7 +69,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
     fun onDrop(e: PlayerDropItemEvent) {
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
-        if (game !is PillarsOfFortune && game !is Skywars) {
+        if (game !is PillarsOfFortune && game !is Skywars && game !is BattleRoyale) {
             e.isCancelled = true
         }
     }
@@ -74,6 +80,16 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
         val game = plugin.eventManager.currentGame ?: return
         if (!game.isRunning) return
         if (!game.players.contains(player)) return
+
+        // Si el PvP está desactivado por votación, cancelamos cualquier daño entre jugadores
+        if (!game.pvpEnabled && e is EntityDamageByEntityEvent) {
+            val damager = e.damager
+            val isPlayerHit = damager is Player || (damager is Projectile && damager.shooter is Player)
+            if (isPlayerHit) {
+                e.isCancelled = true
+                return
+            }
+        }
 
         if (player.health - e.finalDamage <= 0) {
             val mainHand = player.inventory.itemInMainHand.type
@@ -100,7 +116,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
             }
 
             // Drop inventario en juegos de supervivencia
-            if (game is PillarsOfFortune || game is Skywars) {
+            if (game is PillarsOfFortune || game is Skywars || game is BattleRoyale) {
                 val loc = player.location
                 player.inventory.contents.forEach { item ->
                     if (item != null && item.type != Material.AIR) {
@@ -140,7 +156,7 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
                         killer.health = (killer.health + kit.healOnKill).coerceAtMost(killer.getAttribute(org.bukkit.attribute.Attribute.MAX_HEALTH)?.value ?: 20.0)
                         killer.playSound(killer.location, org.bukkit.Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1f)
                         val hearts = (kit.healOnKill / 2).toInt()
-                        killer.sendMessage(mm.parse("<#FF1493>❤ <b>+$hearts Corazones</b></#FF1493>"))
+                        plugin.languageManager.send(killer, "combat.heal_on_kill", Placeholder.unparsed("hearts", hearts.toString()))
                     }
                 }
 
@@ -170,6 +186,11 @@ class GlobalDamageListener(private val plugin: PumpkinEventos) : Listener {
 
         if (game is Skywars) {
             if (game.phase == SwPhase.TEAM_SELECT || game.phase == SwPhase.VOTING) e.isCancelled = true
+            return
+        }
+
+        if (game is BattleRoyale) {
+            if (game.phase == BRPhase.TEAM_SELECT) e.isCancelled = true
             return
         }
 

@@ -53,25 +53,27 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
     init {
         if (!file.exists()) plugin.saveResource("arenas.yml", false)
-        loadArenasAsync()
+        loadArenas()
     }
 
-    private fun loadArenasAsync() {
-        ioScope.launch {
-            synchronized(fileLock) { config = YamlConfiguration.loadConfiguration(file) }
+    private fun loadArenas() {
+        synchronized(fileLock) { config = YamlConfiguration.loadConfiguration(file) }
 
-            mainLobby = loadSafeLocation("lobbies.main")
-            waitingSpawn = loadSafeLocation("lobbies.waiting")
+        mainLobby = loadSafeLocation("lobbies.main")
+        waitingSpawn = loadSafeLocation("lobbies.waiting")
 
-            val section = config.getConfigurationSection("arenas") ?: return@launch
-            val tempArenas = mutableMapOf<String, Arena>()
+        val section = config.getConfigurationSection("arenas")
+        val tempArenas = mutableMapOf<String, Arena>()
 
+        if (section != null) {
             for (key in section.getKeys(false)) {
                 val path = "arenas.$key."
                 val type = config.getString("${path}type", "desconocido")!!
                 val arena = Arena(key, type)
+                arena.worldProvider = config.getString("${path}provider", "slime")!!.lowercase()
 
                 arena.slimeWorldName = config.getString("${path}slimeWorld", key)
+                arena.arenaApiTemplateId = config.getString("${path}arenaApiTemplate")
                 arena.centerLocation = loadSafeLocation("${path}centerLocation")
 
                 arena.gradas = loadSafeLocation("${path}gradas")
@@ -85,11 +87,11 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
                 tempArenas[key] = arena
             }
-
-            arenas.clear()
-            arenas.putAll(tempArenas)
-            plugin.componentLogger.info(mm.deserialize("<green>[Arenas] ${arenas.size} mapas cargados. Lobbies listos.</green>"))
         }
+
+        arenas.clear()
+        arenas.putAll(tempArenas)
+        plugin.componentLogger.info(mm.deserialize("<green>[Arenas] ${arenas.size} mapas cargados. Lobbies listos.</green>"))
     }
 
     fun setMainLobbyLoc(loc: Location) {
@@ -120,6 +122,7 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
         synchronized(fileLock) {
             config.set("arenas.${session.name}.type", session.type)
+            config.set("arenas.${session.name}.provider", arena.worldProvider)
             config.set("arenas.${session.name}.slimeWorld", session.name)
         }
 
@@ -190,7 +193,13 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
     fun getArena(name: String): Arena? = arenas[name]
     fun getAvailableArenas(): List<Arena> = arenas.values.toList()
-    fun shutdown() = ioScope.cancel()
+    fun shutdown() {
+        synchronized(fileLock) {
+            runCatching { config.save(file) }
+                .onFailure { plugin.componentLogger.error("No se pudo completar el guardado final de arenas.", it) }
+        }
+        ioScope.cancel()
+    }
 
     /**
      * Duplica una arena existente con nuevo nombre y tipo.
@@ -200,7 +209,9 @@ class ArenaManager(private val plugin: PumpkinEventos) {
         val source = arenas[sourceName] ?: return false
 
         val newArena = Arena(newName, newType)
+        newArena.worldProvider = source.worldProvider
         newArena.slimeWorldName = newName // El mundo nuevo llevará el nuevo nombre
+        newArena.arenaApiTemplateId = source.arenaApiTemplateId
         newArena.centerLocation = source.centerLocation?.clone()
         newArena.gradas = source.gradas?.clone()
         newArena.dueloA = source.dueloA?.clone()
@@ -212,7 +223,9 @@ class ArenaManager(private val plugin: PumpkinEventos) {
 
         synchronized(fileLock) {
             config.set("arenas.$newName.type", newType)
+            config.set("arenas.$newName.provider", newArena.worldProvider)
             config.set("arenas.$newName.slimeWorld", newName)
+            config.set("arenas.$newName.arenaApiTemplate", newArena.arenaApiTemplateId)
         }
 
         if (newArena.centerLocation != null) saveSafeLocation("arenas.$newName.centerLocation", newArena.centerLocation!!)

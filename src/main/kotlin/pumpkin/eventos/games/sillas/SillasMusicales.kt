@@ -118,8 +118,7 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
 
         players.forEach { it.playSound(it.location, currentMusic, 1f, 1f) }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (estado == SillasEstado.MUSICA) {
                 roundTimer--
@@ -136,7 +135,7 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
                     detenerMusica()
                 }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun aparecerSillasAleatorias() {
@@ -169,15 +168,14 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
             p.showTitle(Title.title(plugin.messageManager.parse("<#FF3131><bold>¡SIÉNTATE!</bold></#FF3131>"), plugin.messageManager.parse("<white>¡Haz clic derecho en una silla!")))
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             roundTimer--
             if (roundTimer <= 0) {
                 task.cancel()
                 ejecutarPerdedores()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun intentarSentarse(p: Player, blockLoc: Location) {
@@ -274,18 +272,9 @@ class SillasMusicales(plugin: PumpkinEventos) : EventGame(plugin, "sillas", "<#B
             }
         }
         sillasActivas.clear()
-
-        plugin.eventManager.currentGame = null
-
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) lobby = plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
+        returnToLobby(beforeReset = { p ->
             musicDiscs.forEach { p.stopSound(it) }
             p.leaveVehicle()
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        })
     }
 }

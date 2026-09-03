@@ -21,6 +21,7 @@ import pumpkin.eventos.arena.ArenaSetupSession
  *   /evento arena setdueloa / setduelob
  *   /evento arena addspawn
  *   /evento arena addchair
+ *   /evento arena scanbuildbattle <radio>
  *   /evento arena save
  *   /evento arena cancel
  */
@@ -33,13 +34,20 @@ object ArenaCommands {
         "cristales", "jalarcuerda", "skywars_solos",
         "skywars_duos", "iceboat", "miniwalls", "corona", "hideandseek",
         "buildbattle_solo", "buildbattle_teams",
-        "battleroyale"
+        "battleroyale", "parkour", "parkour_duos"
     )
 
     private fun msg(sender: CommandSender, plugin: PumpkinEventos, path: String, vararg resolvers: net.kyori.adventure.text.minimessage.tag.resolver.TagResolver) {
-        val prefix = plugin.languageManager.get("prefix")
-        val raw = plugin.languageManager.get(path).replace("<prefix>", prefix)
-        sender.sendMessage(plugin.messageManager.parse(raw, *resolvers))
+        plugin.languageManager.send(sender, path, *resolvers)
+    }
+
+    private fun activeSession(
+        player: Player,
+        plugin: PumpkinEventos,
+        missingPath: String = "commands.arena.not_creating"
+    ): ArenaSetupSession? = plugin.arenaManager.activeSetups[player.uniqueId] ?: run {
+        msg(player, plugin, missingPath)
+        null
     }
 
     fun build(plugin: PumpkinEventos): com.mojang.brigadier.tree.LiteralCommandNode<io.papermc.paper.command.brigadier.CommandSourceStack> {
@@ -153,8 +161,7 @@ object ArenaCommands {
             // --- SETCENTER ---
             .then(Commands.literal("setcenter").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.center = sender.location
                 msg(sender, plugin, "commands.arena.center_set", Placeholder.parsed("map", session.name))
                 1
@@ -162,8 +169,7 @@ object ArenaCommands {
             // --- SETGRADAS ---
             .then(Commands.literal("setgradas").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.gradas = sender.location
                 msg(sender, plugin, "commands.arena.gradas_set", Placeholder.parsed("map", session.name))
                 1
@@ -171,8 +177,7 @@ object ArenaCommands {
             // --- SETDUELOA ---
             .then(Commands.literal("setdueloa").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.dueloA = sender.location
                 msg(sender, plugin, "commands.arena.dueloa_set", Placeholder.parsed("map", session.name))
                 1
@@ -180,8 +185,7 @@ object ArenaCommands {
             // --- SETDUELOB ---
             .then(Commands.literal("setduelob").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.dueloB = sender.location
                 msg(sender, plugin, "commands.arena.duelob_set", Placeholder.parsed("map", session.name))
                 1
@@ -189,8 +193,7 @@ object ArenaCommands {
             // --- ADDSPAWN ---
             .then(Commands.literal("addspawn").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
+                val session = activeSession(sender, plugin) ?: return@executes 0
                 session.spawns.add(sender.location)
                 msg(sender, plugin, "commands.arena.spawn_added",
                     Placeholder.parsed("map", session.name),
@@ -198,26 +201,62 @@ object ArenaCommands {
                 1
             })
             // --- ADDCHAIR ---
+            // Para Parkour: guarda la ubicación del jugador como centro del checkpoint.
+            // La detección en juego detecta si el jugador está a <=2 bloques del checkpoint (área 2x2).
             .then(Commands.literal("addchair").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.not_creating"); return@executes 0 }
-                val block = sender.getTargetBlockExact(5)
-                if (block == null || block.type.isAir) {
-                    msg(sender, plugin, "commands.arena.no_block_aimed")
-                    return@executes 0
-                }
-                session.chairs.add(block.location)
+                val session = activeSession(sender, plugin) ?: return@executes 0
+                // Usamos la ubicación de los pies del jugador como centro del checkpoint
+                session.chairs.add(sender.location)
                 msg(sender, plugin, "commands.arena.chair_added",
                     Placeholder.parsed("map", session.name),
                     Placeholder.parsed("count", session.chairs.size.toString()))
                 1
             })
+            // --- SCANBUILDBATTLE ---
+            .then(Commands.literal("scanbuildbattle")
+                .executes { ctx -> msg(ctx.source.sender, plugin, "arena_usage.scanbuildbattle", Placeholder.parsed("usage", "/evento arena scanbuildbattle <radio>")); 1 }
+                .then(Commands.argument("radio", com.mojang.brigadier.arguments.IntegerArgumentType.integer(1, 1000))
+                    .executes { ctx ->
+                        val sender = ctx.source.sender as? Player ?: return@executes 0
+                        val session = activeSession(sender, plugin) ?: return@executes 0
+                        if (!session.type.contains("buildbattle", ignoreCase = true)) {
+                            plugin.languageManager.send(sender, "commands.arena.buildbattle_only")
+                            return@executes 0
+                        }
+                        
+                        val radio = com.mojang.brigadier.arguments.IntegerArgumentType.getInteger(ctx, "radio")
+                        val center = sender.location
+                        val world = center.world ?: return@executes 0
+                        
+                        var foundCount = 0
+                        
+                        for (x in center.blockX - radio..center.blockX + radio) {
+                            for (y in center.blockY - radio..center.blockY + radio) {
+                                for (z in center.blockZ - radio..center.blockZ + radio) {
+                                    val block = world.getBlockAt(x, y, z)
+                                    if (block.type == org.bukkit.Material.GOLD_BLOCK) {
+                                        // Guardar la coordenada exacta del bloque de oro (el suelo)
+                                        // El +1 para el teleport se hace en iniciarBuild
+                                        val loc = block.location.clone().add(0.5, 0.0, 0.5)
+                                        session.spawns.add(loc)
+                                        foundCount++
+                                    }
+                                }
+                            }
+                        }
+                        
+                        plugin.languageManager.send(sender, "commands.arena.scan_completed", Placeholder.unparsed("radius", radio.toString()))
+                        plugin.languageManager.send(sender, "commands.arena.scan_found", Placeholder.unparsed("count", foundCount.toString()))
+                        plugin.languageManager.send(sender, "commands.arena.scan_total", Placeholder.unparsed("count", session.spawns.size.toString()))
+                        1
+                    }
+                )
+            )
             // --- SAVE ---
             .then(Commands.literal("save").executes { ctx ->
                 val sender = ctx.source.sender as? Player ?: return@executes 0
-                val session = plugin.arenaManager.activeSetups[sender.uniqueId]
-                if (session == null) { msg(sender, plugin, "commands.arena.no_creation_pending"); return@executes 0 }
+                val session = activeSession(sender, plugin, "commands.arena.no_creation_pending") ?: return@executes 0
                 if (session.spawns.isEmpty()) { msg(sender, plugin, "commands.arena.no_spawns"); return@executes 0 }
                 plugin.arenaManager.saveSetupSession(session)
                 plugin.arenaManager.activeSetups.remove(sender.uniqueId)

@@ -20,6 +20,7 @@ import pumpkin.eventos.games.BorderShrinkManager
 import pumpkin.eventos.games.BoosterManager
 import pumpkin.eventos.games.BoosterType
 import pumpkin.eventos.games.EventGame
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT Run</yellow>"), Listener {
@@ -27,6 +28,9 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
     var isPreparation = true
     var timer = 10
     private var gameSecondsElapsed = 0
+
+    // Evitar programar el mismo bloque múltiples veces
+    private val blocksToRemove = ConcurrentHashMap.newKeySet<Location>()
 
     // Booster system
     private val boosterManager = BoosterManager(plugin, this)
@@ -36,9 +40,9 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
         isPreparation = true
         timer = 10
         gameSecondsElapsed = 0
+        blocksToRemove.clear()
 
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             if (isPreparation) {
                 timer--
@@ -71,17 +75,21 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
                 val center = currentArena?.centerLocation
                 val cx = center?.x ?: 0.0
                 val cz = center?.z ?: 0.0
-                plugin.server.asyncScheduler.runNow(plugin) { _ ->
+                plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     borderManager.start(world, cx, cz, delaySeconds = 0L)
                 }
             }
 
         }, 20L, 20L)
 
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning || isPreparation) { if (!isRunning) task.cancel(); return@runAtFixedRate }
-            for (player in players) scheduleBlockBreak(player)
-        }, 10L, 2L)
+        // Escáner de bloques bajo los pies (Se ejecuta cada 1 TICK para no fallar saltos)
+        runAtFixedRate( { task ->
+            if (isPreparation) return@runAtFixedRate // ¡Protección para que no se caiga en preparación!
+
+            for (player in players) {
+                scheduleBlockBreak(player)
+            }
+        }, 1L, 1L)
     }
 
     private fun giveFeather(player: Player) {
@@ -93,12 +101,11 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
             plugin.messageManager.parse("<gray>Cooldown: 3s</gray>")
         ))
 
-        // Etiqueta interna para que el GameListener sepa qué es este ítem
         val key = NamespacedKey(plugin, "tnt_item")
         meta.persistentDataContainer.set(key, PersistentDataType.STRING, "feather")
 
         feather.itemMeta = meta
-        player.inventory.setItem(4, feather) // Lo pone en el medio de la hotbar
+        player.inventory.setItem(4, feather)
     }
 
     @EventHandler
@@ -126,9 +133,11 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
     private fun scheduleBlockBreak(player: Player) {
         val box = player.boundingBox
-        val y = box.minY - 0.05
+        // 0.1 asegura que detecte el bloque incluso justo al momento de saltar
+        val y = box.minY - 0.1
         val world = player.world
 
+        // 4 esquinas de la hitbox para ser súper preciso cuando camina en los bordes
         val corners = listOf(
             Location(world, box.minX, y, box.minZ), Location(world, box.maxX, y, box.minZ),
             Location(world, box.minX, y, box.maxZ), Location(world, box.maxX, y, box.maxZ)
@@ -139,17 +148,28 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
         }
 
         for (block in blocksToBreak) {
-            plugin.server.regionScheduler.runDelayed(plugin, block.location, { _ ->
+            val loc = block.location
+            if (blocksToRemove.contains(loc)) continue // Ya está programado para borrarse
+
+            blocksToRemove.add(loc)
+
+            // Retraso de 8 Ticks (0.4 segundos) para borrar el bloque
+            plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
+                blocksToRemove.remove(loc)
                 if (!isRunning) return@runDelayed
+
+                // 1. Borrar bloque de arriba
                 if (block.type != Material.AIR) {
                     block.setType(Material.AIR, false)
-                    // Eliminar también el bloque de soporte debajo (segunda capa)
-                    val blockBelow = block.getRelative(BlockFace.DOWN)
-                    if (blockBelow.type != Material.AIR) {
-                        blockBelow.setType(Material.AIR, false)
-                    }
                 }
-            }, 6L)
+
+                // 2. Borrar bloque de soporte de abajo (La TNT)
+                val blockBelow = block.getRelative(BlockFace.DOWN)
+                if (blockBelow.type == Material.TNT || blockBelow.type.name.contains("SAND") || blockBelow.type == Material.GRAVEL) {
+                    blockBelow.setType(Material.AIR, false)
+                }
+
+            }, 8L)
         }
     }
 
@@ -158,27 +178,15 @@ class TntRun(plugin: PumpkinEventos) : EventGame(plugin, "tntrun", "<yellow>TNT 
 
         val rawWin = plugin.languageManager.get("tntrun.broadcast.winner")
         plugin.server.broadcast(plugin.messageManager.parse(rawWin, Placeholder.parsed("player", winner.name)))
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
     override fun onStop() {
         boosterManager.stop()
         gameWorld?.let { borderManager.stop(it) }
-        plugin.eventManager.currentGame = null
+        blocksToRemove.clear()
 
-        var lobby = plugin.arenaManager.mainLobby
-        if (lobby == null || lobby.world == null) {
-            lobby = plugin.server.worlds[0].spawnLocation
-        }
-
-        val todos = players + spectators
-
-        todos.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = org.bukkit.GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby()
     }
 }

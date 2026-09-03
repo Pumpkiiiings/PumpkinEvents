@@ -1,5 +1,7 @@
 package pumpkin.eventos.games.iceboat
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
+import net.kyori.adventure.title.Title
 import org.bukkit.Location
 import org.bukkit.Material
 import org.bukkit.Sound
@@ -20,12 +22,9 @@ import org.bukkit.util.Vector
 import pumpkin.eventos.PumpkinEventos
 
 import com.destroystokyo.paper.event.player.PlayerJumpEvent
+import java.time.Duration
 
 class IceBoatListener(private val plugin: PumpkinEventos) : Listener {
-
-    init {
-        plugin.server.pluginManager.registerEvents(this, plugin)
-    }
 
     @EventHandler
     fun onInteract(e: PlayerInteractEvent) {
@@ -119,7 +118,15 @@ class IceBoatListener(private val plugin: PumpkinEventos) : Listener {
                     game.lapStartTimes[uuid] = System.currentTimeMillis()
                 }
                 // En vez de Action Bar (porque choca con el HUD de velocidad), enviamos un subtítulo
-                p.sendTitle("", "§a✔ Checkpoint ${currentCpIndex + 1}/${checks.size}", 0, 20, 5)
+                p.showTitle(Title.title(
+                    net.kyori.adventure.text.Component.empty(),
+                    plugin.languageManager.component(
+                        "common.titles.iceboat_checkpoint.subtitle",
+                        Placeholder.unparsed("checkpoint", (currentCpIndex + 1).toString()),
+                        Placeholder.unparsed("total", checks.size.toString())
+                    ),
+                    Title.Times.times(Duration.ZERO, Duration.ofSeconds(1), Duration.ofMillis(250))
+                ))
             }
         }
 
@@ -154,7 +161,14 @@ class IceBoatListener(private val plugin: PumpkinEventos) : Listener {
                     }
                 } else {
                     p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f)
-                    p.sendTitle("§b§lVUELTA $vueltasActuales", "§f¡Sigue corriendo!", 5, 30, 5)
+                    p.showTitle(Title.title(
+                        plugin.languageManager.component(
+                            "common.titles.iceboat_lap.main",
+                            Placeholder.unparsed("lap", vueltasActuales.toString())
+                        ),
+                        plugin.languageManager.component("common.titles.iceboat_lap.subtitle"),
+                        Title.Times.times(Duration.ofMillis(250), Duration.ofMillis(1500), Duration.ofMillis(250))
+                    ))
                 }
             }
         }

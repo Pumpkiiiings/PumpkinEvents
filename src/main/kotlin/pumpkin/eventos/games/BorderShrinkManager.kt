@@ -37,12 +37,12 @@ class BorderShrinkManager(
         currentSize = 100.0
         isActive = true
 
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ ->
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             scheduleNextShrink(world, centerX, centerZ)
-        }, delaySeconds, TimeUnit.SECONDS)
+        }, delaySeconds * 20L)
 
         // Damage task (1 corazón por segundo fuera del borde)
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
             if (!game.isRunning || !isActive) { task.cancel(); return@runAtFixedRate }
             
             plugin.server.globalRegionScheduler.run(plugin) { _ ->
@@ -61,13 +61,13 @@ class BorderShrinkManager(
                     }
                 }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun scheduleNextShrink(world: World, cx: Double, cz: Double) {
         if (!game.isRunning) return
 
-        plugin.server.asyncScheduler.runDelayed(plugin, { _ ->
+        plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             if (!game.isRunning) return@runDelayed
 
             val newSize = (currentSize - shrinkBlocks * 2).coerceAtLeast(minSize)
@@ -87,7 +87,7 @@ class BorderShrinkManager(
             currentSize = newSize
 
             // Cuando termina la animación → sonido de yunque
-            plugin.server.asyncScheduler.runDelayed(plugin, { _ ->
+            plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
                 if (!game.isRunning) return@runDelayed
                 plugin.server.globalRegionScheduler.run(plugin) { _ ->
                     game.players.forEach { p ->
@@ -98,9 +98,9 @@ class BorderShrinkManager(
                 if (currentSize > minSize) {
                     scheduleNextShrink(world, cx, cz)
                 }
-            }, transitionSeconds, TimeUnit.SECONDS)
+            }, transitionSeconds * 20L)
 
-        }, intervalSeconds, TimeUnit.SECONDS)
+        }, intervalSeconds * 20L)
     }
 
     fun stop(world: World) {

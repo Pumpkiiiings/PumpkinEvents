@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask
 import net.kyori.adventure.bossbar.BossBar
 import net.kyori.adventure.title.Title
@@ -95,7 +96,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             phaseWaitTimer = 10
         }
 
-        bossBar = BossBar.bossBar(plugin.messageManager.parse("⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white>$displayOrden"), 1f, BossBar.Color.WHITE, BossBar.Overlay.NOTCHED_6)
+        bossBar = BossBar.bossBar(plugin.languageManager.component("simon_game.bossbar",
+            Placeholder.parsed("order", displayOrden), Placeholder.unparsed("alive", getJugadoresVivosReales().toString())), 1f, BossBar.Color.WHITE, BossBar.Overlay.NOTCHED_6)
 
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
             players.forEach { p ->
@@ -113,10 +115,10 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                     s.inventory.clear()
                     val star = ItemStack(Material.NETHER_STAR)
                     val meta = star.itemMeta
-                    meta.displayName(plugin.messageManager.parse("<gold><b>⭐ ESTRELLA DE MANDO ⭐</b></gold>"))
+                    meta.displayName(plugin.languageManager.component("simon_game.item.command_star"))
                     star.itemMeta = meta
                     s.inventory.addItem(star)
-                    s.sendMessage(plugin.messageManager.parse("<green>⭐ ¡Kit de mando entregado! Clic derecho para abrir el menú de órdenes.</green>"))
+                    plugin.languageManager.send(s, "simon_game.message.command_kit")
                     s.playSound(s.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1f)
                 }
             } else {
@@ -134,8 +136,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     }
 
     private fun startAutoLoop() {
-        autoTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        autoTask = runAtFixedRate( { task ->
 
             if (getJugadoresVivosReales() <= 1) {
                 plugin.server.globalRegionScheduler.run(plugin) { _ -> checkWinner() }
@@ -154,8 +155,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 if (phaseWaitTimer in 1..5) {
                     val color = if (phaseWaitTimer <= 3) "<red>" else "<yellow>"
                     val title = Title.title(
-                        plugin.messageManager.parse("$color<bold>$phaseWaitTimer</bold>"),
-                        plugin.messageManager.parse("<white>Simón está por dar la orden...")
+                        plugin.languageManager.component("simon_game.title.waiting_main", Placeholder.parsed("countdown", "$color<bold>$phaseWaitTimer</bold>")),
+                        plugin.languageManager.component("simon_game.title.waiting_subtitle")
                     )
                     getJugadoresValidos().forEach {
                         it.showTitle(title)
@@ -200,7 +201,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                     }
                 }
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     fun lanzarRetoConsigue() {
@@ -267,23 +268,23 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         if (activeChallenges.contains("QUIETO")) getJugadoresValidos().forEach { savedPlayers.add(it.uniqueId) }
 
         if (activeChallenges.contains("PAPACALIENTE")) {
-            plugin.server.broadcast(plugin.messageManager.parse("<newline><#FF4500><b>¡MINIJUEGO DE SIMÓN: LA PAPA CALIENTE!</b></#FF4500><newline>"))
+            plugin.languageManager.broadcast("simon_game.message.hot_potato_start")
             plugin.papaCalienteGame.iniciar(this, 30)
             activeChallenges = mutableListOf("MINIJUEGO")
             return
         }
 
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>¡SIMÓN DICE!</b></yellow> <white>» $msg<newline>"))
+        plugin.languageManager.broadcast("simon_game.message.order", Placeholder.parsed("order", msg))
         updateBossBar(BossBar.Color.GREEN)
 
         getJugadoresValidos().forEach { p ->
-            p.showTitle(Title.title(plugin.messageManager.parse("<#39FF14><b>¡NUEVA ORDEN!</b></#39FF14>"), plugin.messageManager.parse(msg)))
+            p.showTitle(Title.title(plugin.languageManager.component("simon_game.title.new_order_main"), plugin.messageManager.parse(msg)))
             p.playSound(p.location, Sound.ENTITY_ENDER_DRAGON_FLAP, 1f, 1f)
         }
 
         var restante = tiempo
 
-        challengeTask = plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
+        challengeTask = runAtFixedRate( { task ->
             if (!isRunning || activeChallenges.isEmpty() || activeChallenges.contains("MINIJUEGO")) {
                 task.cancel(); return@runAtFixedRate
             }
@@ -312,13 +313,13 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             if (restante <= 5) {
                 val color = if (restante <= 3) "<red>" else "<yellow>"
                 val titleAviso = Title.title(
-                    plugin.messageManager.parse("$color<bold>$restante</bold>"),
-                    plugin.messageManager.parse("<white>¡Sigue la orden!</white>")
+                    plugin.languageManager.component("simon_game.title.follow_main", Placeholder.parsed("countdown", "$color<bold>$restante</bold>")),
+                    plugin.languageManager.component("simon_game.title.follow_subtitle")
                 )
                 getJugadoresValidos().forEach { it.showTitle(titleAviso); it.playSound(it.location, Sound.BLOCK_NOTE_BLOCK_HAT, 1f, 2f) }
             }
 
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
     }
 
     private fun endChallenge() {
@@ -335,7 +336,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             }
 
             getJugadoresValidos().forEach { p ->
-                p.showTitle(Title.title(plugin.messageManager.parse("<red><b>¡TIEMPO AGOTADO!</b></red>"), plugin.messageManager.parse("<white>La guadaña está pasando...</white>")))
+                p.showTitle(Title.title(plugin.languageManager.component("simon_game.title.timeout_main"), plugin.languageManager.component("simon_game.title.timeout_subtitle")))
                 p.playSound(p.location, Sound.BLOCK_BELL_USE, 1f, 0.5f)
             }
 
@@ -371,7 +372,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         if (p == streamer) return
         if (!savedPlayers.contains(p.uniqueId)) {
             savedPlayers.add(p.uniqueId)
-            p.sendMessage(plugin.messageManager.parse("<green>✔ <b>¡SALVADO!</b></green> <white>Misión completada.</white>"))
+            plugin.languageManager.send(p, "simon_game.message.saved")
             p.playSound(p.location, Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 1f, 1.2f)
             p.isGlowing = true
             p.world.spawnParticle(Particle.HAPPY_VILLAGER, p.location.add(0.0, 1.5, 0.0), 15, 0.4, 0.4, 0.4, 0.1)
@@ -392,7 +393,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         if (savedPlayers.contains(p.uniqueId)) {
             savedPlayers.remove(p.uniqueId)
             p.isGlowing = false
-            p.sendMessage(plugin.messageManager.parse("<red>⚠️ <b>¡PARA!</b></red> <white>Has dejado de cumplir la orden. ¡Mueres si no sigues!</white>"))
+            plugin.languageManager.send(p, "simon_game.message.stopped_obeying")
             p.playSound(p.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f)
         }
     }
@@ -403,8 +404,8 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
         p.addPotionEffect(PotionEffect(PotionEffectType.DARKNESS, 40, 1, false, false))
         p.isGlowing = true
         p.showTitle(Title.title(
-            plugin.messageManager.parse("<red><bold>☠ ¡ELIMINADO! ☠</bold></red>"),
-            plugin.messageManager.parse("<dark_red>Tu alma ha sido reclamada...</dark_red>"),
+            plugin.languageManager.component("simon_game.title.eliminated_main"),
+            plugin.languageManager.component("simon_game.title.eliminated_subtitle"),
             Title.Times.times(Duration.ofMillis(100), Duration.ofMillis(2000), Duration.ofMillis(500))
         ))
 
@@ -438,22 +439,24 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             p.getAttribute(Attribute.SCALE)?.baseValue = 1.0
 
             val verdugo = if (mode == SimonMode.MANUAL) streamer?.name ?: "Simón" else "Simón"
-            plugin.server.broadcast(plugin.messageManager.parse("<red>☠</red> <yellow>${p.name}</yellow> <white>fue pulverizado por <green>$verdugo.</green>"))
+            plugin.languageManager.broadcast("simon_game.message.eliminated",
+                Placeholder.unparsed("player", p.name), Placeholder.unparsed("executioner", verdugo))
         }, 22L)
     }
 
     private fun updateBossBar(color: BossBar.Color) {
-        val titleText = plugin.messageManager.parse("⚡ <yellow>Simón Dice</yellow> <dark_gray>|</dark_gray> <white>$displayOrden <dark_gray>|</dark_gray> <green>⭐ Vivos: ${getJugadoresVivosReales()}</green>")
+        val titleText = plugin.languageManager.component("simon_game.bossbar",
+            Placeholder.parsed("order", displayOrden), Placeholder.unparsed("alive", getJugadoresVivosReales().toString()))
         bossBar?.name(titleText)
         bossBar?.color(color)
     }
 
     override fun checkWinner() {
         val winner = getJugadoresValidos().firstOrNull() ?: return
-        plugin.server.broadcast(plugin.messageManager.parse("<newline><yellow><b>SIMÓN DICE</b></yellow> <white>» <color:#67FF00>${winner.name}</color> es el ganador definitivo!<newline>"))
+        plugin.languageManager.broadcast("simon_game.message.winner", Placeholder.unparsed("player", winner.name))
         winner.world.spawnParticle(Particle.FIREWORK, winner.location, 100)
         winner.playSound(winner.location, Sound.UI_TOAST_CHALLENGE_COMPLETE, 1f, 1f)
-        plugin.puntajeManager.addPoints(winner, 10, "¡Victoria conseguida!")
+        awardVictory(winner, 10)
         stop()
     }
 
@@ -467,7 +470,7 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
             bossBar = null
         }
 
-        val allPlayers = players + spectators
+        val allPlayers = allParticipants()
         allPlayers.forEach { p ->
             p.getAttribute(Attribute.SCALE)?.baseValue = 1.0
         }
@@ -477,19 +480,6 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
                 w.getNearbyEntities(loc, 40.0, 40.0, 40.0).filterIsInstance<Item>().forEach { it.remove() }
             }
         }
-
-        plugin.eventManager.currentGame = null
-        var lobby = plugin.arenaManager.mainLobby
-
-        if (lobby == null || lobby.world == null) {
-            lobby = plugin.server.worlds[0].spawnLocation
-        }
-
-        allPlayers.forEach { p ->
-            p.inventory.clear()
-            p.activePotionEffects.forEach { p.removePotionEffect(it.type) }
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+        returnToLobby(allPlayers)
     }
 }

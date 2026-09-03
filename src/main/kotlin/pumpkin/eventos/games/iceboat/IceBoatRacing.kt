@@ -111,8 +111,7 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
             p.sendMessage(plugin.messageManager.parse("<yellow>Tienes 10 segundos para votar el número de vueltas.</yellow>"))
         }
 
-        plugin.server.asyncScheduler.runAtFixedRate(plugin, { task ->
-            if (!isRunning) { task.cancel(); return@runAtFixedRate }
+        runAtFixedRate( { task ->
 
             when (phase) {
                 RacePhase.VOTING -> {
@@ -157,7 +156,7 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
                 }
                 RacePhase.ENDED -> task.cancel()
             }
-        }, 1, 1, TimeUnit.SECONDS)
+        }, 20L, 20L)
 
         iniciarMecanicasCarrera()
     }
@@ -204,6 +203,11 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
                         plugin.server.regionScheduler.runDelayed(plugin, loc, { _ ->
                             val boat = targetWorld.spawnEntity(loc, EntityType.CHERRY_BOAT) as Boat
                             boat.addPassenger(p)
+
+                            // OpenBoatUtils Support
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendTenStepInterpolation(plugin, p, true)
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendExclusiveMode(plugin, p, pumpkin.eventos.utils.OpenBoatUtilsManager.MODE_RALLY)
+                            pumpkin.eventos.utils.OpenBoatUtilsManager.sendCollisionMode(plugin, p, pumpkin.eventos.utils.OpenBoatUtilsManager.COLLISION_NO_BOATS_OR_PLAYERS)
                         }, 5L)
                     }
                 }
@@ -232,7 +236,7 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
     }
 
     private fun iniciarMecanicasCarrera() {
-        plugin.server.globalRegionScheduler.runAtFixedRate(plugin, { task ->
+        runAtFixedRate( { task ->
             if (phase == RacePhase.ENDED || !isRunning) { task.cancel(); return@runAtFixedRate }
             if (phase == RacePhase.RACING) {
 
@@ -295,14 +299,9 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
     override fun onStop() {
         phase = RacePhase.ENDED
         ghostTeam?.unregister()
-        plugin.eventManager.currentGame = null
-        val lobby = plugin.arenaManager.mainLobby ?: plugin.server.worlds[0].spawnLocation
-
-        (players + spectators).forEach { p ->
+        returnToLobby(beforeReset = { p ->
             p.vehicle?.remove()
-            p.inventory.clear()
-            p.gameMode = GameMode.ADVENTURE
-            p.teleportAsync(lobby)
-        }
+            pumpkin.eventos.utils.OpenBoatUtilsManager.sendReset(plugin, p)
+        })
     }
 }

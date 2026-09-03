@@ -3,7 +3,10 @@ package pumpkin.eventos.arena
 import org.bukkit.Location
 
 class Arena(val id: String, val type: String) {
+    /** `slime` conserva el flujo histórico; `arenaapi` instancia un .schem temporal. */
+    var worldProvider: String = "slime"
     var slimeWorldName: String? = id
+    var arenaApiTemplateId: String? = null
     var centerLocation: Location? = null
     val spawnPoints: MutableList<Location> = mutableListOf()
 

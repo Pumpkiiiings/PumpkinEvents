@@ -1,5 +1,6 @@
 package pumpkin.eventos.games.simondice
 
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder
 import dev.triumphteam.gui.builder.item.ItemBuilder
 import dev.triumphteam.gui.components.GuiAction
 import dev.triumphteam.gui.guis.Gui
@@ -63,7 +64,7 @@ object SimonMenu {
 
         // --- FILA 5: MINIJUEGOS ---
         gui.setItem(38, crearBoton(plugin, Material.RED_BED, "<#FF3131><b>🛏️ ROMPECAMA</b>", "<gray>Carrera de puentes competitiva.") {
-            streamer.sendMessage(mm.parse("<red>Minijuego en desarrollo...</red>")); gui.close(streamer)
+            plugin.languageManager.send(streamer, "simon_game.menu.in_development"); gui.close(streamer)
         })
         gui.setItem(39, crearBoton(plugin, Material.POISONOUS_POTATO, "<#FF3131><b>🥔 PAPA CALIENTE</b>", "<gray>¡Golpea para pasar la papa!") {
             game.startChallenge(listOf("PAPACALIENTE"), "🥔 <gold>LA PAPA CALIENTE</gold>", 1); gui.close(streamer)
@@ -72,7 +73,7 @@ object SimonMenu {
             plugin.congeladosGame.iniciar(game, 60); gui.close(streamer)
         })
         gui.setItem(41, crearBoton(plugin, Material.NETHERITE_SWORD, "<#FF3131><b>⚔️ DUELO FINAL</b>", "<gray>Torneo 1vs1 automático.") {
-            streamer.sendMessage(mm.parse("<red>Minijuego en desarrollo...</red>")); gui.close(streamer)
+            plugin.languageManager.send(streamer, "simon_game.menu.in_development"); gui.close(streamer)
         })
 
         // --- LATERALES: CONSTRUCTOR DE COMBOS ---
@@ -80,12 +81,12 @@ object SimonMenu {
             if (modoComboActivo.contains(uuid)) {
                 modoComboActivo.remove(uuid)
                 seleccionCombo.remove(uuid)
-                streamer.sendMessage(mm.parse("<red>⌘ <b>COMBO:</b> <white>Constructor desactivado.</red>"))
+                plugin.languageManager.send(streamer, "simon_game.menu.combo_disabled")
                 streamer.playSound(streamer.location, Sound.BLOCK_NOTE_BLOCK_BASS, 1f, 0.5f)
             } else {
                 modoComboActivo.add(uuid)
                 seleccionCombo[uuid] = mutableListOf()
-                streamer.sendMessage(mm.parse("<#BF00FF>⌘ <b>COMBO:</b> <white>Constructor activo. Haz click en los retos...</white>"))
+                plugin.languageManager.send(streamer, "simon_game.menu.combo_enabled")
                 streamer.playSound(streamer.location, Sound.BLOCK_NOTE_BLOCK_BIT, 1f, 1.5f)
             }
         })
@@ -93,7 +94,7 @@ object SimonMenu {
         gui.setItem(26, crearBoton(plugin, Material.TNT, "<#39FF14><b>🧨 ¡LANZAR COMBO!</b>", "<gray>Manda las órdenes seleccionadas.") {
             val combo = seleccionCombo[uuid] ?: mutableListOf()
             if (combo.isEmpty()) {
-                streamer.sendMessage(mm.parse("<red>⚠️ <b>AVISO:</b> Combo vacío.</red>"))
+                plugin.languageManager.send(streamer, "simon_game.menu.combo_empty")
                 return@crearBoton
             }
             gui.close(streamer)
@@ -107,13 +108,12 @@ object SimonMenu {
         // --- SÓTANO: UTILIDADES ---
         gui.setItem(49, crearBoton(plugin, Material.MILK_BUCKET, "<white><b>✨ LIMPIAR ITEMS</b>", "<gray>Borra inventarios de participantes.") {
             game.players.forEach { if(it != streamer) it.inventory.clear() }
-            streamer.sendMessage(mm.parse("<#00FFFF>✨ <b>LIMPIEZA:</b> <white>Inventarios vaciados.</white>"))
+            plugin.languageManager.send(streamer, "simon_game.menu.inventories_cleared")
             streamer.playSound(streamer.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1f)
         })
 
         gui.setItem(50, crearBoton(plugin, Material.BARRIER, "<red><b>🛑 DETENER TODO</b>", "<white><b>¡BOTÓN DE PÁNICO!</b>\n<gray>Finaliza el evento.") {
             game.stop()
-            plugin.eventManager.currentGame = null
             streamer.inventory.clear()
             gui.close(streamer)
         })
@@ -153,12 +153,13 @@ object SimonMenu {
     private fun agregarAlCombo(plugin: PumpkinEventos, streamer: Player, idAccion: String, uuid: UUID) {
         val combo = seleccionCombo.getOrPut(uuid) { mutableListOf() }
         if (combo.contains(idAccion)) {
-            streamer.sendMessage(plugin.messageManager.parse("<red>⚠️ Esta orden ya está en el combo.</red>"))
+            plugin.languageManager.send(streamer, "simon_game.menu.combo_duplicate")
         } else if (combo.size >= 4) {
-            streamer.sendMessage(plugin.messageManager.parse("<red>⚠️ Máximo 4 órdenes por combo.</red>"))
+            plugin.languageManager.send(streamer, "simon_game.menu.combo_full")
         } else {
             combo.add(idAccion)
-            streamer.sendMessage(plugin.messageManager.parse("<#39FF14>⌘ Añadido: <white>$idAccion <gray>(${combo.size}/4)</gray>"))
+            plugin.languageManager.send(streamer, "simon_game.menu.combo_added",
+                Placeholder.unparsed("action", idAccion), Placeholder.unparsed("size", combo.size.toString()))
             streamer.playSound(streamer.location, Sound.BLOCK_AMETHYST_BLOCK_HIT, 1f, 1.5f)
         }
     }

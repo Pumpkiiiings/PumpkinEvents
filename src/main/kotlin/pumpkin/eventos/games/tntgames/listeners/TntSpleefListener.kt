@@ -1,6 +1,8 @@
-package pumpkin.eventos.games.tntgames
+package pumpkin.eventos.games.tntgames.listeners
 
+import org.bukkit.Material
 import org.bukkit.Sound
+import org.bukkit.block.Block
 import org.bukkit.entity.Arrow
 import org.bukkit.entity.Player
 import org.bukkit.entity.TNTPrimed
@@ -11,8 +13,8 @@ import org.bukkit.event.entity.EntityDamageEvent
 import org.bukkit.event.entity.EntityExplodeEvent
 import org.bukkit.event.entity.ProjectileHitEvent
 import org.bukkit.util.Vector
-import org.bukkit.Material
 import pumpkin.eventos.PumpkinEventos
+import pumpkin.eventos.games.tntgames.TntSpleef
 
 class TntSpleefListener(private val plugin: PumpkinEventos) : Listener {
 
@@ -34,7 +36,7 @@ class TntSpleefListener(private val plugin: PumpkinEventos) : Listener {
             val totalTntsToFall = (2..5).random()
             var convertedTnts = 0
 
-            fun convertToFallingTnt(targetBlock: org.bukkit.block.Block) {
+            fun convertToFallingTnt(targetBlock: Block) {
                 if (targetBlock.type == Material.TNT) {
                     targetBlock.type = Material.AIR
                     val tnt = world.spawn(targetBlock.location.add(0.5, 0.0, 0.5), TNTPrimed::class.java)
@@ -45,7 +47,7 @@ class TntSpleefListener(private val plugin: PumpkinEventos) : Listener {
             }
 
             convertToFallingTnt(block)
-            val neighbors = mutableListOf<org.bukkit.block.Block>()
+            val neighbors = mutableListOf<Block>()
             for (x in -1..1) for (z in -1..1) {
                 if (x == 0 && z == 0) continue
                 val near = world.getBlockAt(centerLoc.blockX + x, centerLoc.blockY, centerLoc.blockZ + z)

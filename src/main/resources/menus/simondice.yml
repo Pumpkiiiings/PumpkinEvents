@@ -1,0 +1,20 @@
+title: "<dark_gray>Eventos - Simón Dice..."
+rows: 6
+# Cada botón puede personalizarse sin alterar su acción interna.
+buttons:
+  saltar: { slot: 11, material: LIME_WOOL, name: "<#39FF14><b>▲ SALTAR</b>", lore: ["<gray>Orden: Todos deben saltar."] }
+  agacharse: { slot: 12, material: YELLOW_WOOL, name: "<#CCFF00><b>▼ AGACHARSE</b>", lore: ["<gray>Orden: Todos al suelo."] }
+  caminar: { slot: 13, material: LEATHER_BOOTS, name: "<#00FFFF><b>⇄ CAMINAR</b>", lore: ["<gray>Orden: Nadie puede estar quieto."] }
+  quietos: { slot: 14, material: RED_WOOL, name: "<#FF3131><b>⏹ QUIETOS</b>", lore: ["<gray>Orden: El que se mueva muere."] }
+  golpear: { slot: 15, material: WOODEN_SWORD, name: "<#FFA500><b>⚔ GOLPEAR</b>", lore: ["<gray>Orden: Golpea a alguien o algo."] }
+  frase: { slot: 20, material: FEATHER, name: "<#00FFFF><b>✎ FRASE EXACTA</b>", lore: ["<yellow>✎ Escribe la frase en el chat."] }
+  mates: { slot: 21, material: BOOK, name: "<#CCFF00><b>⌗ CÁLCULO MENTAL</b>", lore: ["<yellow>✎ Escribe la operación."] }
+  consigue: { slot: 22, material: CHEST, name: "<#00FF00><b>🎁 CONSIGUE EL ÍTEM</b>", lore: ["<gray>Orden: Lluvia de ítems, el que se quede sin él muere."] }
+  rompecama: { slot: 38, material: RED_BED, name: "<#FF3131><b>🛏️ ROMPECAMA</b>", lore: ["<gray>Carrera de puentes competitiva."] }
+  papa: { slot: 39, material: POISONOUS_POTATO, name: "<#FF3131><b>🥔 PAPA CALIENTE</b>", lore: ["<gray>¡Golpea para pasar la papa!"] }
+  congelados: { slot: 40, material: ICE, name: "<#00FFFF><b>❄️ CONGELADOS</b>", lore: ["<gray>Rojos vs Azules con rescate."] }
+  duelo: { slot: 41, material: NETHERITE_SWORD, name: "<#FF3131><b>⚔️ DUELO FINAL</b>", lore: ["<gray>Torneo 1vs1 automático."] }
+  combo: { slot: 17, material: LEVER, name: "<#BF00FF><b>🧩 MODO COMBO</b>", lore: ["<gray>Activa/Desactiva el constructor."] }
+  lanzar_combo: { slot: 26, material: TNT, name: "<#39FF14><b>🧨 ¡LANZAR COMBO!</b>", lore: ["<gray>Manda las órdenes seleccionadas."] }
+  limpiar: { slot: 49, material: MILK_BUCKET, name: "<white><b>✨ LIMPIAR ITEMS</b>", lore: ["<gray>Borra inventarios de participantes."] }
+  detener: { slot: 50, material: BARRIER, name: "<red><b>🛑 DETENER TODO</b>", lore: ["<white><b>¡BOTÓN DE PÁNICO!</b>", "<gray>Finaliza el evento."] }

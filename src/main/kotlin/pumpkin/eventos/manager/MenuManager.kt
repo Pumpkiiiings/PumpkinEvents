@@ -41,6 +41,7 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
     )
 
     private val menus = mutableMapOf<String, MenuConfig>()
+    private val menuFiles = mutableMapOf<String, YamlConfiguration>()
     // Track qué inventario abierto corresponde a qué menú
     private val openInventories = mutableMapOf<String, Inventory>() // inventoryTitle -> MenuConfig id
 
@@ -55,7 +56,7 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
             plugin.componentLogger.warn("[MenuManager] No se pudo crear la carpeta de menús.")
             return
         }
-        listOf("miniwalls.yml", "voteskywars.yml").forEach { resourceName ->
+        listOf("miniwalls.yml", "voteskywars.yml", "team-selection.yml", "iceboat.yml", "simondice.yml", "parkour.yml").forEach { resourceName ->
             val target = File(menusDir, resourceName)
             if (!target.exists()) {
                 plugin.saveResource("menus/$resourceName", false)
@@ -65,6 +66,7 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
             try {
                 val cfg = YamlConfiguration.loadConfiguration(file)
                 val id = file.nameWithoutExtension
+                menuFiles[id] = cfg
 
                 val title = cfg.getString("title", "<white>Menú</white>")!!
                 val rows = cfg.getInt("rows", 3).coerceIn(1, 6)
@@ -94,6 +96,19 @@ class MenuManager(private val plugin: PumpkinEventos) : Listener {
             }
         }
     }
+
+    /** Lectura segura para menús con acciones dinámicas (equipos, votos y retos). */
+    fun text(menuId: String, path: String, fallback: String): String =
+        menuFiles[menuId]?.getString(path)?.takeIf { it.isNotBlank() } ?: fallback
+
+    fun lines(menuId: String, path: String, fallback: List<String> = emptyList()): List<String> =
+        menuFiles[menuId]?.getStringList(path)?.takeIf { it.isNotEmpty() } ?: fallback
+
+    fun number(menuId: String, path: String, fallback: Int): Int =
+        menuFiles[menuId]?.takeIf { it.contains(path) }?.getInt(path) ?: fallback
+
+    fun material(menuId: String, path: String, fallback: Material): Material =
+        menuFiles[menuId]?.getString(path)?.let(Material::matchMaterial) ?: fallback
 
     fun openMenu(player: Player, menuId: String) {
         val config = menus[menuId] ?: run {

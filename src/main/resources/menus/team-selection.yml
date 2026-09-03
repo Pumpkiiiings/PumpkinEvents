@@ -1,0 +1,10 @@
+# Reutilizado por BuildBattle, Battle Royale, Parkour y SkyWars dúos.
+title: "<dark_gray>Seleccionar equipo"
+rows: 3
+team:
+  available-material: LIME_STAINED_GLASS_PANE
+  full-material: RED_STAINED_GLASS_PANE
+  name: "<yellow>Equipo <team></yellow>"
+  available: "<green>Clic para unirte</green>"
+  full: "<red>Lleno</red>"
+  member: "<gray>- <player></gray>"

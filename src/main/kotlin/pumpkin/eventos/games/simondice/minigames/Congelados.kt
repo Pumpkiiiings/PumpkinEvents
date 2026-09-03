@@ -24,6 +24,20 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
     val congelados = mutableListOf<UUID>()
     private var gameInstance: SimonDice? = null
 
+    /** Restaura efectos/equipo si Simón se detiene antes de concluir la ronda. */
+    fun stop() {
+        activo = false
+        (azules + rojos).distinct().mapNotNull(plugin.server::getPlayer).forEach { player ->
+            player.inventory.helmet = null
+            player.removePotionEffect(PotionEffectType.SLOWNESS)
+            player.removePotionEffect(PotionEffectType.JUMP_BOOST)
+        }
+        azules.clear()
+        rojos.clear()
+        congelados.clear()
+        gameInstance = null
+    }
+
     fun iniciar(game: SimonDice, tiempoSegundos: Int) {
         val mm = plugin.messageManager
         activo = true
@@ -143,6 +157,7 @@ class Congelados(private val plugin: PumpkinEventos) : Listener {
             game.actionText = "<red>¡TIEMPO AGOTADO!</red>"
 
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+                if (!game.isRunning) return@runDelayed
                 perdedores.forEach { id ->
                     val p = plugin.server.getPlayer(id)
                     if (p != null) game.aplicarCuello(p)

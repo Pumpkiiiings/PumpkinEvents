@@ -72,15 +72,15 @@ class ParkourListener(private val plugin: PumpkinEventos) : Listener {
     //  Team selection menu
     // ─────────────────────────────────────────────────────────────────────────
     private fun abrirMenuEquipos(p: Player, game: Parkour) {
-        val title = plugin.languageManager.get("parkour.menu.team_select_title")
-            .ifBlank { "§8Seleccionar Equipo" }
-        val gui = Gui.gui().title(Component.text(title)).rows(3).disableAllInteractions().create()
+        val menu = plugin.menuManager
+        val gui = Gui.gui().title(plugin.messageManager.parse(menu.text("team-selection", "title", "<dark_gray>Seleccionar equipo")))
+            .rows(menu.number("team-selection", "rows", 3).coerceIn(1, 6)).disableAllInteractions().create()
         val maxEquipos = (game.players.size / 2) + 1
 
         for (i in 1..maxEquipos) {
             val teamPlayers = game.players.filter { game.playerTeam[it] == i }
             val isFull = teamPlayers.size >= 2
-            val icon = if (isFull) Material.RED_STAINED_GLASS_PANE else Material.GREEN_STAINED_GLASS_PANE
+            val icon = menu.material("team-selection", if (isFull) "team.full-material" else "team.available-material", if (isFull) Material.RED_STAINED_GLASS_PANE else Material.GREEN_STAINED_GLASS_PANE)
             val status = if (isFull)
                 plugin.languageManager.get("parkour.menu.team_full").ifBlank { "<red>Lleno</red>" }
             else

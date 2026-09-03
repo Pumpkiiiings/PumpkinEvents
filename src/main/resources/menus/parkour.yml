@@ -1,0 +1,9 @@
+checkpoint-return:
+  title: "<dark_gray>¿Volver al checkpoint?"
+  rows: 1
+  accept:
+    material: LIME_CONCRETE
+    name: "<green><b>Aceptar</b></green>"
+  reject:
+    material: RED_CONCRETE
+    name: "<red><b>Cancelar</b></red>"

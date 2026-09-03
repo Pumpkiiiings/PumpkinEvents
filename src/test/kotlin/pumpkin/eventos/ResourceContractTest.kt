@@ -17,7 +17,11 @@ class ResourceContractTest {
             "messages.yml",
             "scoreboards.yml",
             "menus/miniwalls.yml",
-            "menus/voteskywars.yml"
+            "menus/voteskywars.yml",
+            "menus/team-selection.yml",
+            "menus/iceboat.yml",
+            "menus/parkour.yml",
+            "menus/simondice.yml"
         )
 
         requiredResources.forEach { path ->

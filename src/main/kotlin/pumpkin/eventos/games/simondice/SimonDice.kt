@@ -463,6 +463,9 @@ class SimonDice(plugin: PumpkinEventos) : EventGame(plugin, "simondice", "<green
     override fun onStop() {
         autoTask?.cancel()
         challengeTask?.cancel()
+        plugin.papaCalienteGame.stop()
+        plugin.congeladosGame.stop()
+        plugin.dueloFinalGame.stop()
 
         if (bossBar != null) {
             players.forEach { p -> p.hideBossBar(bossBar!!) }

@@ -254,14 +254,15 @@ class BuildBattleListener(private val plugin: PumpkinEventos) : Listener {
     }
 
     private fun abrirMenuEquipos(p: Player, game: BuildBattle) {
+        val menu = plugin.menuManager
         val gui = dev.triumphteam.gui.guis.Gui.gui()
-            .title(plugin.languageManager.component("buildbattle.team.menu_title"))
-            .rows(3).disableAllInteractions().create()
+            .title(plugin.messageManager.parse(menu.text("team-selection", "title", "<dark_gray>Seleccionar equipo")))
+            .rows(menu.number("team-selection", "rows", 3).coerceIn(1, 6)).disableAllInteractions().create()
 
         val maxEquipos = (game.players.size / 2) + 1
         for (i in 1..maxEquipos) {
             val teamPlayers = game.players.filter { game.playerTeam[it] == i }
-            val icon = if (teamPlayers.size >= 2) Material.RED_STAINED_GLASS_PANE else Material.GREEN_STAINED_GLASS_PANE
+            val icon = menu.material("team-selection", if (teamPlayers.size >= 2) "team.full-material" else "team.available-material", if (teamPlayers.size >= 2) Material.RED_STAINED_GLASS_PANE else Material.GREEN_STAINED_GLASS_PANE)
             val status = plugin.languageManager.component(if (teamPlayers.size >= 2) "buildbattle.team.full" else "buildbattle.team.join_available")
             val lore = mutableListOf<net.kyori.adventure.text.Component?>(status, net.kyori.adventure.text.Component.empty())
             teamPlayers.forEach { member ->

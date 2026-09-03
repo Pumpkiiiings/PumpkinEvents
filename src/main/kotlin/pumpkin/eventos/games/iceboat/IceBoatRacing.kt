@@ -216,13 +216,16 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
     }
 
     fun abrirMenuVotos(p: Player) {
-        val gui = Gui.gui().title(Component.text("§8Votar Vueltas")).rows(1).disableAllInteractions().create()
-        val opciones = listOf(1, 3, 5)
-        val slots = listOf(2, 4, 6)
+        val menu = plugin.menuManager
+        val gui = Gui.gui().title(plugin.messageManager.parse(menu.text("iceboat", "title", "<dark_gray>Votar vueltas")))
+            .rows(menu.number("iceboat", "rows", 1).coerceIn(1, 6)).disableAllInteractions().create()
+        val opciones = menu.lines("iceboat", "options").mapNotNull { it.toIntOrNull() }.ifEmpty { listOf(1, 3, 5) }
+        val slots = menu.lines("iceboat", "slots").mapNotNull { it.toIntOrNull() }.ifEmpty { listOf(2, 4, 6) }
 
         opciones.forEachIndexed { i, vueltas ->
-            val item = ItemBuilder.from(Material.MINECART).name(plugin.messageManager.parse("<#00FFFF><b>$vueltas Vueltas</b>"))
-                .lore(plugin.messageManager.parse("<gray>Haz click para votar.</gray>"))
+            val item = ItemBuilder.from(menu.material("iceboat", "item.material", Material.MINECART))
+                .name(plugin.messageManager.parse(menu.text("iceboat", "item.name", "<#00FFFF><b><laps> vueltas</b>").replace("<laps>", vueltas.toString())))
+                .lore(menu.lines("iceboat", "item.lore", listOf("<gray>Haz clic para votar.</gray>")).map(plugin.messageManager::parse))
                 .flags(ItemFlag.HIDE_ATTRIBUTES)
                 .asGuiItem { _ ->
                     votes[p.uniqueId] = vueltas
@@ -230,7 +233,7 @@ class IceBoatRacing(plugin: PumpkinEventos) : EventGame(plugin, "iceboat", "<#00
                     p.playSound(p.location, Sound.ENTITY_PLAYER_LEVELUP, 1f, 1.5f)
                     gui.close(p)
                 }
-            gui.setItem(slots[i], item)
+            gui.setItem(slots.getOrElse(i) { i + 2 }, item)
         }
         gui.open(p)
     }

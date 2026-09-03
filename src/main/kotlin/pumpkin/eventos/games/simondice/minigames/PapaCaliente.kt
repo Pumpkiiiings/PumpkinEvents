@@ -22,6 +22,14 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
     private var victimaActual: UUID? = null
     private var gameInstance: SimonDice? = null
 
+    /** Cancela de forma idempotente una ronda interrumpida y restaura al portador. */
+    fun stop() {
+        activo = false
+        victimaActual?.let { plugin.server.getPlayer(it) }?.let(::quitarPapa)
+        victimaActual = null
+        gameInstance = null
+    }
+
     fun iniciar(game: SimonDice, tiempoSegundos: Int) {
         // Filtrar jugadores válidos (Sin el streamer)
         val jugadoresValidos = game.players.filter { it != game.streamer }
@@ -153,6 +161,7 @@ class PapaCaliente(private val plugin: PumpkinEventos) : Listener {
         // --- FIX DE REINICIO ---
         // Limpiamos la lista de retos para que el modo automático de Simón Dice siga pensando
         plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
+            if (!game.isRunning) return@runDelayed
             game.activeChallenges.clear()
             game.displayOrden = "Esperando orden..."
         }, 60L) // 3 segundos de pausa dramática

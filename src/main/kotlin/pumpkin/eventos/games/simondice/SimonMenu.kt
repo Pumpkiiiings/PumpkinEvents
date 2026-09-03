@@ -26,58 +26,58 @@ object SimonMenu {
         val mm = plugin.messageManager
 
         val gui = Gui.gui()
-            .title(Component.text("§8Eventos - Simón Dice..."))
-            .rows(6)
+            .title(plugin.messageManager.parse(plugin.menuManager.text("simondice", "title", "<dark_gray>Eventos - Simón Dice...")))
+            .rows(plugin.menuManager.number("simondice", "rows", 6).coerceIn(1, 6))
             .disableAllInteractions()
             .create()
 
         // --- FILA 2: MOVIMIENTO Y ACCIÓN ---
-        gui.setItem(11, crearBoton(plugin, Material.LIME_WOOL, "<#39FF14><b>▲ SALTAR</b>", "<gray>Orden: Todos deben saltar.") {
+        gui.setItem(slot(plugin, "saltar", 11), crearBoton(plugin, "saltar", Material.LIME_WOOL, "<#39FF14><b>▲ SALTAR</b>", "<gray>Orden: Todos deben saltar.") {
             manejarSeleccion(plugin, streamer, "SALTAR") { game.startChallenge(listOf("SALTAR"), "▲ <#39FF14>¡SALTEN!</#39FF14>", 10); gui.close(streamer) }
         })
-        gui.setItem(12, crearBoton(plugin, Material.YELLOW_WOOL, "<#CCFF00><b>▼ AGACHARSE</b>", "<gray>Orden: Todos al suelo.") {
+        gui.setItem(slot(plugin, "agacharse", 12), crearBoton(plugin, "agacharse", Material.YELLOW_WOOL, "<#CCFF00><b>▼ AGACHARSE</b>", "<gray>Orden: Todos al suelo.") {
             manejarSeleccion(plugin, streamer, "AGACHARSE") { game.startChallenge(listOf("AGACHARSE"), "▼ <#CCFF00>¡AGÁCHENSE!</#CCFF00>", 10); gui.close(streamer) }
         })
-        gui.setItem(13, crearBoton(plugin, Material.LEATHER_BOOTS, "<#00FFFF><b>⇄ CAMINAR</b>", "<gray>Orden: Nadie puede estar quieto.") {
+        gui.setItem(slot(plugin, "caminar", 13), crearBoton(plugin, "caminar", Material.LEATHER_BOOTS, "<#00FFFF><b>⇄ CAMINAR</b>", "<gray>Orden: Nadie puede estar quieto.") {
             manejarSeleccion(plugin, streamer, "CAMINAR") { game.startChallenge(listOf("CAMINAR"), "⇄ <#00FFFF>¡CAMINEN!</#00FFFF>", 10); gui.close(streamer) }
         })
-        gui.setItem(14, crearBoton(plugin, Material.RED_WOOL, "<#FF3131><b>⏹ QUIETOS</b>", "<gray>Orden: El que se mueva muere.") {
+        gui.setItem(slot(plugin, "quietos", 14), crearBoton(plugin, "quietos", Material.RED_WOOL, "<#FF3131><b>⏹ QUIETOS</b>", "<gray>Orden: El que se mueva muere.") {
             manejarSeleccion(plugin, streamer, "QUIETO") { game.startChallenge(listOf("QUIETO"), "⏹ <#FF3131>¡QUIETOS!</#FF3131>", 10); gui.close(streamer) }
         })
 
-        gui.setItem(15, crearBoton(plugin, Material.WOODEN_SWORD, "<#FFA500><b>⚔ GOLPEAR</b>", "<gray>Orden: Golpea a alguien o algo.") {
+        gui.setItem(slot(plugin, "golpear", 15), crearBoton(plugin, "golpear", Material.WOODEN_SWORD, "<#FFA500><b>⚔ GOLPEAR</b>", "<gray>Orden: Golpea a alguien o algo.") {
             manejarSeleccion(plugin, streamer, "GOLPEAR") { game.startChallenge(listOf("GOLPEAR"), "⚔ <#FFA500>¡GOLPEEN A ALGUIEN!</#FFA500>", 10); gui.close(streamer) }
         })
 
         // --- FILA 3: CHAT Y LÓGICA ---
-        gui.setItem(20, crearBoton(plugin, Material.FEATHER, "<#00FFFF><b>✎ FRASE EXACTA</b>", "<yellow>✎ Escribe la frase en el chat.") {
+        gui.setItem(slot(plugin, "frase", 20), crearBoton(plugin, "frase", Material.FEATHER, "<#00FFFF><b>✎ FRASE EXACTA</b>", "<yellow>✎ Escribe la frase en el chat.") {
             manejarSeleccionInput(plugin, streamer, "FRASE", "<#00FFFF>✎ <b>Simón dice:</b> <white>Escribe la frase exacta en el chat...", gui)
         })
-        gui.setItem(21, crearBoton(plugin, Material.BOOK, "<#CCFF00><b>⌗ CÁLCULO MENTAL</b>", "<yellow>✎ Escribe la operación.") {
+        gui.setItem(slot(plugin, "mates", 21), crearBoton(plugin, "mates", Material.BOOK, "<#CCFF00><b>⌗ CÁLCULO MENTAL</b>", "<yellow>✎ Escribe la operación.") {
             manejarSeleccionInput(plugin, streamer, "MATES", "<#CCFF00>⌗ <b>Simón dice:</b> <white>Escribe la operación...", gui)
         })
 
         // --- BOTÓN DE CONSEGUIR ÍTEM ---
-        gui.setItem(22, crearBoton(plugin, Material.CHEST, "<#00FF00><b>🎁 CONSIGUE EL ÍTEM</b>", "<gray>Orden: Lluvia de ítems, el que se quede sin él muere.") {
+        gui.setItem(slot(plugin, "consigue", 22), crearBoton(plugin, "consigue", Material.CHEST, "<#00FF00><b>🎁 CONSIGUE EL ÍTEM</b>", "<gray>Orden: Lluvia de ítems, el que se quede sin él muere.") {
             manejarSeleccion(plugin, streamer, "CONSIGUE") { game.lanzarRetoConsigue(); gui.close(streamer) }
         })
 
         // --- FILA 5: MINIJUEGOS ---
-        gui.setItem(38, crearBoton(plugin, Material.RED_BED, "<#FF3131><b>🛏️ ROMPECAMA</b>", "<gray>Carrera de puentes competitiva.") {
+        gui.setItem(slot(plugin, "rompecama", 38), crearBoton(plugin, "rompecama", Material.RED_BED, "<#FF3131><b>🛏️ ROMPECAMA</b>", "<gray>Carrera de puentes competitiva.") {
             plugin.languageManager.send(streamer, "simon_game.menu.in_development"); gui.close(streamer)
         })
-        gui.setItem(39, crearBoton(plugin, Material.POISONOUS_POTATO, "<#FF3131><b>🥔 PAPA CALIENTE</b>", "<gray>¡Golpea para pasar la papa!") {
+        gui.setItem(slot(plugin, "papa", 39), crearBoton(plugin, "papa", Material.POISONOUS_POTATO, "<#FF3131><b>🥔 PAPA CALIENTE</b>", "<gray>¡Golpea para pasar la papa!") {
             game.startChallenge(listOf("PAPACALIENTE"), "🥔 <gold>LA PAPA CALIENTE</gold>", 1); gui.close(streamer)
         })
-        gui.setItem(40, crearBoton(plugin, Material.ICE, "<#00FFFF><b>❄️ CONGELADOS</b>", "<gray>Rojos vs Azules con rescate.") {
+        gui.setItem(slot(plugin, "congelados", 40), crearBoton(plugin, "congelados", Material.ICE, "<#00FFFF><b>❄️ CONGELADOS</b>", "<gray>Rojos vs Azules con rescate.") {
             plugin.congeladosGame.iniciar(game, 60); gui.close(streamer)
         })
-        gui.setItem(41, crearBoton(plugin, Material.NETHERITE_SWORD, "<#FF3131><b>⚔️ DUELO FINAL</b>", "<gray>Torneo 1vs1 automático.") {
+        gui.setItem(slot(plugin, "duelo", 41), crearBoton(plugin, "duelo", Material.NETHERITE_SWORD, "<#FF3131><b>⚔️ DUELO FINAL</b>", "<gray>Torneo 1vs1 automático.") {
             plugin.languageManager.send(streamer, "simon_game.menu.in_development"); gui.close(streamer)
         })
 
         // --- LATERALES: CONSTRUCTOR DE COMBOS ---
-        gui.setItem(17, crearBoton(plugin, Material.LEVER, "<#BF00FF><b>🧩 MODO COMBO</b>", "<gray>Activa/Desactiva el constructor.") {
+        gui.setItem(slot(plugin, "combo", 17), crearBoton(plugin, "combo", Material.LEVER, "<#BF00FF><b>🧩 MODO COMBO</b>", "<gray>Activa/Desactiva el constructor.") {
             if (modoComboActivo.contains(uuid)) {
                 modoComboActivo.remove(uuid)
                 seleccionCombo.remove(uuid)
@@ -91,7 +91,7 @@ object SimonMenu {
             }
         })
 
-        gui.setItem(26, crearBoton(plugin, Material.TNT, "<#39FF14><b>🧨 ¡LANZAR COMBO!</b>", "<gray>Manda las órdenes seleccionadas.") {
+        gui.setItem(slot(plugin, "lanzar_combo", 26), crearBoton(plugin, "lanzar_combo", Material.TNT, "<#39FF14><b>🧨 ¡LANZAR COMBO!</b>", "<gray>Manda las órdenes seleccionadas.") {
             val combo = seleccionCombo[uuid] ?: mutableListOf()
             if (combo.isEmpty()) {
                 plugin.languageManager.send(streamer, "simon_game.menu.combo_empty")
@@ -106,13 +106,13 @@ object SimonMenu {
         })
 
         // --- SÓTANO: UTILIDADES ---
-        gui.setItem(49, crearBoton(plugin, Material.MILK_BUCKET, "<white><b>✨ LIMPIAR ITEMS</b>", "<gray>Borra inventarios de participantes.") {
+        gui.setItem(slot(plugin, "limpiar", 49), crearBoton(plugin, "limpiar", Material.MILK_BUCKET, "<white><b>✨ LIMPIAR ITEMS</b>", "<gray>Borra inventarios de participantes.") {
             game.players.forEach { if(it != streamer) it.inventory.clear() }
             plugin.languageManager.send(streamer, "simon_game.menu.inventories_cleared")
             streamer.playSound(streamer.location, Sound.ENTITY_ITEM_PICKUP, 1f, 1f)
         })
 
-        gui.setItem(50, crearBoton(plugin, Material.BARRIER, "<red><b>🛑 DETENER TODO</b>", "<white><b>¡BOTÓN DE PÁNICO!</b>\n<gray>Finaliza el evento.") {
+        gui.setItem(slot(plugin, "detener", 50), crearBoton(plugin, "detener", Material.BARRIER, "<red><b>🛑 DETENER TODO</b>", "<white><b>¡BOTÓN DE PÁNICO!</b>\n<gray>Finaliza el evento.") {
             game.stop()
             streamer.inventory.clear()
             gui.close(streamer)
@@ -129,6 +129,21 @@ object SimonMenu {
             .flags(ItemFlag.HIDE_ATTRIBUTES, ItemFlag.HIDE_ENCHANTS, ItemFlag.HIDE_ADDITIONAL_TOOLTIP)
             .asGuiItem(accion)
     }
+
+    private fun crearBoton(plugin: PumpkinEventos, key: String, material: Material, name: String, lore: String, action: GuiAction<InventoryClickEvent>): GuiItem {
+        val base = "buttons.$key"
+        val configuredLore = plugin.menuManager.lines("simondice", "$base.lore", lore.split("\n"))
+        return crearBoton(
+            plugin,
+            plugin.menuManager.material("simondice", "$base.material", material),
+            plugin.menuManager.text("simondice", "$base.name", name),
+            configuredLore.joinToString("\n"),
+            action
+        )
+    }
+
+    private fun slot(plugin: PumpkinEventos, key: String, fallback: Int): Int =
+        plugin.menuManager.number("simondice", "buttons.$key.slot", fallback).coerceIn(0, 53)
 
     private fun manejarSeleccionInput(plugin: PumpkinEventos, streamer: Player, idAccion: String, mensajePrompt: String, gui: Gui) {
         val uuid = streamer.uniqueId

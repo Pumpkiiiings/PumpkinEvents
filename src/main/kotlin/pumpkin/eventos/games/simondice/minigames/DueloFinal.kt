@@ -19,6 +19,13 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
     private var luchador2: Player? = null
     private var gameInstance: SimonDice? = null
 
+    fun stop() {
+        torneoActivo = false
+        luchador1 = null
+        luchador2 = null
+        gameInstance = null
+    }
+
     fun iniciarTorneo(game: SimonDice) {
         val mm = plugin.messageManager
         if (game.players.size < 2) {
@@ -108,7 +115,7 @@ class DueloFinal(private val plugin: PumpkinEventos) : Listener {
             game.aplicarCuello(muerto)
 
             plugin.server.globalRegionScheduler.runDelayed(plugin, { _ ->
-                if (torneoActivo) siguienteRonda(game)
+                if (torneoActivo && game.isRunning) siguienteRonda(game)
             }, 70L)
         }
     }
